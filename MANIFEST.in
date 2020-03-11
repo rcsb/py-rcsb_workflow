@@ -1,0 +1,5 @@
+#
+# File: py-rcsb_utils_chemref/MANIFEST.in
+#
+include HISTORY.txt
+#
