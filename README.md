@@ -1,5 +1,7 @@
 # py-rcsb_workflow
 
+[![Build Status](https://dev.azure.com/rcsb/RCSB%20PDB%20Python%20Projects/_apis/build/status/rcsb.py-rcsb_workflow?branchName=master)](https://dev.azure.com/rcsb/RCSB%20PDB%20Python%20Projects/_build/latest?definitionId=21&branchName=master)
+
 ## Introduction
 
 RCSB Python workflow entry points for data processing and ETL/ELT operations.
