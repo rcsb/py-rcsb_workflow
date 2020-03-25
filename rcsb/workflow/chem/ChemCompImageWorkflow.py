@@ -85,7 +85,7 @@ class ChemCompImageWorkflow(object):
                 oed.setDisplayOptions(
                     labelAtomName=False, labelAtomCIPStereo=True, labelAtomIndex=False, labelBondIndex=False, labelBondCIPStereo=True, cellBorders=False, bondDisplayWidth=0.5
                 )
-                oed.setGridOptions(rows=1, cols=1)
+                oed.setGridOptions(rows=1, cols=1, cellBorders=False)
                 oed.prepare()
                 oed.write(imagePath)
             for ccId, oeMol in self.__oeMolD.items():
@@ -96,7 +96,7 @@ class ChemCompImageWorkflow(object):
                 oed.setDisplayOptions(
                     labelAtomName=True, labelAtomCIPStereo=True, labelAtomIndex=False, labelBondIndex=False, abelBondCIPStereo=True, cellBorders=False, bondDisplayWidth=0.5
                 )
-                oed.setGridOptions(rows=1, cols=1)
+                oed.setGridOptions(rows=1, cols=1, cellBorders=False)
                 oed.prepare()
                 oed.write(imagePath)
             return True
