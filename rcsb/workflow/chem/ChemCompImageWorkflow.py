@@ -94,7 +94,7 @@ class ChemCompImageWorkflow(object):
                 title = ""
                 oed.setMolTitleList([(ccId, oeMol, title)])
                 oed.setDisplayOptions(
-                    labelAtomName=True, labelAtomCIPStereo=True, labelAtomIndex=False, labelBondIndex=False, abelBondCIPStereo=True, cellBorders=False, bondDisplayWidth=0.5
+                    labelAtomName=True, labelAtomCIPStereo=True, labelAtomIndex=False, labelBondIndex=False, labelBondCIPStereo=True, cellBorders=False, bondDisplayWidth=0.5
                 )
                 oed.setGridOptions(rows=1, cols=1, cellBorders=False)
                 oed.prepare()
