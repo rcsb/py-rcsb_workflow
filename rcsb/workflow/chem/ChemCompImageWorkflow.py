@@ -82,8 +82,22 @@ class ChemCompImageWorkflow(object):
                 oed = OeDepict()
                 title = ""
                 oed.setMolTitleList([(ccId, oeMol, title)])
+                # ---
+                bondDisplayWidth = 10.0
+                numAtoms = oeMol.NumAtoms()
+                if numAtoms > 100 and numAtoms <= 200:
+                    bondDisplayWidth = 6.0
+                elif numAtoms > 200:
+                    bondDisplayWidth = 4.0
+                # ---
                 oed.setDisplayOptions(
-                    labelAtomName=False, labelAtomCIPStereo=True, labelAtomIndex=False, labelBondIndex=False, labelBondCIPStereo=True, cellBorders=False, bondDisplayWidth=0.5
+                    labelAtomName=False,
+                    labelAtomCIPStereo=True,
+                    labelAtomIndex=False,
+                    labelBondIndex=False,
+                    labelBondCIPStereo=True,
+                    cellBorders=False,
+                    bondDisplayWidth=bondDisplayWidth,
                 )
                 oed.setGridOptions(rows=1, cols=1, cellBorders=False)
                 oed.prepare()
@@ -93,8 +107,22 @@ class ChemCompImageWorkflow(object):
                 oed = OeDepict()
                 title = ""
                 oed.setMolTitleList([(ccId, oeMol, title)])
+                # ---
+                bondDisplayWidth = 10.0
+                numAtoms = oeMol.NumAtoms()
+                if numAtoms > 100 and numAtoms <= 200:
+                    bondDisplayWidth = 6.0
+                elif numAtoms > 200:
+                    bondDisplayWidth = 4.0
+                # ---
                 oed.setDisplayOptions(
-                    labelAtomName=True, labelAtomCIPStereo=True, labelAtomIndex=False, labelBondIndex=False, labelBondCIPStereo=True, cellBorders=False, bondDisplayWidth=0.5
+                    labelAtomName=True,
+                    labelAtomCIPStereo=True,
+                    labelAtomIndex=False,
+                    labelBondIndex=False,
+                    labelBondCIPStereo=True,
+                    cellBorders=False,
+                    bondDisplayWidth=bondDisplayWidth,
                 )
                 oed.setGridOptions(rows=1, cols=1, cellBorders=False)
                 oed.prepare()
