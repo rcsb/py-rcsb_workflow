@@ -1,3 +1,3 @@
 --extra-index-url https://pypi.anaconda.org/OpenEye/simple
-rcsb.utils.chem >= 0.27
+rcsb.utils.chem >= 0.28
 OpenEye-toolkits==2019.10.2

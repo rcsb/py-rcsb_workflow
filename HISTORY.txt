@@ -5,3 +5,4 @@
 27-Mar-2020 - V0.13 Adjust bond stereo depiction for undefined cases.
  2-Apr-2020 - V0.14 Update dependencies
 16-Apr-2020 - V0.15 Adjust bond width with molecule size in 2D depictions
+16-May-2020 - V0.16 Add ChemCompFileWorkflow()
