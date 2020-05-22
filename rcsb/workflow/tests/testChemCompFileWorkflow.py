@@ -1,6 +1,6 @@
 ##
 #
-# File:    ChemCompImageWorkflowTests.py
+# File:    ChemCompFileWorkflowTests.py
 # Author:  jdw
 # Date:    10-Mar-2020
 # Version: 0.001
@@ -33,7 +33,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(mo
 logger = logging.getLogger()
 
 
-class ChemCompImageWorkflowTests(unittest.TestCase):
+class ChemCompFileWorkflowTests(unittest.TestCase):
     def setUp(self):
         self.__startTime = time.time()
         self.__workPath = os.path.join(HERE, "test-output")
@@ -68,7 +68,7 @@ class ChemCompImageWorkflowTests(unittest.TestCase):
 
 def suiteFileGeneration():
     suiteSelect = unittest.TestSuite()
-    suiteSelect.addTest(ChemCompImageWorkflowTests("testMakeFiles"))
+    suiteSelect.addTest(ChemCompFileWorkflowTests("testMakeFiles"))
     return suiteSelect
 
 
