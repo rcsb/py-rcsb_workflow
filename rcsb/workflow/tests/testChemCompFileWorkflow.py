@@ -53,7 +53,7 @@ class ChemCompFileWorkflowTests(unittest.TestCase):
         """
         try:
             # Example uses default urls for public chemical dictionaries
-            ccfWf = ChemCompFileWorkflow(fileDirPath=self.__workPath, cachePath=self.__cachePath)
+            ccfWf = ChemCompFileWorkflow(fileDirPath=self.__workPath, cachePath=self.__cachePath, molBuildType="ideal-xyz")
             ok = ccfWf.testCache()
             if not ok:
                 logger.error("File generation dependency generation failure")

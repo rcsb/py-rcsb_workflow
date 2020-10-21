@@ -31,13 +31,14 @@ class ChemCompFileWorkflow(object):
             licenseFilePath (str) = path to OpenEye license text file
             fileDirPath(str): directory containing generated image tree
             cachePath(str): cache directory for temporary files
-
+            molBuildType(str): build type for constructing OE moleclues ('ideal-xyz', 'model-xyz' default: 'ideal-xyz')
         """
         #
         ccUrlTarget = kwargs.get("ccUrlTarget", None)
         birdUrlTarget = kwargs.get("birdUrlTarget", None)
         self.__licensePath = kwargs.get("licenseFilePath", "oe_license.txt")
         self.__fileDirPath = kwargs.get("fileDirPath", ".")
+        self.__molBuildType = kwargs.get("molBuildType", "ideal-xyz")
         cachePath = kwargs.get("cachePath", ".")
         cachePath = os.path.abspath(cachePath)
 
@@ -47,7 +48,7 @@ class ChemCompFileWorkflow(object):
             birdUrlTarget=birdUrlTarget,
             ccFileNamePrefix="cc-full",
             cachePath=cachePath,
-            molBuildType="ideal-xyz",
+            molBuildType=self.__molBuildType,
             useCache=True,
             oeFileNamePrefix="oe-full",
         )
@@ -74,15 +75,25 @@ class ChemCompFileWorkflow(object):
         """ Create files (mol, mol2) for all public chemical components.
         """
         try:
+
             if fmt not in ["mol", "mol2", "mol2h", "sdf"]:
                 return False
             if not self.__setLicense(self.__licensePath):
                 logger.error("Invalid license details - exiting")
                 return False
             for ccId, oeMol in self.__oeMolD.items():
-                filePath = os.path.join(self.__fileDirPath, fmt, ccId[0], ccId + "." + fmt)
-                oeioU = OeIoUtils()
-                oeioU.write(filePath, oeMol, constantMol=True)
+                if self.__molBuildType == "ideal-xyz":
+                    filePath = os.path.join(self.__fileDirPath, fmt, ccId[0], ccId + "." + fmt)
+                    oeioU = OeIoUtils()
+                    oeioU.write(filePath, oeMol, constantMol=True)
+                    filePath = os.path.join(self.__fileDirPath, fmt, ccId[0], ccId + "_ideal." + fmt)
+                    oeioU = OeIoUtils()
+                    oeioU.write(filePath, oeMol, constantMol=True)
+                else:
+                    filePath = os.path.join(self.__fileDirPath, fmt, ccId[0], ccId + "_model." + fmt)
+                    oeioU = OeIoUtils()
+                    oeioU.write(filePath, oeMol, constantMol=True)
+
             return True
         except Exception as e:
             logger.exception("Failing with %s", str(e))
