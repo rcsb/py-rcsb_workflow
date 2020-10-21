@@ -83,9 +83,6 @@ class ChemCompFileWorkflow(object):
                 return False
             for ccId, oeMol in self.__oeMolD.items():
                 if self.__molBuildType == "ideal-xyz":
-                    filePath = os.path.join(self.__fileDirPath, fmt, ccId[0], ccId + "." + fmt)
-                    oeioU = OeIoUtils()
-                    oeioU.write(filePath, oeMol, constantMol=True)
                     filePath = os.path.join(self.__fileDirPath, fmt, ccId[0], ccId + "_ideal." + fmt)
                     oeioU = OeIoUtils()
                     oeioU.write(filePath, oeMol, constantMol=True)
