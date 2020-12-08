@@ -11,6 +11,7 @@ name: $(BuildDefinitionName)_$(Date:yyyyMMdd)$(Rev:.rr)
 
 trigger:
 - master
+- workflow*
 
 pr:
 - master
