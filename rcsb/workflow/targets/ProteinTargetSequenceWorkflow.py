@@ -94,7 +94,7 @@ class ProteinTargetSequenceWorkflow(object):
                 pw = self.__cfgOb.get("_DRUGBANK_AUTH_PASSWORD", sectionName=configName)
                 dbtP = DrugBankTargetProvider(cachePath=self.__cachePath, useCache=useCache, username=user, password=pw)
                 if dbtP.testCache():
-                    ok = dbtP.exportFasta(fastaPath, taxonPath, addTaxonomy=False)
+                    ok = dbtP.exportFasta(fastaPath, taxonPath, addTaxonomy=addTaxonomy)
             elif resourceName == "chembl":
                 chtP = ChEMBLTargetProvider(cachePath=self.__cachePath, useCache=useCache)
                 if chtP.testCache():
