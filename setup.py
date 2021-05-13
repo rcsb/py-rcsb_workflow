@@ -45,7 +45,7 @@ setup(
         "rcsb.utils.chem >= 0.70",
         "rcsb.utils.seq >= 0.50",
         "rcsb.utils.targets >= 0.20",
-        "rcsb.exdb >= 0.71",
+        "rcsb.exdb >= 0.72",
         "rcsb.utils.seqalign >= 0.18",
         "rcsb.utils.config >= 0.35",
     ],
