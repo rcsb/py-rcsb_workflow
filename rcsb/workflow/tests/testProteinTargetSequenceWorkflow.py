@@ -57,17 +57,50 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - export protein entity sequence Fasta, taxonomy, and sequence details"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.exportProteinEntityFasta()
+            ok = ptsW.exportPDBProteinEntityFasta()
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
             self.fail()
 
     def testExportFastaAbbrev(self):
-        """Test case - export FAST target files (short test w/o pharos)"""
+        """Test case - export FASTA target files (short test w/o pharos)"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.exportTargets(useCache=True, addTaxonomy=False, reloadPharos=False, resourceNameList=["sabdab", "card", "drugbank", "chembl"])
+            ok = ptsW.exportTargets(useCache=True, addTaxonomy=False, reloadPharos=False, resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"])
+            self.assertTrue(ok)
+        except Exception as e:
+            logger.exception("Failing with %s", str(e))
+            self.fail()
+
+    @unittest.skipIf(skipFull, "Very long test")
+    def testExportFastaWithTaxonomy(self):
+        """Test case - export FASTA target files including taxonomy"""
+        try:
+            ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
+            ok = ptsW.exportTargets(useCache=True, addTaxonomy=True, reloadPharos=False, resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"])
+            self.assertTrue(ok)
+        except Exception as e:
+            logger.exception("Failing with %s", str(e))
+            self.fail()
+
+    @unittest.skipIf(skipFull, "Very long test")
+    def testCreateSearchDatabases(self):
+        """Test case - create search databases"""
+        try:
+            ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
+            ok = ptsW.makeSearchDatabase(resourceNameList=["pdb", "sabdab", "card", "drugbank", "chembl", "pharos"])
+            self.assertTrue(ok)
+        except Exception as e:
+            logger.exception("Failing with %s", str(e))
+            self.fail()
+
+    @unittest.skipIf(skipFull, "Very long test")
+    def testSearchDatabases(self):
+        """Test case - search databases"""
+        try:
+            ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
+            ok = ptsW.search(referenceName="pdb", resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"], identityCutoff=0.95, sensitivity=4.5, timeOut=100)
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -75,21 +108,12 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
 
     @unittest.skipIf(skipFull, "Very long test")
     def testFetchUniProtTaxonomy(self):
-        """Test case - fetch UniProt taxonomy mapping"""
+        """Test case - initialize the UniProt taxonomy provider (from scratch ~3482 secs)"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.fetchUniProtTaxonomy()
+            ok = ptsW.updateUniProtTaxonomy()
             self.assertTrue(ok)
-        except Exception as e:
-            logger.exception("Failing with %s", str(e))
-            self.fail()
-
-    @unittest.skipIf(skipFull, "Very long test")
-    def testExportFasta(self):
-        """Test case - export FAST target files (short test w/o pharos)"""
-        try:
-            ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.exportTargets(useCache=True, addTaxonomy=False, reloadPharos=False, resourceNameList=["sabdab", "card", "drugbank", "chembl"])
+            ok = ptsW.initUniProtTaxonomy()
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))

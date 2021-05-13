@@ -41,7 +41,14 @@ setup(
     # entry_points={"console_scripts": ["cactvs_annotate_mol=rcsb.workflow.cactvsAnnotateMol:main"]},
     #  The following is somewhat flakey --
     # dependency_links=[],
-    install_requires=["rcsb.utils.chem >= 0.49", "rcsb.utils.seq >= 0.50", "rcsb.utils.targets >= 0.20", "rcsb.exdb >= 0.69"],
+    install_requires=[
+        "rcsb.utils.chem >= 0.70",
+        "rcsb.utils.seq >= 0.50",
+        "rcsb.utils.targets >= 0.20",
+        "rcsb.exdb >= 0.71",
+        "rcsb.utils.seqalign >= 0.18",
+        "rcsb.utils.config >= 0.35",
+    ],
     packages=find_packages(exclude=["rcsb.mock-data", "rcsb.workflow.tests", "rcsb.workflow.tests-*", "tests.*"]),
     package_data={
         # If any package contains *.md or *.rst ...  files, include them:
