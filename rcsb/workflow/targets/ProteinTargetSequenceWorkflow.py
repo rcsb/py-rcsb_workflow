@@ -229,7 +229,7 @@ class ProteinTargetSequenceWorkflow(object):
 
             mmS = MMseqsUtils(cachePath=self.__cachePath)
 
-            ok = mmS.searchDatabase(resourceName, seqDbTopPath, referenceName, rawPath, minSeqId=identityCutoff, timeOut=timeOut)
+            ok = mmS.searchDatabase(resourceName, seqDbTopPath, referenceName, rawPath, minSeqId=identityCutoff, timeOut=timeOut, sensitivity=sensitivity)
             #
             if mU.exists(taxonPath):
                 mL = mmS.getMatchResults(rawPath, taxonPath, useTaxonomy=True, misMatchCutoff=-1, sequenceIdentityCutoff=identityCutoff)
