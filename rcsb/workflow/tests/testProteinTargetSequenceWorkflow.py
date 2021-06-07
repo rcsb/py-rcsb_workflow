@@ -63,6 +63,7 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
             logger.exception("Failing with %s", str(e))
             self.fail()
 
+    @unittest.skipIf(skipFull, "Stash dependency")
     def testExportFastaAbbrev(self):
         """Test case - export FASTA target files (short test w/o pharos)"""
         try:

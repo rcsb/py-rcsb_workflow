@@ -97,9 +97,7 @@ class ProteinTargetSequenceWorkflow(object):
         for resourceName in resourceNameList:
             startTime = time.time()
             ok = self.__exportTargetFasta(resourceName, useCache=useCache, addTaxonomy=addTaxonomy, reloadPharos=reloadPharos)
-            logger.info(
-                "Completed loading %s targets (status %r)at %s (%.4f seconds)", resourceName, ok, time.strftime("%Y %m %d %H:%M:%S", time.localtime()), time.time() - startTime
-            )
+            logger.info("Completed loading %s targets (status %r)at %s (%.4f seconds)", resourceName, ok, time.strftime("%Y %m %d %H:%M:%S", time.localtime()), time.time() - startTime)
             retOk = retOk and ok
         return retOk
 
@@ -166,9 +164,7 @@ class ProteinTargetSequenceWorkflow(object):
         for resourceName in resourceNameList:
             startTime = time.time()
             ok = self.__makeSearchDatabase(resourceName, timeOut=timeOut)
-            logger.info(
-                "Completed loading %s targets (status %r) at %s (%.4f seconds)", resourceName, ok, time.strftime("%Y %m %d %H:%M:%S", time.localtime()), time.time() - startTime
-            )
+            logger.info("Completed loading %s targets (status %r) at %s (%.4f seconds)", resourceName, ok, time.strftime("%Y %m %d %H:%M:%S", time.localtime()), time.time() - startTime)
             retOk = retOk and ok
         #
         return retOk
@@ -218,7 +214,7 @@ class ProteinTargetSequenceWorkflow(object):
         return retOk
 
     def __searchSimilar(self, referenceName, resourceName, identityCutoff=0.90, timeOut=10, sensitivity=4.5):
-        """Map similar sequences between reference resource and input resource - """
+        """Map similar sequences between reference resource and input resource -"""
         try:
             resultDirPath = self.getResultDirPath()
             taxonPath = self.getTaxonPath(resourceName)
