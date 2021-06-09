@@ -35,6 +35,7 @@ class ProteinTargetSequenceWorkflow(object):
         #
         _ = kwargs
         self.__cfgOb = cfgOb
+        self.__configName = cfgOb.getDefaultSectionName()
         self.__cachePath = os.path.abspath(cachePath)
         self.__fastaCachePath = os.path.join(self.__cachePath, "FASTA")
         self.__seqDbCachePath = os.path.join(self.__cachePath, "seq-databases")
@@ -59,15 +60,27 @@ class ProteinTargetSequenceWorkflow(object):
             logger.exception("Failing with %s", str(e))
         return ok
 
-    def fetchUniProtTaxonomy(self):
+    def initUniProtTaxonomy(self):
         if not self.__umP:
             startTime = time.time()
-            self.__umP = UniProtIdMappingProvider(cachePath=self.__cachePath, mapNames=["NCBI-taxon"], useCache=True, useLegacy=True, fmt="tdd")
-            logger.info("Completed UniProt Id mapping at %s (%.4f seconds)", time.strftime("%Y %m %d %H:%M:%S", time.localtime()), time.time() - startTime)
-            #
-            # taxId = umP.getMappedId("Q6GZX0", mapName="NCBI-taxon")
-            # logger.info("TaxId %r", taxId)
-        return self.__umP is not None
+            umP = UniProtIdMappingProvider(cachePath=self.__cachePath)
+            umP.restore(self.__cfgOb, self.__configName)
+            umP.reload(useCache=True, useLegacy=False, fmt="tdd", mapNames=["NCBI-taxon"])
+            logger.info("Initialized UniProt Id mapping at %s (%.4f seconds)", time.strftime("%Y %m %d %H:%M:%S", time.localtime()), time.time() - startTime)
+            ok = umP.testCache()
+            if ok:
+                self.__umP = umP
+        return ok
+
+    def updateUniProtTaxonomy(self):
+        startTime = time.time()
+        umP = UniProtIdMappingProvider(cachePath=self.__cachePath)
+        umP.clearCache()
+        ok1 = umP.reload(useCache=True, useLegacy=False, fmt="tdd", mapNames=["NCBI-taxon"])
+        logger.info("Completed building UniProt Id mapping (%r) at %s (%.4f seconds)", ok1, time.strftime("%Y %m %d %H:%M:%S", time.localtime()), time.time() - startTime)
+        if ok1:
+            ok2 = umP.backup(self.__cfgOb, self.__configName)
+        return ok1 & ok2
 
     def exportTargets(self, useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False, resourceNameList=None):
         resourceNameList = resourceNameList if resourceNameList else self.__defaultResourceNameList

@@ -57,7 +57,7 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - fetch UniProt taxonomy mapping"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.fetchUniProtTaxonomy()
+            ok = ptsW.initUniProtTaxonomy()
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -74,11 +74,12 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
             logger.exception("Failing with %s", str(e))
             self.fail()
 
+    @unittest.skipIf(skipFull, "Stash dependency")
     def testExportFastaAbbrev(self):
-        """Test case - export FAST target files (short test w/o pharos)"""
+        """Test case - export FASTA target files (short test w/o pharos)"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.exportTargets(useCache=True, addTaxonomy=False, reloadPharos=False, resourceNameList=["sabdab", "card", "drugbank", "chembl"])
+            ok = ptsW.exportTargets(useCache=True, addTaxonomy=False, reloadPharos=False, resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"])
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))

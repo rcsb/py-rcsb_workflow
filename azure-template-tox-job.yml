@@ -56,6 +56,9 @@ jobs:
         displayName: 'Install bison'
       - script: which bison
         displayName: 'Check bison'
+      #
+      - script: brew install mariadb
+        displayName: 'Install mariadb'
     # ----------------------------------------------
     - ${{ if startsWith(parameters.os, 'linux') }}:
       - script: lsb_release -a
