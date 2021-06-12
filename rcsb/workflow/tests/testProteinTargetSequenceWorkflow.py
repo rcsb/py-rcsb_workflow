@@ -52,12 +52,23 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         endTime = time.time()
         logger.info("Completed %s at %s (%.4f seconds)\n", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()), endTime - self.__startTime)
 
+    @unittest.skipIf(skipFull, "Very long test")
+    def testFetchUniProtTaxonomy(self):
+        """Test case - fetch UniProt taxonomy mapping"""
+        try:
+            ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
+            ok = ptsW.initUniProtTaxonomy()
+            self.assertTrue(ok)
+        except Exception as e:
+            logger.exception("Failing with %s", str(e))
+            self.fail()
+
     @unittest.skipIf(skipFull, "Database dependency")
     def testProteinEntityData(self):
         """Test case - export protein entity sequence Fasta, taxonomy, and sequence details"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.exportPDBProteinEntityFasta()
+            ok = ptsW.exportProteinEntityFasta()
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -75,8 +86,8 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
             self.fail()
 
     @unittest.skipIf(skipFull, "Very long test")
-    def testExportFastaWithTaxonomy(self):
-        """Test case - export FASTA target files including taxonomy"""
+    def testExportFasta(self):
+        """Test case - export FASTA target files"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
             ok = ptsW.exportTargets(useCache=True, addTaxonomy=True, reloadPharos=False, resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"])
@@ -90,7 +101,7 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - create search databases"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.makeSearchDatabase(resourceNameList=["pdb", "sabdab", "card", "drugbank", "chembl", "pharos"])
+            ok = ptsW.createSearchDatabases(resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos", "pdbprent"], timeOutSeconds=3600, verbose=False)
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -143,12 +154,15 @@ def abbrevSuite():
 
 def fullSuite():
     suiteSelect = unittest.TestSuite()
-    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testProteinEntityData"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testFetchUniProtTaxonomy"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testProteinEntityData"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testExportFasta"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testCreateSearchDatabases"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testSearchDatabases"))
+
     return suiteSelect
 
 
 if __name__ == "__main__":
-    mySuite = abbrevSuite()
+    mySuite = fullSuite()
     unittest.TextTestRunner(verbosity=2).run(mySuite)

@@ -16,14 +16,10 @@ import logging
 import os
 import time
 
-
 from rcsb.exdb.seq.PolymerEntityExtractor import PolymerEntityExtractor
-
 from rcsb.utils.io.MarshalUtil import MarshalUtil
 from rcsb.utils.seqalign.MMseqsUtils import MMseqsUtils
-
 from rcsb.utils.seq.UniProtIdMappingProvider import UniProtIdMappingProvider
-
 from rcsb.utils.targets.CARDTargetProvider import CARDTargetProvider
 from rcsb.utils.targets.CARDTargetFeatureProvider import CARDTargetFeatureProvider
 from rcsb.utils.targets.ChEMBLTargetProvider import ChEMBLTargetProvider
@@ -44,29 +40,24 @@ class ProteinTargetSequenceWorkflow(object):
         self.__configName = cfgOb.getDefaultSectionName()
         self.__cachePath = os.path.abspath(cachePath)
         self.__fastaCachePath = os.path.join(self.__cachePath, "FASTA")
+        self.__seqDbCachePath = os.path.join(self.__cachePath, "seq-databases")
+        self.__resultCachePath = os.path.join(self.__cachePath, "seq-search-results")
         self.__umP = None
-        self.__nameMap = {
-            "pdb": "pdb-protein",
-            "sabdab": "sabdab-protein",
-            "card": "card-protein",
-            "drugbank": "drugbank-protein",
-            "chembl": "chembl-protein",
-            "pharos": "pharos-protein",
-        }
+        self.__defaultResourceNameList = ["sabdab", "card", "drugbank", "chembl", "pharos"]
 
     def testCache(self):
         return True
 
-    def exportPDBProteinEntityFasta(self, minSeqLen=20):
+    def exportProteinEntityFasta(self, resourceName="pdbprent"):
         """Export protein entity sequence data (fasta, taxon mapping, and essential details)"""
         ok = False
         try:
             #
             pEx = PolymerEntityExtractor(self.__cfgOb)
-            fastaPath = self.getFastaPath("pdb")
-            taxonPath = self.getTaxonPath("pdb")
-            detailsPath = os.path.join(self.__cachePath, "pdb-targets", "pdb-protein-entity-details.json")
-            ok = pEx.exportProteinEntityFasta(fastaPath, taxonPath, detailsPath, minSeqLen=minSeqLen)
+            fastaPath = self.__getFastaPath(resourceName)
+            taxonPath = self.__getTaxonPath(resourceName)
+            detailsPath = self.__getDetailsPath(resourceName)
+            ok = pEx.exportProteinEntityFasta(fastaPath, taxonPath, detailsPath)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return ok
@@ -93,40 +84,22 @@ class ProteinTargetSequenceWorkflow(object):
             ok2 = umP.backup(self.__cfgOb, self.__configName)
         return ok1 & ok2
 
-    def exportTargets(self, useCache=True, addTaxonomy=False, reloadPharos=False, resourceNameList=None):
-        resourceNameList = resourceNameList if resourceNameList else ["sabdab", "card", "drugbank", "chembl", "pharos"]
+    def exportTargets(self, useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False, resourceNameList=None):
+        resourceNameList = resourceNameList if resourceNameList else self.__defaultResourceNameList
         retOk = True
         for resourceName in resourceNameList:
             startTime = time.time()
-            ok = self.__exportTargetFasta(resourceName, useCache=useCache, addTaxonomy=addTaxonomy, reloadPharos=reloadPharos)
+            ok = self.__exportTargetFasta(resourceName, useCache=useCache, addTaxonomy=addTaxonomy, reloadPharos=reloadPharos, fromDbPharos=fromDbPharos)
             logger.info("Completed loading %s targets (status %r)at %s (%.4f seconds)", resourceName, ok, time.strftime("%Y %m %d %H:%M:%S", time.localtime()), time.time() - startTime)
             retOk = retOk and ok
         return retOk
 
-    def getFastaPath(self, resourceName):
-        fp = None
-        if resourceName in self.__nameMap:
-            fp = os.path.join(self.__fastaCachePath, self.__nameMap[resourceName] + "-targets.fa")
-        return fp
-
-    def getTaxonPath(self, resourceName):
-        fp = None
-        if resourceName in self.__nameMap:
-            fp = os.path.join(self.__fastaCachePath, self.__nameMap[resourceName] + "-targets-taxon.tdd")
-        return fp
-
-    def getDatabasePath(self):
-        return os.path.join(self.__cachePath, "db")
-
-    def getResultDirPath(self):
-        return os.path.join(self.__cachePath, "sequence-comparison-results")
-
-    def __exportTargetFasta(self, resourceName, useCache=True, addTaxonomy=False, reloadPharos=False):
+    def __exportTargetFasta(self, resourceName, useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False):
         ok = False
         try:
             configName = self.__cfgOb.getDefaultSectionName()
-            fastaPath = self.getFastaPath(resourceName)
-            taxonPath = self.getTaxonPath(resourceName)
+            fastaPath = self.__getFastaPath(resourceName)
+            taxonPath = self.__getTaxonPath(resourceName)
             if resourceName == "card":
                 cardtP = CARDTargetProvider(cachePath=self.__cachePath, useCache=useCache)
                 if cardtP.testCache():
@@ -144,55 +117,81 @@ class ProteinTargetSequenceWorkflow(object):
             elif resourceName == "pharos":
                 user = self.__cfgOb.get("_MYSQL_DB_USER_NAME", sectionName=configName)
                 pw = self.__cfgOb.get("_MYSQL_DB_PASSWORD_ALT", sectionName=configName)
-                ptP = PharosTargetProvider(cachePath=self.__cachePath, useCache=useCache, reloadDb=reloadPharos, fromDb=reloadPharos, mysqlUser=user, mysqlPassword=pw)
-                if reloadPharos:
-                    ok = ptP.testCache()
-                else:
-                    ok = ptP.restore(self.__cfgOb, self.__configName)
-                if ok:
+                ptP = PharosTargetProvider(cachePath=self.__cachePath, useCache=useCache, reloadDb=reloadPharos, fromDb=fromDbPharos, mysqlUser=user, mysqlPassword=pw)
+                if not (reloadPharos or fromDbPharos):
+                    ok = ptP.restore(self.__cfgOb, configName)
+                if ptP.testCache():
                     ok = ptP.exportProteinFasta(fastaPath, taxonPath, addTaxonomy=addTaxonomy)
             elif resourceName == "sabdab":
                 stP = SAbDabTargetProvider(cachePath=self.__cachePath, useCache=False)
                 if stP.testCache():
                     ok = stP.exportFasta(fastaPath)
+            elif resourceName == "pdbprent":
+                pEx = PolymerEntityExtractor(self.__cfgOb)
+                detailsPath = self.__getDetailsPath(resourceName)
+                ok = pEx.exportProteinEntityFasta(fastaPath, taxonPath, detailsPath)
         except Exception as e:
             logger.exception("Failing for %r with %s", resourceName, str(e))
         #
         return ok
 
-    def makeSearchDatabase(self, resourceNameList=None, timeOut=60):
-        resourceNameList = resourceNameList if resourceNameList else ["sabdab", "card", "drugbank", "chembl", "pharos"]
-        retOk = True
-        for resourceName in resourceNameList:
-            startTime = time.time()
-            ok = self.__makeSearchDatabase(resourceName, timeOut=timeOut)
-            logger.info("Completed loading %s targets (status %r) at %s (%.4f seconds)", resourceName, ok, time.strftime("%Y %m %d %H:%M:%S", time.localtime()), time.time() - startTime)
-            retOk = retOk and ok
-        #
+    def createSearchDatabases(self, resourceNameList=None, timeOutSeconds=3600, verbose=False):
+        """Create sequence search databases for the input resources and optionally include taxonomy details"""
+        try:
+            resourceNameList = resourceNameList if resourceNameList else self.__defaultResourceNameList
+            retOk = True
+            for resourceName in resourceNameList:
+                startTime = time.time()
+                fastaPath = self.__getFastaPath(resourceName)
+                taxonPath = self.__getTaxonPath(resourceName)
+                mmS = MMseqsUtils(cachePath=self.__cachePath)
+                ok = mmS.createSearchDatabase(fastaPath, self.__seqDbCachePath, resourceName, timeOut=timeOutSeconds, verbose=verbose)
+                if ok and taxonPath:
+                    ok = mmS.createTaxonomySearchDatabase(taxonPath, self.__seqDbCachePath, resourceName, timeOut=timeOutSeconds)
+                logger.info(
+                    "Completed creating sequence databases for %s targets (status %r) at %s (%.4f seconds)",
+                    resourceName,
+                    ok,
+                    time.strftime("%Y %m %d %H:%M:%S", time.localtime()),
+                    time.time() - startTime,
+                )
+                retOk = retOk and ok
+            return retOk
+        except Exception as e:
+            logger.exception("Failing with %s", str(e))
+            retOk = False
         return retOk
 
-    def __makeSearchDatabase(self, resourceName, timeOut=None):
-        """Create search database for the input resource.
-
-        Args:
-            resourceName (str): resource name (e.g., drugbank)
-
-        Returns:
-            (bool): True for success or false otherwise
-        """
+    def searchDatabases(self, queryResourceNameList, referenceResourceName, identityCutoff=0.90, timeOutSeconds=3600, sensitivity=4.5):
+        """Search for similar sequences for each query resource in the reference resource"""
+        ok = False
         try:
-
-            mU = MarshalUtil(workPath=self.__cachePath)
-            fastaPath = self.getFastaPath(resourceName)
-            taxonPath = self.getTaxonPath(resourceName)
-            seqDbTopPath = self.getDatabasePath()
-            mU.mkdir(seqDbTopPath)
-            #
-
+            mU = MarshalUtil()
+            mU.mkdir(self.__resultCachePath)
             mmS = MMseqsUtils(cachePath=self.__cachePath)
-            ok = mmS.createSearchDatabase(fastaPath, seqDbTopPath, resourceName, timeOut=timeOut, verbose=True)
-            if ok and mU.exists(taxonPath):
-                ok = mmS.createTaxonomySearchDatabase(taxonPath, seqDbTopPath, resourceName, timeOut=timeOut)
+            retOk = True
+            for queryResourceName in queryResourceNameList:
+                resultPath = self.__getSearchResultPath(queryResourceName, referenceResourceName)
+                mmS = MMseqsUtils(cachePath=self.__cachePath)
+                ok = mmS.searchDatabase(
+                    queryResourceName,
+                    self.__seqDbCachePath,
+                    referenceResourceName,
+                    resultPath,
+                    minSeqId=identityCutoff,
+                    timeOut=timeOutSeconds,
+                    sensitivity=sensitivity,
+                )
+                taxonPath = self.__getTaxonPath(queryResourceName)
+                if taxonPath and mU.exists(taxonPath):
+                    mD = mmS.getMatchResults(resultPath, taxonPath, useTaxonomy=True, misMatchCutoff=-1, sequenceIdentityCutoff=identityCutoff)
+                else:
+                    mD = mmS.getMatchResults(resultPath, None, useTaxonomy=False, misMatchCutoff=-1, sequenceIdentityCutoff=identityCutoff)
+                logger.info("Search result %r (status %r) (queries with matches %d)", queryResourceName, ok, len(mD))
+                filteredPath = self.__getFilteredSearchResultPath(queryResourceName, referenceResourceName)
+                mU.doExport(filteredPath, mD, fmt="json", indent=3)
+                retOk = retOk and ok
+            return retOk
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return ok
@@ -229,7 +228,8 @@ class ProteinTargetSequenceWorkflow(object):
             rawPath = os.path.join(resultDirPath, ky + "-raw.json")
             resultPath = os.path.join(resultDirPath, ky + "-results.json")
 
-            mmS = MMseqsUtils(cachePath=self.__cachePath)
+    def __getSearchResultPath(self, queryResourceName, referenceResourceName):
+        return os.path.join(self.__resultCachePath, queryResourceName + "-vs-" + referenceResourceName + "-raw-results.json")
 
             ok = mmS.searchDatabase(resourceName, seqDbTopPath, referenceName, rawPath, minSeqId=identityCutoff, timeOut=timeOut, sensitivity=sensitivity)
             #

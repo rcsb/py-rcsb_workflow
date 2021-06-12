@@ -2,7 +2,7 @@
 # Date: 1-Oct-2019
 #
 # Updates:
-#
+#  8-Jun-2021 jdw treat requirements.txt dependencies are authoratative, add markdown README.md text
 #
 import re
 
@@ -29,7 +29,7 @@ if not version:
 setup(
     name=thisPackage,
     version=version,
-    description="RCSB Python data processing and ETL/ELT entry points",
+    description="RCSB Python data processing and ETL/ELT workflow entry points",
     long_description_content_type="text/markdown",
     long_description=longDescription,
     author="John Westbrook",
@@ -37,7 +37,7 @@ setup(
     url="https://github.com/rcsb/py-rcsb_workflow",
     #
     license="Apache 2.0",
-    classifiers=(
+    classifiers=[
         "Development Status :: 3 - Alpha",
         # 'Development Status :: 5 - Production/Stable',
         "Intended Audience :: Developers",
@@ -45,12 +45,12 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.9",
-    ),
+        "Programming Language :: Python :: 3.8",
+    ],
     # entry_points={"console_scripts": ["cactvs_annotate_mol=rcsb.workflow.cactvsAnnotateMol:main"]},
     #  The following is somewhat flakey --
     # dependency_links=[],
-    install_requires=packagesRequired,
+    install_requires=packagesRequired[1:],
     packages=find_packages(exclude=["rcsb.mock-data", "rcsb.workflow.tests", "rcsb.workflow.tests-*", "tests.*"]),
     package_data={
         # If any package contains *.md or *.rst ...  files, include them:
