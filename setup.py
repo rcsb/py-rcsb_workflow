@@ -15,6 +15,14 @@ thisPackage = "rcsb.workflow"
 with open("rcsb/workflow/chem/__init__.py", "r") as fd:
     version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', fd.read(), re.MULTILINE).group(1)
 
+
+# Load packages from requirements*.txt
+with open("requirements.txt", "r") as ifh:
+    packagesRequired = [ln.strip() for ln in ifh.readlines()]
+
+with open("README.md", "r") as ifh:
+    longDescription = ifh.read()
+
 if not version:
     raise RuntimeError("Cannot find version information")
 
@@ -22,7 +30,8 @@ setup(
     name=thisPackage,
     version=version,
     description="RCSB Python data processing and ETL/ELT entry points",
-    long_description="See:  README.md",
+    long_description_content_type="text/markdown",
+    long_description=longDescription,
     author="John Westbrook",
     author_email="john.westbrook@rcsb.org",
     url="https://github.com/rcsb/py-rcsb_workflow",
@@ -36,19 +45,12 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
     ),
     # entry_points={"console_scripts": ["cactvs_annotate_mol=rcsb.workflow.cactvsAnnotateMol:main"]},
     #  The following is somewhat flakey --
     # dependency_links=[],
-    install_requires=[
-        "rcsb.utils.chem >= 0.70",
-        "rcsb.utils.seq >= 0.50",
-        "rcsb.utils.targets >= 0.20",
-        "rcsb.exdb >= 0.72",
-        "rcsb.utils.seqalign >= 0.18",
-        "rcsb.utils.config >= 0.35",
-    ],
+    install_requires=packagesRequired,
     packages=find_packages(exclude=["rcsb.mock-data", "rcsb.workflow.tests", "rcsb.workflow.tests-*", "tests.*"]),
     package_data={
         # If any package contains *.md or *.rst ...  files, include them:

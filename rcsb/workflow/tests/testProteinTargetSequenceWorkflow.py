@@ -33,7 +33,7 @@ TOPDIR = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 
 
 class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
-    skipFull = True
+    skipFull = False
 
     def setUp(self):
         self.__mockTopPath = os.path.join(TOPDIR, "rcsb", "mock-data")
@@ -65,7 +65,7 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
 
     @unittest.skipIf(skipFull, "Stash dependency")
     def testExportFastaAbbrev(self):
-        """Test case - export FASTA target files (short test w/o pharos)"""
+        """Test case - export FASTA target files"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
             ok = ptsW.exportTargets(useCache=True, addTaxonomy=False, reloadPharos=False, resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"])
@@ -98,10 +98,23 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
 
     @unittest.skipIf(skipFull, "Very long test")
     def testSearchDatabases(self):
-        """Test case - search databases"""
+        """Test case - search sequence databases"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
             ok = ptsW.search(referenceName="pdb", resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"], identityCutoff=0.95, sensitivity=4.5, timeOut=100)
+            self.assertTrue(ok)
+            ok = ptsW.search(referenceName="pdb", resourceNameList=["card"], identityCutoff=0.95, sensitivity=4.5, timeOut=100, useBitScore=True)
+            self.assertTrue(ok)
+        except Exception as e:
+            logger.exception("Failing with %s", str(e))
+            self.fail()
+
+    @unittest.skipIf(skipFull, "Very long test")
+    def testBuildFeatures(self):
+        """Test case - build features from search results"""
+        try:
+            ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
+            ok = ptsW.buildFeatures(referenceName="pdb", resourceNameList=["sabdab", "card"])
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))

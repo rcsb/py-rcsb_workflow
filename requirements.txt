@@ -1,8 +1,8 @@
 --extra-index-url https://pypi.anaconda.org/OpenEye/simple
-OpenEye-toolkits == 2020.2.0
+OpenEye-toolkits >= 2020.2.2
 rcsb.utils.chem >= 0.70
 rcsb.utils.seq >= 0.50
-rcsb.utils.targets >= 0.20
+rcsb.utils.targets >= 0.22
 rcsb.exdb >= 0.72
-rcsb.utils.seqalign >= 0.18
+rcsb.utils.seqalign >= 0.20
 rcsb.utils.config >= 0.35

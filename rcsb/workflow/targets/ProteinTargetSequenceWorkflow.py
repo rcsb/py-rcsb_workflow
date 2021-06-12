@@ -25,10 +25,12 @@ from rcsb.utils.seqalign.MMseqsUtils import MMseqsUtils
 from rcsb.utils.seq.UniProtIdMappingProvider import UniProtIdMappingProvider
 
 from rcsb.utils.targets.CARDTargetProvider import CARDTargetProvider
+from rcsb.utils.targets.CARDTargetFeatureProvider import CARDTargetFeatureProvider
 from rcsb.utils.targets.ChEMBLTargetProvider import ChEMBLTargetProvider
 from rcsb.utils.targets.DrugBankTargetProvider import DrugBankTargetProvider
 from rcsb.utils.targets.PharosTargetProvider import PharosTargetProvider
 from rcsb.utils.targets.SAbDabTargetProvider import SAbDabTargetProvider
+from rcsb.utils.targets.SAbDabTargetFeatureProvider import SAbDabTargetFeatureProvider
 
 logger = logging.getLogger(__name__)
 
@@ -195,12 +197,12 @@ class ProteinTargetSequenceWorkflow(object):
             logger.exception("Failing with %s", str(e))
         return ok
 
-    def search(self, referenceName, resourceNameList=None, identityCutoff=0.90, timeOut=10, sensitivity=4.5):
+    def search(self, referenceName, resourceNameList=None, identityCutoff=0.90, timeOut=10, sensitivity=4.5, useBitScore=False):
         resourceNameList = resourceNameList if resourceNameList else ["sabdab", "card", "drugbank", "chembl", "pharos"]
         retOk = True
         for resourceName in resourceNameList:
             startTime = time.time()
-            ok = self.__searchSimilar(referenceName, resourceName, identityCutoff=identityCutoff, timeOut=timeOut, sensitivity=sensitivity)
+            ok = self.__searchSimilar(referenceName, resourceName, identityCutoff=identityCutoff, timeOut=timeOut, sensitivity=sensitivity, useBitScore=useBitScore)
             logger.info(
                 "Completed searching %s targets (status %r) (cutoff=%r) at %s (%.4f seconds)",
                 resourceName,
@@ -213,7 +215,7 @@ class ProteinTargetSequenceWorkflow(object):
         #
         return retOk
 
-    def __searchSimilar(self, referenceName, resourceName, identityCutoff=0.90, timeOut=10, sensitivity=4.5):
+    def __searchSimilar(self, referenceName, resourceName, identityCutoff=0.90, timeOut=10, sensitivity=4.5, useBitScore=False):
         """Map similar sequences between reference resource and input resource -"""
         try:
             resultDirPath = self.getResultDirPath()
@@ -231,14 +233,55 @@ class ProteinTargetSequenceWorkflow(object):
 
             ok = mmS.searchDatabase(resourceName, seqDbTopPath, referenceName, rawPath, minSeqId=identityCutoff, timeOut=timeOut, sensitivity=sensitivity)
             #
+            logger.info("bitScore filtering (%r)", useBitScore)
             if mU.exists(taxonPath):
-                mL = mmS.getMatchResults(rawPath, taxonPath, useTaxonomy=True, misMatchCutoff=-1, sequenceIdentityCutoff=identityCutoff)
+                mL = mmS.getMatchResults(rawPath, taxonPath, useTaxonomy=True, misMatchCutoff=-1, sequenceIdentityCutoff=identityCutoff, useBitScore=useBitScore)
             else:
-                mL = mmS.getMatchResults(rawPath, None, useTaxonomy=False, misMatchCutoff=-1, sequenceIdentityCutoff=identityCutoff)
+                mL = mmS.getMatchResults(rawPath, None, useTaxonomy=False, misMatchCutoff=-1, sequenceIdentityCutoff=identityCutoff, useBitScore=useBitScore)
 
-            logger.info("Search result %r (%d)", resourceName, len(mL))
+            logger.info("Query sequences with matches %r (%d)", resourceName, len(mL))
             mU.doExport(resultPath, mL, fmt="json")
             return ok and mL is not None
+        except Exception as e:
+            logger.exception("Failing with %s", str(e))
+        return False
+
+    def buildFeatures(self, referenceName, resourceNameList=None):
+        resourceNameList = resourceNameList if resourceNameList else ["sabdab", "card"]
+        retOk = True
+        for resourceName in resourceNameList:
+            startTime = time.time()
+            ok = self.__buildFeatures(referenceName, resourceName)
+            logger.info(
+                "Completed building features for %s (status %r)  at %s (%.4f seconds)",
+                resourceName,
+                ok,
+                time.strftime("%Y %m %d %H:%M:%S", time.localtime()),
+                time.time() - startTime,
+            )
+            retOk = retOk and ok
+        #
+        return retOk
+
+    def __buildFeatures(self, referenceName, resourceName):
+        """Map similar sequences between reference resource and input resource -"""
+        try:
+            resultDirPath = self.getResultDirPath()
+            mU = MarshalUtil(workPath=self.__cachePath)
+            ky = referenceName + "-" + resourceName
+            seqMatchResultsPath = os.path.join(resultDirPath, ky + "-results.json")
+            #
+            if resourceName == "sabdab":
+                stfP = SAbDabTargetFeatureProvider(cachePath=self.__cachePath, useCache=True)
+                ok = stfP.testCache()
+                ok = stfP.buildFeatureList(seqMatchResultsPath)
+
+            elif resourceName == "card":
+                stfP = CARDTargetFeatureProvider(cachePath=self.__cachePath, useCache=True)
+                ok = stfP.testCache()
+                ok = stfP.buildFeatureList(seqMatchResultsPath)
+
+            return ok
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return False
