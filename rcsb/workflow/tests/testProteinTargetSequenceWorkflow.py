@@ -125,7 +125,7 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - build features from search results"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.buildFeatures(referenceResourceName="pdbprent", resourceNameList=["sabdab", "card"])
+            ok = ptsW.buildFeatures(referenceResourceName="pdbprent", resourceNameList=["sabdab", "card"], backup=True, remotePrefix="T")
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
