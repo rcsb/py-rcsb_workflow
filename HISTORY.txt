@@ -7,6 +7,8 @@
 16-Apr-2020 - V0.15 Adjust bond width with molecule size in 2D depictions
 16-May-2020 - V0.16 Add ChemCompFileWorkflow()
 10-Jun-2020 - V0.17 Add ChemCompSearchIndexWorkflow()
-21-Oct-2020 - V0.18 Add options for files based on model coordindate in ChemCompFileWorkflow()
+21-Oct-2020 - V0.18 Add options for files based on model coordinate in ChemCompFileWorkflow()
 21-Oct-2020 - V0.19 Update file naming conventions
-18-Jan-2021 - V0.20 Preliminary version of ProteinTargetSequenceWorkflow() and tests, update dependencies
+ 8-Jun-2021 - V0.20 Preliminary version of ProteinTargetSequenceWorkflow() and tests, update dependencies
+14-Jun-2021 - V0.21 Adding create database, search database and preliminary build features workflows in ProteinTargetSequenceWorkflow()
+

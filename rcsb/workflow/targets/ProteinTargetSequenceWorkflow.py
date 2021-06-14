@@ -39,11 +39,8 @@ class ProteinTargetSequenceWorkflow(object):
         self.__cfgOb = cfgOb
         self.__configName = cfgOb.getDefaultSectionName()
         self.__cachePath = os.path.abspath(cachePath)
-        self.__fastaCachePath = os.path.join(self.__cachePath, "FASTA")
-        self.__seqDbCachePath = os.path.join(self.__cachePath, "seq-databases")
-        self.__resultCachePath = os.path.join(self.__cachePath, "seq-search-results")
         self.__umP = None
-        self.__defaultResourceNameList = ["sabdab", "card", "drugbank", "chembl", "pharos"]
+        self.__defaultResourceNameList = ["sabdab", "card", "drugbank", "chembl", "pharos", "pdbprent"]
 
     def testCache(self):
         return True
@@ -52,7 +49,6 @@ class ProteinTargetSequenceWorkflow(object):
         """Export protein entity sequence data (fasta, taxon mapping, and essential details)"""
         ok = False
         try:
-            #
             pEx = PolymerEntityExtractor(self.__cfgOb)
             fastaPath = self.__getFastaPath(resourceName)
             taxonPath = self.__getTaxonPath(resourceName)
@@ -84,7 +80,7 @@ class ProteinTargetSequenceWorkflow(object):
             ok2 = umP.backup(self.__cfgOb, self.__configName)
         return ok1 & ok2
 
-    def exportTargets(self, useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False, resourceNameList=None):
+    def exportTargets(self, resourceNameList=None, useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False):
         resourceNameList = resourceNameList if resourceNameList else self.__defaultResourceNameList
         retOk = True
         for resourceName in resourceNameList:
@@ -145,9 +141,9 @@ class ProteinTargetSequenceWorkflow(object):
                 fastaPath = self.__getFastaPath(resourceName)
                 taxonPath = self.__getTaxonPath(resourceName)
                 mmS = MMseqsUtils(cachePath=self.__cachePath)
-                ok = mmS.createSearchDatabase(fastaPath, self.__seqDbCachePath, resourceName, timeOut=timeOutSeconds, verbose=verbose)
+                ok = mmS.createSearchDatabase(fastaPath, self.__getDatabasePath(), resourceName, timeOut=timeOutSeconds, verbose=verbose)
                 if ok and taxonPath:
-                    ok = mmS.createTaxonomySearchDatabase(taxonPath, self.__seqDbCachePath, resourceName, timeOut=timeOutSeconds)
+                    ok = mmS.createTaxonomySearchDatabase(taxonPath, self.__getDatabasePath(), resourceName, timeOut=timeOutSeconds)
                 logger.info(
                     "Completed creating sequence databases for %s targets (status %r) at %s (%.4f seconds)",
                     resourceName,
@@ -162,46 +158,14 @@ class ProteinTargetSequenceWorkflow(object):
             retOk = False
         return retOk
 
-    def searchDatabases(self, queryResourceNameList, referenceResourceName, identityCutoff=0.90, timeOutSeconds=3600, sensitivity=4.5):
-        """Search for similar sequences for each query resource in the reference resource"""
-        ok = False
-        try:
-            mU = MarshalUtil()
-            mU.mkdir(self.__resultCachePath)
-            mmS = MMseqsUtils(cachePath=self.__cachePath)
-            retOk = True
-            for queryResourceName in queryResourceNameList:
-                resultPath = self.__getSearchResultPath(queryResourceName, referenceResourceName)
-                mmS = MMseqsUtils(cachePath=self.__cachePath)
-                ok = mmS.searchDatabase(
-                    queryResourceName,
-                    self.__seqDbCachePath,
-                    referenceResourceName,
-                    resultPath,
-                    minSeqId=identityCutoff,
-                    timeOut=timeOutSeconds,
-                    sensitivity=sensitivity,
-                )
-                taxonPath = self.__getTaxonPath(queryResourceName)
-                if taxonPath and mU.exists(taxonPath):
-                    mD = mmS.getMatchResults(resultPath, taxonPath, useTaxonomy=True, misMatchCutoff=-1, sequenceIdentityCutoff=identityCutoff)
-                else:
-                    mD = mmS.getMatchResults(resultPath, None, useTaxonomy=False, misMatchCutoff=-1, sequenceIdentityCutoff=identityCutoff)
-                logger.info("Search result %r (status %r) (queries with matches %d)", queryResourceName, ok, len(mD))
-                filteredPath = self.__getFilteredSearchResultPath(queryResourceName, referenceResourceName)
-                mU.doExport(filteredPath, mD, fmt="json", indent=3)
-                retOk = retOk and ok
-            return retOk
-        except Exception as e:
-            logger.exception("Failing with %s", str(e))
-        return ok
-
-    def search(self, referenceName, resourceNameList=None, identityCutoff=0.90, timeOut=10, sensitivity=4.5, useBitScore=False):
-        resourceNameList = resourceNameList if resourceNameList else ["sabdab", "card", "drugbank", "chembl", "pharos"]
+    def search(self, referenceResourceName, resourceNameList=None, identityCutoff=0.90, timeOut=10, sensitivity=4.5, useBitScore=False):
+        resourceNameList = resourceNameList if resourceNameList else self.__defaultResourceNameList
         retOk = True
         for resourceName in resourceNameList:
+            if resourceName == referenceResourceName:
+                continue
             startTime = time.time()
-            ok = self.__searchSimilar(referenceName, resourceName, identityCutoff=identityCutoff, timeOut=timeOut, sensitivity=sensitivity, useBitScore=useBitScore)
+            ok = self.__searchSimilar(referenceResourceName, resourceName, identityCutoff=identityCutoff, timeOut=timeOut, sensitivity=sensitivity, useBitScore=useBitScore)
             logger.info(
                 "Completed searching %s targets (status %r) (cutoff=%r) at %s (%.4f seconds)",
                 resourceName,
@@ -214,44 +178,37 @@ class ProteinTargetSequenceWorkflow(object):
         #
         return retOk
 
-    def __searchSimilar(self, referenceName, resourceName, identityCutoff=0.90, timeOut=10, sensitivity=4.5, useBitScore=False):
-        """Map similar sequences between reference resource and input resource -"""
+    def __searchSimilar(self, referenceResourceName, resourceName, identityCutoff=0.90, timeOut=10, sensitivity=4.5, useBitScore=False):
+        """Search for similar sequences in reference resource and input resources"""
         try:
-            resultDirPath = self.getResultDirPath()
-            taxonPath = self.getTaxonPath(resourceName)
-            seqDbTopPath = self.getDatabasePath()
+            resultDirPath = self.__getResultDirPath()
+            taxonPath = self.__getTaxonPath(resourceName)
+            seqDbTopPath = self.__getDatabasePath()
             mU = MarshalUtil(workPath=self.__cachePath)
             mU.mkdir(resultDirPath)
             #
             mmS = MMseqsUtils(cachePath=self.__cachePath)
-            ky = referenceName + "-" + resourceName
-            rawPath = os.path.join(resultDirPath, ky + "-raw.json")
-            resultPath = os.path.join(resultDirPath, ky + "-results.json")
-
-    def __getSearchResultPath(self, queryResourceName, referenceResourceName):
-        return os.path.join(self.__resultCachePath, queryResourceName + "-vs-" + referenceResourceName + "-raw-results.json")
-
-            ok = mmS.searchDatabase(resourceName, seqDbTopPath, referenceName, rawPath, minSeqId=identityCutoff, timeOut=timeOut, sensitivity=sensitivity)
+            rawPath = self.__getSearchResultPath(resourceName, referenceResourceName)
+            resultPath = self.__getFilteredSearchResultPath(resourceName, referenceResourceName)
+            ok = mmS.searchDatabase(resourceName, seqDbTopPath, referenceResourceName, rawPath, minSeqId=identityCutoff, timeOut=timeOut, sensitivity=sensitivity)
             #
-            logger.info("bitScore filtering (%r)", useBitScore)
             if mU.exists(taxonPath):
                 mL = mmS.getMatchResults(rawPath, taxonPath, useTaxonomy=True, misMatchCutoff=-1, sequenceIdentityCutoff=identityCutoff, useBitScore=useBitScore)
             else:
                 mL = mmS.getMatchResults(rawPath, None, useTaxonomy=False, misMatchCutoff=-1, sequenceIdentityCutoff=identityCutoff, useBitScore=useBitScore)
-
-            logger.info("Query sequences with matches %r (%d)", resourceName, len(mL))
+            logger.info("Query sequences with matches %r (%d) bitScore filter (%r)", resourceName, len(mL), useBitScore)
             mU.doExport(resultPath, mL, fmt="json")
             return ok and mL is not None
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return False
 
-    def buildFeatures(self, referenceName, resourceNameList=None):
+    def buildFeatures(self, referenceResourceName, resourceNameList=None, backup=False, remotePrefix=None):
         resourceNameList = resourceNameList if resourceNameList else ["sabdab", "card"]
         retOk = True
         for resourceName in resourceNameList:
             startTime = time.time()
-            ok = self.__buildFeatures(referenceName, resourceName)
+            ok = self.__buildFeatures(referenceResourceName, resourceName, backup=backup, remotePrefix=remotePrefix)
             logger.info(
                 "Completed building features for %s (status %r)  at %s (%.4f seconds)",
                 resourceName,
@@ -263,25 +220,50 @@ class ProteinTargetSequenceWorkflow(object):
         #
         return retOk
 
-    def __buildFeatures(self, referenceName, resourceName):
-        """Map similar sequences between reference resource and input resource -"""
+    def __buildFeatures(self, referenceResourceName, resourceName, backup=False, remotePrefix=None):
+        """Build features inferred from sequence comparison results between the input resources."""
         try:
-            resultDirPath = self.getResultDirPath()
-            mU = MarshalUtil(workPath=self.__cachePath)
-            ky = referenceName + "-" + resourceName
-            seqMatchResultsPath = os.path.join(resultDirPath, ky + "-results.json")
+            okB = True
+            resultPath = self.__getFilteredSearchResultPath(resourceName, referenceResourceName)
             #
             if resourceName == "sabdab":
-                stfP = SAbDabTargetFeatureProvider(cachePath=self.__cachePath, useCache=True)
-                ok = stfP.testCache()
-                ok = stfP.buildFeatureList(seqMatchResultsPath)
+                fP = SAbDabTargetFeatureProvider(cachePath=self.__cachePath, useCache=True)
+                ok = fP.buildFeatureList(resultPath)
+                if backup:
+                    okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
+                    logger.info("%r features backup status (%r)", resourceName, okB)
 
             elif resourceName == "card":
-                stfP = CARDTargetFeatureProvider(cachePath=self.__cachePath, useCache=True)
-                ok = stfP.testCache()
-                ok = stfP.buildFeatureList(seqMatchResultsPath)
+                fP = CARDTargetFeatureProvider(cachePath=self.__cachePath, useCache=True)
+                ok = fP.buildFeatureList(resultPath)
+                if backup:
+                    okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
+                    logger.info("%r features backup status (%r)", resourceName, okB)
 
-            return ok
+            return ok & okB
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return False
+
+    def __getDatabasePath(self):
+        return os.path.join(self.__cachePath, "sequence-databases")
+
+    def __getResultDirPath(self):
+        return os.path.join(self.__cachePath, "sequence-search-results")
+
+    def __getFilteredSearchResultPath(self, queryResourceName, referenceResourceName):
+        return os.path.join(self.__getResultDirPath(), queryResourceName + "-vs-" + referenceResourceName + "-filtered-results.json")
+
+    def __getSearchResultPath(self, queryResourceName, referenceResourceName):
+        return os.path.join(self.__getResultDirPath(), queryResourceName + "-vs-" + referenceResourceName + "-raw-results.json")
+
+    def __getFastaPath(self, resourceName):
+        return os.path.join(self.__cachePath, "FASTA", resourceName + "-targets.fa")
+
+    def __getTaxonPath(self, resourceName):
+        if resourceName == "sabdab":
+            return None
+        return os.path.join(self.__cachePath, "FASTA", resourceName + "-targets-taxon.tdd")
+
+    def __getDetailsPath(self, resourceName):
+        return os.path.join(self.__cachePath, resourceName, resourceName + "-details.json")

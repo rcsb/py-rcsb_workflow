@@ -112,9 +112,9 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - search sequence databases"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.search(referenceName="pdb", resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"], identityCutoff=0.95, sensitivity=4.5, timeOut=100)
+            ok = ptsW.search(referenceResourceName="pdbprent", resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"], identityCutoff=0.95, sensitivity=4.5, timeOut=300)
             self.assertTrue(ok)
-            ok = ptsW.search(referenceName="pdb", resourceNameList=["card"], identityCutoff=0.95, sensitivity=4.5, timeOut=100, useBitScore=True)
+            ok = ptsW.search(referenceResourceName="pdbprent", resourceNameList=["card"], identityCutoff=0.95, sensitivity=4.5, timeOut=100, useBitScore=True)
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -125,14 +125,14 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - build features from search results"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.buildFeatures(referenceName="pdb", resourceNameList=["sabdab", "card"])
+            ok = ptsW.buildFeatures(referenceResourceName="pdbprent", resourceNameList=["sabdab", "card"])
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
             self.fail()
 
     @unittest.skipIf(skipFull, "Very long test")
-    def testFetchUniProtTaxonomy(self):
+    def testUpdateUniProtTaxonomy(self):
         """Test case - initialize the UniProt taxonomy provider (from scratch ~3482 secs)"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
@@ -159,6 +159,7 @@ def fullSuite():
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testExportFasta"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testCreateSearchDatabases"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testSearchDatabases"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testBuildFeatures"))
 
     return suiteSelect
 

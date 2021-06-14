@@ -2,6 +2,7 @@
 OpenEye-toolkits >= 2020.2.2
 rcsb.utils.chem >= 0.71
 rcsb.utils.seq >= 0.61
-rcsb.utils.targets >= 0.21
+rcsb.utils.targets >= 0.24
 rcsb.utils.seqalign >= 0.18
 rcsb.exdb >= 0.77
+rcsb.utils.io >= 1.14
