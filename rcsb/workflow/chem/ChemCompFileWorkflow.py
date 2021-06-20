@@ -7,7 +7,7 @@
 #  Updates:
 #
 ##
-__docformat__ = "restructuredtext en"
+__docformat__ = "google en"
 __author__ = "John Westbrook"
 __email__ = "jwest@rcsb.rutgers.edu"
 __license__ = "Apache 2.0"
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 class ChemCompFileWorkflow(object):
     def __init__(self, **kwargs):
-        """ Module entry point for chemical component definition 2D image generation
+        """Module entry point for chemical component definition 2D image generation
 
         Args:
             ccUrlTarget (str): URL or path for concatenated chemical component dictionary (default: public wwPDB ftp)
@@ -72,8 +72,7 @@ class ChemCompFileWorkflow(object):
         return self.__oemp.testCache() if self.__oemp else False
 
     def makeFiles(self, fmt="sdf"):
-        """ Create files (mol, mol2) for all public chemical components.
-        """
+        """Create files (mol, mol2) for all public chemical components."""
         try:
 
             if fmt not in ["mol", "mol2", "mol2h", "sdf"]:

@@ -9,7 +9,7 @@
 """
 Tests for protein target data ETL operations.
 """
-__docformat__ = "restructuredtext en"
+__docformat__ = "google en"
 __author__ = "John Westbrook"
 __email__ = "jwest@rcsb.rutgers.edu"
 __license__ = "Apache 2.0"
@@ -33,7 +33,7 @@ TOPDIR = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 
 
 class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
-    skipFull = False
+    skipFull = True
 
     def setUp(self):
         self.__mockTopPath = os.path.join(TOPDIR, "rcsb", "mock-data")
@@ -69,6 +69,17 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
             ok = ptsW.exportProteinEntityFasta()
+            self.assertTrue(ok)
+        except Exception as e:
+            logger.exception("Failing with %s", str(e))
+            self.fail()
+
+    @unittest.skipIf(skipFull, "Database dependency")
+    def testChemicalReferenceMappingData(self):
+        """Test case - export chemical reference identifier mapping details"""
+        try:
+            ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
+            ok = ptsW.exportChemRefMapping()
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -125,12 +136,36 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - build features from search results"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.buildFeatures(referenceResourceName="pdbprent", resourceNameList=["sabdab", "card"], backup=True, remotePrefix="T")
+            ok = ptsW.buildFeatureData(referenceResourceName="pdbprent", resourceNameList=["sabdab", "card"], backup=True, remotePrefix="T")
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
             self.fail()
 
+    @unittest.skipIf(skipFull, "Very long test")
+    def testBuildActivityData(self):
+        """Test case - build features from search results"""
+        try:
+            ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
+            ok = ptsW.buildActivityData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos"], backup=True, remotePrefix="T")
+            self.assertTrue(ok)
+        except Exception as e:
+            logger.exception("Failing with %s", str(e))
+            self.fail()
+
+    @unittest.skipIf(skipFull, "Very long test")
+    def testBuildCofactorData(self):
+        """Test case - build features from search results"""
+        try:
+            ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
+            ok = ptsW.buildCofactorData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos"], backup=True, remotePrefix="T")
+            self.assertTrue(ok)
+        except Exception as e:
+            logger.exception("Failing with %s", str(e))
+            self.fail()
+
+    #
+    # --- --- --- ---
     @unittest.skipIf(skipFull, "Very long test")
     def testUpdateUniProtTaxonomy(self):
         """Test case - initialize the UniProt taxonomy provider (from scratch ~3482 secs)"""
@@ -160,7 +195,8 @@ def fullSuite():
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testCreateSearchDatabases"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testSearchDatabases"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testBuildFeatures"))
-
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testBuildActivityData"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testBuildCofactorData"))
     return suiteSelect
 
 

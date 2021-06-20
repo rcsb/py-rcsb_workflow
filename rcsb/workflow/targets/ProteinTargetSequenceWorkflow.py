@@ -7,7 +7,7 @@
 #
 #  Updates:
 ##
-__docformat__ = "restructuredtext en"
+__docformat__ = "google en"
 __author__ = "John Westbrook"
 __email__ = "jwest@rcsb.rutgers.edu"
 __license__ = "Apache 2.0"
@@ -16,6 +16,7 @@ import logging
 import os
 import time
 
+from rcsb.exdb.chemref.ChemRefMappingProvider import ChemRefMappingProvider
 from rcsb.exdb.seq.PolymerEntityExtractor import PolymerEntityExtractor
 from rcsb.utils.io.MarshalUtil import MarshalUtil
 from rcsb.utils.seqalign.MMseqsUtils import MMseqsUtils
@@ -23,8 +24,13 @@ from rcsb.utils.seq.UniProtIdMappingProvider import UniProtIdMappingProvider
 from rcsb.utils.targets.CARDTargetProvider import CARDTargetProvider
 from rcsb.utils.targets.CARDTargetFeatureProvider import CARDTargetFeatureProvider
 from rcsb.utils.targets.ChEMBLTargetProvider import ChEMBLTargetProvider
+from rcsb.utils.targets.ChEMBLTargetActivityProvider import ChEMBLTargetActivityProvider
+from rcsb.utils.targets.ChEMBLTargetCofactorProvider import ChEMBLTargetCofactorProvider
 from rcsb.utils.targets.DrugBankTargetProvider import DrugBankTargetProvider
+from rcsb.utils.targets.DrugBankTargetCofactorProvider import DrugBankTargetCofactorProvider
 from rcsb.utils.targets.PharosTargetProvider import PharosTargetProvider
+from rcsb.utils.targets.PharosTargetActivityProvider import PharosTargetActivityProvider
+from rcsb.utils.targets.PharosTargetCofactorProvider import PharosTargetCofactorProvider
 from rcsb.utils.targets.SAbDabTargetProvider import SAbDabTargetProvider
 from rcsb.utils.targets.SAbDabTargetFeatureProvider import SAbDabTargetFeatureProvider
 
@@ -44,6 +50,18 @@ class ProteinTargetSequenceWorkflow(object):
 
     def testCache(self):
         return True
+
+    def exportChemRefMapping(self):
+        """Export chemical reference data identifier mapping data"""
+        ok = False
+        try:
+            crmP = ChemRefMappingProvider(self.__cachePath, useCache=False)
+            okF = crmP.fetchChemRefMapping(self.__cfgOb)
+            okB = crmP.backup(self.__cfgOb, self.__configName)
+            ok = okF and okB
+        except Exception as e:
+            logger.exception("Failing with %s", str(e))
+        return ok
 
     def exportProteinEntityFasta(self, resourceName="pdbprent"):
         """Export protein entity sequence data (fasta, taxon mapping, and essential details)"""
@@ -90,7 +108,7 @@ class ProteinTargetSequenceWorkflow(object):
             retOk = retOk and ok
         return retOk
 
-    def __exportTargetFasta(self, resourceName, useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False):
+    def __exportTargetFasta(self, resourceName, useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False, remotePrefix=None):
         ok = False
         try:
             configName = self.__cfgOb.getDefaultSectionName()
@@ -115,7 +133,7 @@ class ProteinTargetSequenceWorkflow(object):
                 pw = self.__cfgOb.get("_MYSQL_DB_PASSWORD_ALT", sectionName=configName)
                 ptP = PharosTargetProvider(cachePath=self.__cachePath, useCache=useCache, reloadDb=reloadPharos, fromDb=fromDbPharos, mysqlUser=user, mysqlPassword=pw)
                 if not (reloadPharos or fromDbPharos):
-                    ok = ptP.restore(self.__cfgOb, configName)
+                    ok = ptP.restore(self.__cfgOb, configName, remotePrefix=remotePrefix)
                 if ptP.testCache():
                     ok = ptP.exportProteinFasta(fastaPath, taxonPath, addTaxonomy=addTaxonomy)
             elif resourceName == "sabdab":
@@ -203,12 +221,12 @@ class ProteinTargetSequenceWorkflow(object):
             logger.exception("Failing with %s", str(e))
         return False
 
-    def buildFeatures(self, referenceResourceName, resourceNameList=None, backup=False, remotePrefix=None):
+    def buildFeatureData(self, referenceResourceName, resourceNameList=None, backup=False, remotePrefix=None):
         resourceNameList = resourceNameList if resourceNameList else ["sabdab", "card"]
         retOk = True
         for resourceName in resourceNameList:
             startTime = time.time()
-            ok = self.__buildFeatures(referenceResourceName, resourceName, backup=backup, remotePrefix=remotePrefix)
+            ok = self.__buildFeatureData(referenceResourceName, resourceName, backup=backup, remotePrefix=remotePrefix)
             logger.info(
                 "Completed building features for %s (status %r)  at %s (%.4f seconds)",
                 resourceName,
@@ -220,7 +238,7 @@ class ProteinTargetSequenceWorkflow(object):
         #
         return retOk
 
-    def __buildFeatures(self, referenceResourceName, resourceName, backup=False, remotePrefix=None):
+    def __buildFeatureData(self, referenceResourceName, resourceName, backup=False, remotePrefix=None):
         """Build features inferred from sequence comparison results between the input resources."""
         try:
             okB = True
@@ -239,6 +257,103 @@ class ProteinTargetSequenceWorkflow(object):
                 if backup:
                     okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
                     logger.info("%r features backup status (%r)", resourceName, okB)
+
+            return ok & okB
+        except Exception as e:
+            logger.exception("Failing with %s", str(e))
+        return False
+
+    def buildActivityData(self, referenceResourceName, resourceNameList=None, backup=False, remotePrefix=None):
+        resourceNameList = resourceNameList if resourceNameList else ["chembl", "pharos"]
+        retOk = True
+        for resourceName in resourceNameList:
+            startTime = time.time()
+            ok = self.__buildActivityData(referenceResourceName, resourceName, backup=backup, remotePrefix=remotePrefix)
+            logger.info(
+                "Completed building activity data for %s (status %r)  at %s (%.4f seconds)",
+                resourceName,
+                ok,
+                time.strftime("%Y %m %d %H:%M:%S", time.localtime()),
+                time.time() - startTime,
+            )
+            retOk = retOk and ok
+        #
+        return retOk
+
+    def __buildActivityData(self, referenceResourceName, resourceName, backup=False, remotePrefix=None):
+        """Build features inferred from sequence comparison results between the input resources."""
+        try:
+            okB = True
+            resultPath = self.__getFilteredSearchResultPath(resourceName, referenceResourceName)
+            #
+            if resourceName == "chembl":
+                aP = ChEMBLTargetActivityProvider(cachePath=self.__cachePath, useCache=True)
+                aP.restore(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
+                targetIdList = aP.getTargetIdList(resultPath)
+                ok = aP.fetchTargetActivityData(targetIdList, skipExisting=False, chunkSize=50)
+                #
+                if backup:
+                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
+                    logger.info("%r activity backup status (%r)", resourceName, okB)
+
+            elif resourceName == "pharos":
+                aP = PharosTargetActivityProvider(cachePath=self.__cachePath, useCache=True)
+                ok = aP.fetchTargetActivityData()
+                if backup:
+                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
+                    logger.info("%r activity data backup status (%r)", resourceName, okB)
+
+            return ok & okB
+        except Exception as e:
+            logger.exception("Failing with %s", str(e))
+        return False
+
+    def buildCofactorData(self, referenceResourceName, resourceNameList=None, backup=False, remotePrefix=None):
+        resourceNameList = resourceNameList if resourceNameList else ["chembl", "pharos", "drugbank"]
+        retOk = True
+        for resourceName in resourceNameList:
+            startTime = time.time()
+            ok = self.__buildCofactorData(referenceResourceName, resourceName, backup=backup, remotePrefix=remotePrefix)
+            logger.info(
+                "Completed building cofactor data for %s (status %r)  at %s (%.4f seconds)",
+                resourceName,
+                ok,
+                time.strftime("%Y %m %d %H:%M:%S", time.localtime()),
+                time.time() - startTime,
+            )
+            retOk = retOk and ok
+        #
+        return retOk
+
+    def __buildCofactorData(self, referenceResourceName, resourceName, backup=False, remotePrefix=None):
+        """Build cofactor data inferred from sequence comparison results between the input resources."""
+        try:
+            maxActivity = 5
+            crmpObj = ChemRefMappingProvider(cachePath=self.__cachePath, useCache=True)
+            okB = True
+            resultPath = self.__getFilteredSearchResultPath(resourceName, referenceResourceName)
+            #
+            if resourceName == "chembl":
+                aP = ChEMBLTargetCofactorProvider(cachePath=self.__cachePath, useCache=True)
+                ok = aP.buildCofactorList(resultPath, crmpObj=crmpObj, maxActivity=maxActivity)
+                #
+                if backup:
+                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
+                    logger.info("%r cofactor backup status (%r)", resourceName, okB)
+
+            elif resourceName == "pharos":
+                aP = PharosTargetCofactorProvider(cachePath=self.__cachePath, useCache=True)
+                ok = aP.buildCofactorList(resultPath, crmpObj=crmpObj, maxActivity=maxActivity)
+                if backup:
+                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
+                    logger.info("%r cofactor data backup status (%r)", resourceName, okB)
+
+            elif resourceName == "drugbank":
+                aP = DrugBankTargetCofactorProvider(cachePath=self.__cachePath, useCache=True)
+                ok = aP.buildCofactorList(resultPath, crmpObj=crmpObj)
+                if backup:
+                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
+                    logger.info("%r cofactor data backup status (%r)", resourceName, okB)
 
             return ok & okB
         except Exception as e:

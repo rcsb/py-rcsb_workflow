@@ -7,7 +7,7 @@
 #  Updates:
 #
 ##
-__docformat__ = "restructuredtext en"
+__docformat__ = "google en"
 __author__ = "John Westbrook"
 __email__ = "jwest@rcsb.rutgers.edu"
 __license__ = "Apache 2.0"
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 class ChemCompImageWorkflow(object):
     def __init__(self, **kwargs):
-        """ Module entry point for chemical component definition 2D image generation
+        """Module entry point for chemical component definition 2D image generation
 
         Args:
             ccUrlTarget (str): URL or path for concatenated chemical component dictionary (default: public wwPDB ftp)
@@ -71,8 +71,7 @@ class ChemCompImageWorkflow(object):
         return self.__oemp.testCache() if self.__oemp else False
 
     def makeImages(self):
-        """ Create images for all public chemical components with and without atom labels.
-        """
+        """Create images for all public chemical components with and without atom labels."""
         try:
             if not self.__setLicense(self.__licensePath):
                 logger.error("Invalid license details - exiting")
