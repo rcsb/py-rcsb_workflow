@@ -264,7 +264,7 @@ class ProteinTargetSequenceWorkflow(object):
         return False
 
     def buildActivityData(self, referenceResourceName, resourceNameList=None, backup=False, remotePrefix=None):
-        resourceNameList = resourceNameList if resourceNameList else ["chembl", "pharos"]
+        resourceNameList = resourceNameList if resourceNameList else ["pharos", "chembl"]
         retOk = True
         for resourceName in resourceNameList:
             startTime = time.time()
@@ -290,7 +290,7 @@ class ProteinTargetSequenceWorkflow(object):
                 aP = ChEMBLTargetActivityProvider(cachePath=self.__cachePath, useCache=True)
                 aP.restore(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
                 targetIdList = aP.getTargetIdList(resultPath)
-                ok = aP.fetchTargetActivityData(targetIdList, skipExisting=False, chunkSize=50)
+                ok = aP.fetchTargetActivityDataMulti(targetIdList, skipExisting=True, chunkSize=50, numProc=6)
                 #
                 if backup:
                     okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)

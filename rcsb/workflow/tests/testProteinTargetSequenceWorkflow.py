@@ -23,6 +23,7 @@ import unittest
 
 from rcsb.workflow.targets.ProteinTargetSequenceWorkflow import ProteinTargetSequenceWorkflow
 from rcsb.utils.config.ConfigUtil import ConfigUtil
+from rcsb.utils.io.FileUtil import FileUtil
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
@@ -51,6 +52,25 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         logger.info("Maximum resident memory size %.4f %s", rusageMax / 10 ** 6, unitS)
         endTime = time.time()
         logger.info("Completed %s at %s (%.4f seconds)\n", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()), endTime - self.__startTime)
+
+    def __pharosFixture(self):
+        try:
+            ok = False
+            fU = FileUtil()
+            dataPath = os.path.join(HERE, "test-data")
+            srcPath = os.path.join(dataPath, "Pharos-targets")
+            dstPath = os.path.join(self.__cachePath, "Pharos-targets")
+            for fn in ["drug_activity", "cmpd_activity", "target", "protein", "t2tc"]:
+                inpPath = os.path.join(srcPath, fn + ".tdd.gz")
+                outPath = os.path.join(dstPath, fn + ".tdd.gz")
+                fU.get(inpPath, outPath)
+                fU.uncompress(outPath, outputDir=dstPath)
+                fU.remove(outPath)
+            ok = True
+        except Exception as e:
+            logger.exception("Failing with %s", str(e))
+            ok = False
+        return ok
 
     @unittest.skipIf(skipFull, "Very long test")
     def testFetchUniProtTaxonomy(self):
@@ -190,6 +210,7 @@ def abbrevSuite():
 def fullSuite():
     suiteSelect = unittest.TestSuite()
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testFetchUniProtTaxonomy"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testChemicalReferenceMappingData"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testProteinEntityData"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testExportFasta"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testCreateSearchDatabases"))
