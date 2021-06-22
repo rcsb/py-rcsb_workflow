@@ -12,3 +12,4 @@
  8-Jun-2021 - V0.20 Preliminary version of ProteinTargetSequenceWorkflow() and tests, update dependencies
 14-Jun-2021 - V0.21 Adding create database, search database and preliminary build features workflows in ProteinTargetSequenceWorkflow()
 20-Jun-2021 - V0.22 Adding activity and cofactor workflows in ProteinTargetSequenceWorkflow()
+22-Jun-2021 - V0.23 Aligning cofactor content model accross data sources
