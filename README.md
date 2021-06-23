@@ -14,6 +14,10 @@ Download the library source software from the project repository:
 
 git clone   --recurse-submodules https://github.com/rcsb/py-rcsb_workflow.git
 
+# or to make sure the submodules are updated --
+git submodule update --recursive --init
+git submodule update --recursive --remote
+
 ```
 
 Optionally, run test suite (Python versions 3.8) using

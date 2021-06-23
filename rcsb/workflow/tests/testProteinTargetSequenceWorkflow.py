@@ -118,10 +118,10 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
 
     @unittest.skipIf(skipFull, "Very long test")
     def testExportFasta(self):
-        """Test case - export FASTA target files"""
+        """Test case - export FASTA target files (and load Pharos from source)"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.exportTargets(useCache=True, addTaxonomy=True, reloadPharos=False, resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"])
+            ok = ptsW.exportTargets(useCache=True, addTaxonomy=True, reloadPharos=True, fromDbPharos=True, resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"])
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -178,7 +178,7 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - build features from search results"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.buildCofactorData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos"], backup=True, remotePrefix="T")
+            ok = ptsW.buildCofactorData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos", "drugbank"], backup=True, remotePrefix="T")
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
