@@ -290,7 +290,7 @@ class ProteinTargetSequenceWorkflow(object):
                 aP = ChEMBLTargetActivityProvider(cachePath=self.__cachePath, useCache=True)
                 aP.restore(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
                 targetIdList = aP.getTargetIdList(resultPath)
-                ok = aP.fetchTargetActivityDataMulti(targetIdList, skipExisting=True, chunkSize=50, numProc=6)
+                ok = aP.fetchTargetActivityDataMulti(targetIdList, skip="tried", chunkSize=50, numProc=6)
                 #
                 if backup:
                     okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)

@@ -1,7 +1,7 @@
 ##
 # File:    ProteinTargetSequenceTests.py
 # Author:  J. Westbrook
-# Date:    8-Dec-2020
+# Date:    25-Jun-2021
 #
 # Updates:
 #
