@@ -11,7 +11,7 @@
 A collection of tests chemical component index generation workflows
 
 """
-__docformat__ = "restructuredtext en"
+__docformat__ = "google en"
 __author__ = "John Westbrook"
 __email__ = "jwest@rcsb.rutgers.edu"
 __license__ = "Creative Commons Attribution 3.0 Unported"

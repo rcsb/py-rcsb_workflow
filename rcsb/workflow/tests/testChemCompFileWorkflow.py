@@ -11,7 +11,7 @@
 A collection of tests chemical component file generation workflows
 
 """
-__docformat__ = "restructuredtext en"
+__docformat__ = "google en"
 __author__ = "John Westbrook"
 __email__ = "jwest@rcsb.rutgers.edu"
 __license__ = "Creative Commons Attribution 3.0 Unported"
@@ -49,8 +49,7 @@ class ChemCompFileWorkflowTests(unittest.TestCase):
         logger.info("Completed %s at %s (%.4f seconds)", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()), endTime - self.__startTime)
 
     def testMakeFiles(self):
-        """Test case -  generate all sdf and mol2 files for chemical component definitions.
-        """
+        """Test case -  generate all sdf and mol2 files for chemical component definitions."""
         try:
             # Example uses default urls for public chemical dictionaries
             ccfWf = ChemCompFileWorkflow(fileDirPath=self.__workPath, cachePath=self.__cachePath, molBuildType="ideal-xyz")

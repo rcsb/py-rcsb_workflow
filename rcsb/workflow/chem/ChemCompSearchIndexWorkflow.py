@@ -7,7 +7,7 @@
 #  Updates:
 #  10-Jun-2020 jdw Hookup to ChemCompSearchWrapper()
 ##
-__docformat__ = "restructuredtext en"
+__docformat__ = "google en"
 __author__ = "John Westbrook"
 __email__ = "jwest@rcsb.rutgers.edu"
 __license__ = "Apache 2.0"
@@ -22,12 +22,12 @@ logger = logging.getLogger(__name__)
 
 class ChemCompSearchIndexWorkflow(object):
     def __init__(self, **kwargs):
-        """ Module entry point for chemical component and BIRD search index generation workflow.
+        """Module entry point for chemical component and BIRD search index generation workflow.
 
-            Args:
-                cachePath(str, optional): cache directory to store indices and temporary files (default: '.')
-                licenseFilePath (str, optional) = path to OpenEye license text file (default: use enviroment OE_LICENSE setting)
-                ccFilNamePrefix (str, optional) =  index prefix (default: "cc-full")
+        Args:
+            cachePath(str, optional): cache directory to store indices and temporary files (default: '.')
+            licenseFilePath (str, optional) = path to OpenEye license text file (default: use enviroment OE_LICENSE setting)
+            ccFilNamePrefix (str, optional) =  index prefix (default: "cc-full")
         """
         self.__licensePath = kwargs.get("licenseFilePath", "oe_license.txt")
         cachePath = kwargs.get("cachePath", ".")
@@ -55,14 +55,14 @@ class ChemCompSearchIndexWorkflow(object):
     def makeIndices(self, ccUrlTarget, birdUrlTarget, **kwargs):
         """Build chemical component and BIRD search indices.
 
-            Args:
-                ccUrlTarget (str): URL or path for concatenated chemical component dictionary
-                birdUrlTarget (str): URL or path for concatenated BIRD dictionary
+        Args:
+            ccUrlTarget (str): URL or path for concatenated chemical component dictionary
+            birdUrlTarget (str): URL or path for concatenated BIRD dictionary
 
-                Other arguments may be supplied to change defaults for index generators (testing/troubleshooting)
+            Other arguments may be supplied to change defaults for index generators (testing/troubleshooting)
 
-            Returns:
-                bool:  True for success or False otherwise
+        Returns:
+            bool:  True for success or False otherwise
 
         """
         ok = False
@@ -77,7 +77,7 @@ class ChemCompSearchIndexWorkflow(object):
         return ok
 
     def stashIndices(self, url, dirPath, bundleLabel="A", userName=None, pw=None):
-        """ Store a copy of the bundled search dependencies remotely -
+        """Store a copy of the bundled search dependencies remotely -
 
         Args:
             url (str): URL string for the destination host (e.g. sftp://myserver.net or None for a local file)

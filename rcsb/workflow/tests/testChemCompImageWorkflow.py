@@ -11,7 +11,7 @@
 A collection of tests chemical component image generation workflows
 
 """
-__docformat__ = "restructuredtext en"
+__docformat__ = "google en"
 __author__ = "John Westbrook"
 __email__ = "jwest@rcsb.rutgers.edu"
 __license__ = "Creative Commons Attribution 3.0 Unported"
@@ -49,8 +49,7 @@ class ChemCompImageWorkflowTests(unittest.TestCase):
         logger.info("Completed %s at %s (%.4f seconds)", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()), endTime - self.__startTime)
 
     def testMakeImages(self):
-        """Test case -  generate all images for chemical component defintions.
-        """
+        """Test case -  generate all images for chemical component defintions."""
         try:
             # Example uses default urls for public chemical dictionaries
             cciWf = ChemCompImageWorkflow(imagePath=self.__workPath, cachePath=self.__cachePath)
