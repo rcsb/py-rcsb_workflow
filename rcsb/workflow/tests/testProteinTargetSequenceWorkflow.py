@@ -43,6 +43,7 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         self.__cfgOb = ConfigUtil(configPath=configPath, defaultSectionName=configName, mockTopPath=self.__mockTopPath)
         self.__cachePath = os.path.join(HERE, "test-output", "CACHE")
         #
+        self.__workflowFixture()
         self.__startTime = time.time()
         logger.debug("Starting %s at %s", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()))
 
@@ -53,12 +54,12 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         endTime = time.time()
         logger.info("Completed %s at %s (%.4f seconds)\n", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()), endTime - self.__startTime)
 
-    def __pharosFixture(self):
+    def __workflowFixture(self):
         try:
             ok = False
             fU = FileUtil()
             dataPath = os.path.join(HERE, "test-data")
-            srcPath = os.path.join(dataPath, "Pharos-targets")
+            srcPath = os.path.join(dataPath, "Pharos")
             dstPath = os.path.join(self.__cachePath, "Pharos-targets")
             for fn in ["drug_activity", "cmpd_activity", "target", "protein", "t2tc"]:
                 inpPath = os.path.join(srcPath, fn + ".tdd.gz")
@@ -66,6 +67,19 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
                 fU.get(inpPath, outPath)
                 fU.uncompress(outPath, outputDir=dstPath)
                 fU.remove(outPath)
+            #
+            fU.put(os.path.join(srcPath, "pharos-readme.txt"), os.path.join(dstPath, "pharos-readme.txt"))
+            #
+            fastaPath = os.path.join(self.__cachePath, "FASTA")
+            outPath = os.path.join(fastaPath, "pdbprent-targets.fa.gz")
+            fU.mkdir(fastaPath)
+            fU.put(os.path.join(dataPath, "pdbprent-targets.fa.gz"), outPath)
+            fU.uncompress(outPath, outputDir=fastaPath)
+            #
+            crPath = os.path.join(self.__cachePath, "chemref-mapping")
+            outPath = os.path.join(crPath, "chemref-mapping-data.json")
+            fU.mkdir(crPath)
+            fU.put(os.path.join(dataPath, "chemref-mapping-data.json"), outPath)
             ok = True
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -74,10 +88,10 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
 
     @unittest.skipIf(skipFull, "Very long test")
     def testFetchUniProtTaxonomy(self):
-        """Test case - fetch UniProt taxonomy mapping"""
+        """Test case - reload UniProt taxonomy mapping"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.initUniProtTaxonomy()
+            ok = ptsW.reloadUniProtTaxonomy()
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -85,10 +99,10 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
 
     @unittest.skipIf(skipFull, "Database dependency")
     def testProteinEntityData(self):
-        """Test case - export protein entity sequence Fasta, taxonomy, and sequence details"""
+        """Test case - export RCSB protein entity sequence FASTA, taxonomy, and sequence details"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.exportProteinEntityFasta()
+            ok = ptsW.exportRCSBProteinEntityFasta()
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -96,21 +110,31 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
 
     @unittest.skipIf(skipFull, "Database dependency")
     def testChemicalReferenceMappingData(self):
-        """Test case - export chemical reference identifier mapping details"""
+        """Test case - export RCSB chemical reference identifier mapping details"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.exportChemRefMapping()
+            ok = ptsW.exportRCSBChemRefMapping()
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
             self.fail()
 
-    @unittest.skipIf(skipFull, "Stash dependency")
-    def testExportFastaAbbrev(self):
+    @unittest.skipIf(skipFull, "Database dependency")
+    def testLigandNeighborMappingData(self):
+        """Test case - export RCSB ligand neighbor mapping details"""
+        try:
+            ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
+            ok = ptsW.exportRCSBLigandNeighborMapping()
+            self.assertTrue(ok)
+        except Exception as e:
+            logger.exception("Failing with %s", str(e))
+            self.fail()
+
+    def testAAExportFastaAbbrev(self):
         """Test case - export FASTA target files"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.exportTargets(useCache=True, addTaxonomy=False, reloadPharos=False, resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"])
+            ok = ptsW.exportTargetsFasta(useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False, resourceNameList=["sabdab", "card", "chembl", "pharos"])
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -121,64 +145,69 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - export FASTA target files (and load Pharos from source)"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.exportTargets(useCache=True, addTaxonomy=True, reloadPharos=True, fromDbPharos=True, resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"])
+            ok = ptsW.exportTargetsFasta(useCache=True, addTaxonomy=True, reloadPharos=True, fromDbPharos=True, resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"])
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
             self.fail()
 
-    @unittest.skipIf(skipFull, "Very long test")
-    def testCreateSearchDatabases(self):
+    def testBBCreateSearchDatabases(self):
         """Test case - create search databases"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.createSearchDatabases(resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos", "pdbprent"], timeOutSeconds=3600, verbose=False)
+            ok = ptsW.createSearchDatabases(resourceNameList=["sabdab", "card", "chembl", "pharos", "pdbprent"], addTaxonomy=False, timeOutSeconds=3600, verbose=False)
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
             self.fail()
 
-    @unittest.skipIf(skipFull, "Very long test")
-    def testSearchDatabases(self):
+    def testCCSearchDatabases(self):
         """Test case - search sequence databases"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.search(referenceResourceName="pdbprent", resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"], identityCutoff=0.95, sensitivity=4.5, timeOut=300)
+            formatOutput = "query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,raw,bits,qlen,tlen,qaln,taln,cigar"
+            ok = ptsW.search(
+                referenceResourceName="pdbprent",
+                resourceNameList=["sabdab", "chembl", "pharos"],
+                identityCutoff=0.95,
+                sensitivity=4.5,
+                timeOutSeconds=300,
+                formatOutput=formatOutput,
+            )
             self.assertTrue(ok)
-            ok = ptsW.search(referenceResourceName="pdbprent", resourceNameList=["card"], identityCutoff=0.95, sensitivity=4.5, timeOut=100, useBitScore=True)
-            self.assertTrue(ok)
-        except Exception as e:
-            logger.exception("Failing with %s", str(e))
-            self.fail()
-
-    @unittest.skipIf(skipFull, "Very long test")
-    def testBuildFeatures(self):
-        """Test case - build features from search results"""
-        try:
-            ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.buildFeatureData(referenceResourceName="pdbprent", resourceNameList=["sabdab", "card"], backup=True, remotePrefix="T")
-            self.assertTrue(ok)
-        except Exception as e:
-            logger.exception("Failing with %s", str(e))
-            self.fail()
-
-    @unittest.skipIf(skipFull, "Very long test")
-    def testBuildActivityData(self):
-        """Test case - build features from search results"""
-        try:
-            ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.buildActivityData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos"], backup=True, remotePrefix="T")
+            ok = ptsW.search(
+                referenceResourceName="pdbprent", resourceNameList=["card"], identityCutoff=0.95, sensitivity=4.5, timeOutSeconds=100, useBitScore=True, formatOutput=formatOutput
+            )
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
             self.fail()
 
-    @unittest.skipIf(skipFull, "Very long test")
-    def testBuildCofactorData(self):
+    def testDDBuildFeatures(self):
         """Test case - build features from search results"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.buildCofactorData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos", "drugbank"], backup=True, remotePrefix="T")
+            ok = ptsW.buildFeatureData(referenceResourceName="pdbprent", resourceNameList=["sabdab", "card"], backup=False)
+            self.assertTrue(ok)
+        except Exception as e:
+            logger.exception("Failing with %s", str(e))
+            self.fail()
+
+    def testEEBuildActivityData(self):
+        """Test case - build features from search results"""
+        try:
+            ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
+            ok = ptsW.buildActivityData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos"], backup=False, maxTargets=50)
+            self.assertTrue(ok)
+        except Exception as e:
+            logger.exception("Failing with %s", str(e))
+            self.fail()
+
+    def testFFBuildCofactorData(self):
+        """Test case - build features from search results"""
+        try:
+            ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
+            ok = ptsW.buildCofactorData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos"], backup=False)
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -193,7 +222,7 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
             ok = ptsW.updateUniProtTaxonomy()
             self.assertTrue(ok)
-            ok = ptsW.initUniProtTaxonomy()
+            ok = ptsW.updateUniProtTaxonomy()
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -202,8 +231,12 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
 
 def abbrevSuite():
     suiteSelect = unittest.TestSuite()
-    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testProteinEntityData"))
-    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testExportFastaAbbrev"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testAAExportFastaAbbrev"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testBBCreateSearchDatabases"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testCCSearchDatabases"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testDDBuildFeatures"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testDDBuildActivityData"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testFFBuildCofactorData"))
     return suiteSelect
 
 
@@ -211,16 +244,17 @@ def fullSuite():
     suiteSelect = unittest.TestSuite()
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testFetchUniProtTaxonomy"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testChemicalReferenceMappingData"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testLigandNeighborMappingData"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testProteinEntityData"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testExportFasta"))
-    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testCreateSearchDatabases"))
-    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testSearchDatabases"))
-    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testBuildFeatures"))
-    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testBuildActivityData"))
-    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testBuildCofactorData"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testBBCreateSearchDatabases"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testCCSearchDatabases"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testDDBuildFeatures"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testDDBuildActivityData"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testFFBuildCofactorData"))
     return suiteSelect
 
 
 if __name__ == "__main__":
-    mySuite = fullSuite()
+    mySuite = abbrevSuite()
     unittest.TextTestRunner(verbosity=2).run(mySuite)

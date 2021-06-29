@@ -17,6 +17,7 @@ import os
 import time
 
 from rcsb.exdb.chemref.ChemRefMappingProvider import ChemRefMappingProvider
+from rcsb.exdb.seq.LigandNeighborMappingProvider import LigandNeighborMappingProvider
 from rcsb.exdb.seq.PolymerEntityExtractor import PolymerEntityExtractor
 from rcsb.utils.io.MarshalUtil import MarshalUtil
 from rcsb.utils.seqalign.MMseqsUtils import MMseqsUtils
@@ -46,13 +47,13 @@ class ProteinTargetSequenceWorkflow(object):
         self.__configName = cfgOb.getDefaultSectionName()
         self.__cachePath = os.path.abspath(cachePath)
         self.__umP = None
-        self.__defaultResourceNameList = ["sabdab", "card", "drugbank", "chembl", "pharos", "pdbprent"]
+        self.__defaultResourceNameList = ["sabdab", "card", "drugbank", "chembl", "mysql", "pdbprent"]
 
     def testCache(self):
         return True
 
-    def exportChemRefMapping(self):
-        """Export chemical reference data identifier mapping data"""
+    def exportRCSBChemRefMapping(self):
+        """Export RCSB chemical reference data identifier mapping data"""
         ok = False
         try:
             crmP = ChemRefMappingProvider(self.__cachePath, useCache=False)
@@ -63,8 +64,20 @@ class ProteinTargetSequenceWorkflow(object):
             logger.exception("Failing with %s", str(e))
         return ok
 
-    def exportProteinEntityFasta(self, resourceName="pdbprent"):
-        """Export protein entity sequence data (fasta, taxon mapping, and essential details)"""
+    def exportRCSBLigandNeighborMapping(self):
+        """Export RCSB ligand neighbor mapping data"""
+        ok = False
+        try:
+            crmP = LigandNeighborMappingProvider(self.__cachePath, useCache=False)
+            okF = crmP.fetchLigandNeighborMapping(self.__cfgOb)
+            okB = crmP.backup(self.__cfgOb, self.__configName)
+            ok = okF and okB
+        except Exception as e:
+            logger.exception("Failing with %s", str(e))
+        return ok
+
+    def exportRCSBProteinEntityFasta(self, resourceName="pdbprent"):
+        """Export RCSB protein entity sequence data (FASTA, taxon mapping, and essential details)"""
         ok = False
         try:
             pEx = PolymerEntityExtractor(self.__cfgOb)
@@ -76,7 +89,8 @@ class ProteinTargetSequenceWorkflow(object):
             logger.exception("Failing with %s", str(e))
         return ok
 
-    def initUniProtTaxonomy(self):
+    def reloadUniProtTaxonomy(self):
+        """Reload UniProt taxonomy mapping data from cached resource files"""
         if not self.__umP:
             startTime = time.time()
             umP = UniProtIdMappingProvider(cachePath=self.__cachePath)
@@ -89,6 +103,7 @@ class ProteinTargetSequenceWorkflow(object):
         return ok
 
     def updateUniProtTaxonomy(self):
+        """Update Uniprot taxonomy mapping data from source files"""
         startTime = time.time()
         umP = UniProtIdMappingProvider(cachePath=self.__cachePath)
         umP.clearCache()
@@ -98,17 +113,29 @@ class ProteinTargetSequenceWorkflow(object):
             ok2 = umP.backup(self.__cfgOb, self.__configName)
         return ok1 & ok2
 
-    def exportTargets(self, resourceNameList=None, useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False):
+    def exportTargetsFasta(self, resourceNameList=None, useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False):
+        """Export the target FASTA files for the input data resources.
+
+        Args:
+            resourceNameList (list, optional): list of data resources. Defaults to ["sabdab", "card", "drugbank", "chembl", "pharos", "pdbprent"].
+            useCache (bool, optional): use cached data files. Defaults to True.
+            addTaxonomy (bool, optional): add taxonomy details to each target record. Defaults to False.
+            reloadPharos (bool, optional): reload Pharos target resources from SQL dump. Defaults to False.
+            fromDbPharos (bool, optional): export Pharos target resources from local database server. Defaults to False.
+
+        Returns:
+            bool: True for success or False otherwise
+        """
         resourceNameList = resourceNameList if resourceNameList else self.__defaultResourceNameList
         retOk = True
         for resourceName in resourceNameList:
             startTime = time.time()
-            ok = self.__exportTargetFasta(resourceName, useCache=useCache, addTaxonomy=addTaxonomy, reloadPharos=reloadPharos, fromDbPharos=fromDbPharos)
+            ok = self.__exportTargetsFasta(resourceName, useCache=useCache, addTaxonomy=addTaxonomy, reloadPharos=reloadPharos, fromDbPharos=fromDbPharos)
             logger.info("Completed loading %s targets (status %r)at %s (%.4f seconds)", resourceName, ok, time.strftime("%Y %m %d %H:%M:%S", time.localtime()), time.time() - startTime)
             retOk = retOk and ok
         return retOk
 
-    def __exportTargetFasta(self, resourceName, useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False, remotePrefix=None):
+    def __exportTargetsFasta(self, resourceName, useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False):
         ok = False
         try:
             configName = self.__cfgOb.getDefaultSectionName()
@@ -130,10 +157,13 @@ class ProteinTargetSequenceWorkflow(object):
                     ok = chtP.exportFasta(fastaPath, taxonPath, addTaxonomy=addTaxonomy)
             elif resourceName == "pharos":
                 user = self.__cfgOb.get("_MYSQL_DB_USER_NAME", sectionName=configName)
-                pw = self.__cfgOb.get("_MYSQL_DB_PASSWORD_ALT", sectionName=configName)
+                pw = self.__cfgOb.get("_MYSQL_DB_PASSWORD", sectionName=configName)
+                # hp17
+                # pw = self.__cfgOb.get("_MYSQL_DB_PASSWORD_ALT", sectionName=configName)
+                #
                 ptP = PharosTargetProvider(cachePath=self.__cachePath, useCache=useCache, reloadDb=reloadPharos, fromDb=fromDbPharos, mysqlUser=user, mysqlPassword=pw)
-                if not (reloadPharos or fromDbPharos):
-                    ok = ptP.restore(self.__cfgOb, configName, remotePrefix=remotePrefix)
+                # if not (reloadPharos or fromDbPharos):
+                #    ok = ptP.restore(self.__cfgOb, configName, remotePrefix=remotePrefix)
                 if ptP.testCache():
                     ok = ptP.exportProteinFasta(fastaPath, taxonPath, addTaxonomy=addTaxonomy)
             elif resourceName == "sabdab":
@@ -149,9 +179,19 @@ class ProteinTargetSequenceWorkflow(object):
         #
         return ok
 
-    def createSearchDatabases(self, resourceNameList=None, timeOutSeconds=3600, verbose=False):
-        """Create sequence search databases for the input resources and optionally include taxonomy details"""
+    def createSearchDatabases(self, resourceNameList=None, addTaxonomy=False, timeOutSeconds=3600, verbose=False):
+        """Create sequence search databases for the input target resources and optionally include taxonomy details
+
+        Args:
+            resourceNameList (list, optional): list of data resources. Defaults to ["sabdab", "card", "drugbank", "chembl", "pharos", "pdbprent"].
+            timeOutSeconds (int, optional): timeout applied to database creation operations. Defaults to 3600s.
+            verbose (bool, optional): verbose output. Defaults to False.
+
+        Returns:
+            bool: True for success or False otherwise
+        """
         try:
+            mU = MarshalUtil(workPath=self.__cachePath)
             resourceNameList = resourceNameList if resourceNameList else self.__defaultResourceNameList
             retOk = True
             for resourceName in resourceNameList:
@@ -160,7 +200,7 @@ class ProteinTargetSequenceWorkflow(object):
                 taxonPath = self.__getTaxonPath(resourceName)
                 mmS = MMseqsUtils(cachePath=self.__cachePath)
                 ok = mmS.createSearchDatabase(fastaPath, self.__getDatabasePath(), resourceName, timeOut=timeOutSeconds, verbose=verbose)
-                if ok and taxonPath:
+                if addTaxonomy and ok and taxonPath and mU.exists(taxonPath):
                     ok = mmS.createTaxonomySearchDatabase(taxonPath, self.__getDatabasePath(), resourceName, timeOut=timeOutSeconds)
                 logger.info(
                     "Completed creating sequence databases for %s targets (status %r) at %s (%.4f seconds)",
@@ -176,14 +216,30 @@ class ProteinTargetSequenceWorkflow(object):
             retOk = False
         return retOk
 
-    def search(self, referenceResourceName, resourceNameList=None, identityCutoff=0.90, timeOut=10, sensitivity=4.5, useBitScore=False):
+    def search(self, referenceResourceName, resourceNameList=None, identityCutoff=0.90, timeOutSeconds=10, sensitivity=4.5, useBitScore=False, formatOutput=None):
+        """Search for similar sequences in the reference resource and the input sequence resources.
+
+        Args:
+            referenceResourceName (str): reference resource name (e.g., pdbprent)
+            resourceNameList (list, optional): list of data resources. Defaults to ["sabdab", "card", "drugbank", "chembl", "pharos", "pdbprent"].
+            identityCutoff (float, optional): sequence identity cutoff value. Defaults to 0.90.
+            timeOutSeconds (int, optional): sequence comparision operation timeout. Defaults to 10s.
+            sensitivity (float, optional): mmseq2 search sensitivity. Defaults to 4.5.
+            useBitScore (bool, optional): use bitscore value as an additional comparison threshold. Defaults to False.
+            formatOutput(str, optional):  mmseq2 search fields exported. Defaults to "query,target,taxid,taxname,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,raw,bits,qlen,tlen,qaln,taln,cigar".
+
+        Returns:
+             bool: True for success or False otherwise
+        """
         resourceNameList = resourceNameList if resourceNameList else self.__defaultResourceNameList
         retOk = True
         for resourceName in resourceNameList:
             if resourceName == referenceResourceName:
                 continue
             startTime = time.time()
-            ok = self.__searchSimilar(referenceResourceName, resourceName, identityCutoff=identityCutoff, timeOut=timeOut, sensitivity=sensitivity, useBitScore=useBitScore)
+            ok = self.__searchSimilar(
+                referenceResourceName, resourceName, identityCutoff=identityCutoff, timeOut=timeOutSeconds, sensitivity=sensitivity, useBitScore=useBitScore, formatOutput=formatOutput
+            )
             logger.info(
                 "Completed searching %s targets (status %r) (cutoff=%r) at %s (%.4f seconds)",
                 resourceName,
@@ -196,7 +252,7 @@ class ProteinTargetSequenceWorkflow(object):
         #
         return retOk
 
-    def __searchSimilar(self, referenceResourceName, resourceName, identityCutoff=0.90, timeOut=10, sensitivity=4.5, useBitScore=False):
+    def __searchSimilar(self, referenceResourceName, resourceName, identityCutoff=0.90, timeOut=10, sensitivity=4.5, useBitScore=False, formatOutput=None):
         """Search for similar sequences in reference resource and input resources"""
         try:
             resultDirPath = self.__getResultDirPath()
@@ -208,7 +264,9 @@ class ProteinTargetSequenceWorkflow(object):
             mmS = MMseqsUtils(cachePath=self.__cachePath)
             rawPath = self.__getSearchResultPath(resourceName, referenceResourceName)
             resultPath = self.__getFilteredSearchResultPath(resourceName, referenceResourceName)
-            ok = mmS.searchDatabase(resourceName, seqDbTopPath, referenceResourceName, rawPath, minSeqId=identityCutoff, timeOut=timeOut, sensitivity=sensitivity)
+            ok = mmS.searchDatabase(
+                resourceName, seqDbTopPath, referenceResourceName, rawPath, minSeqId=identityCutoff, timeOut=timeOut, sensitivity=sensitivity, formatOutput=formatOutput
+            )
             #
             if mU.exists(taxonPath):
                 mL = mmS.getMatchResults(rawPath, taxonPath, useTaxonomy=True, misMatchCutoff=-1, sequenceIdentityCutoff=identityCutoff, useBitScore=useBitScore)
@@ -222,6 +280,18 @@ class ProteinTargetSequenceWorkflow(object):
         return False
 
     def buildFeatureData(self, referenceResourceName, resourceNameList=None, backup=False, remotePrefix=None):
+        """Create feature data for the input data resources based on sequence comparison with the
+           input reference resource.
+
+        Args:
+            referenceResourceName (str): reference resource name (e.g., pdbprent)
+            resourceNameList (list, optional): list of data resources. Defaults to ["sabdab", "card"].
+            backup (bool, optional): backup results to stash storage. Defaults to False.
+            remotePrefix (str, optional): channel prefix for stash storage. Defaults to None.
+
+        Returns:
+            bool: True for success or False otherwise
+        """
         resourceNameList = resourceNameList if resourceNameList else ["sabdab", "card"]
         retOk = True
         for resourceName in resourceNameList:
@@ -263,12 +333,25 @@ class ProteinTargetSequenceWorkflow(object):
             logger.exception("Failing with %s", str(e))
         return False
 
-    def buildActivityData(self, referenceResourceName, resourceNameList=None, backup=False, remotePrefix=None):
+    def buildActivityData(self, referenceResourceName, resourceNameList=None, backup=False, remotePrefix=None, maxTargets=None):
+        """Create activity data for the input data resources based on sequence comparison with the
+           input reference resource.
+
+        Args:
+            referenceResourceName (str): reference resource name (e.g., pdbprent)
+            resourceNameList (list, optional): list of data resources. Defaults to ["pharos", "chembl"].
+            backup (bool, optional): backup results to stash storage. Defaults to False.
+            remotePrefix (str, optional): channel prefix for stash storage. Defaults to None.
+            maxTargets (int, optional): fetching activities (ChEMBL) for no more than maxTargets (for testing).  Defaults to None.
+
+        Returns:
+            bool: True for success or False otherwise
+        """
         resourceNameList = resourceNameList if resourceNameList else ["pharos", "chembl"]
         retOk = True
         for resourceName in resourceNameList:
             startTime = time.time()
-            ok = self.__buildActivityData(referenceResourceName, resourceName, backup=backup, remotePrefix=remotePrefix)
+            ok = self.__buildActivityData(referenceResourceName, resourceName, backup=backup, remotePrefix=remotePrefix, maxTargets=maxTargets)
             logger.info(
                 "Completed building activity data for %s (status %r)  at %s (%.4f seconds)",
                 resourceName,
@@ -280,7 +363,7 @@ class ProteinTargetSequenceWorkflow(object):
         #
         return retOk
 
-    def __buildActivityData(self, referenceResourceName, resourceName, backup=False, remotePrefix=None):
+    def __buildActivityData(self, referenceResourceName, resourceName, backup=False, remotePrefix=None, maxTargets=None):
         """Build features inferred from sequence comparison results between the input resources."""
         try:
             okB = True
@@ -290,6 +373,7 @@ class ProteinTargetSequenceWorkflow(object):
                 aP = ChEMBLTargetActivityProvider(cachePath=self.__cachePath, useCache=True)
                 aP.restore(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
                 targetIdList = aP.getTargetIdList(resultPath)
+                targetIdList = targetIdList[:maxTargets] if maxTargets else targetIdList
                 ok = aP.fetchTargetActivityDataMulti(targetIdList, skip="tried", chunkSize=50, numProc=6)
                 #
                 if backup:
@@ -308,12 +392,25 @@ class ProteinTargetSequenceWorkflow(object):
             logger.exception("Failing with %s", str(e))
         return False
 
-    def buildCofactorData(self, referenceResourceName, resourceNameList=None, backup=False, remotePrefix=None):
+    def buildCofactorData(self, referenceResourceName, resourceNameList=None, backup=False, remotePrefix=None, maxActivity=10):
+        """Assemble cofactor data for the input data resources based on sequence comparison with the
+           input reference resource.
+
+        Args:
+            referenceResourceName (str): reference resource name (e.g., pdbprent)
+            resourceNameList (list, optional): list of data resources. Defaults to ["pharos", "chembl"].
+            backup (bool, optional): backup results to stash storage. Defaults to False.
+            remotePrefix (str, optional): channel prefix for stash storage. Defaults to None.
+            maxActivity (int, optional): limit for the number cofactors/activities incorporated per target. Default to 10.
+
+        Returns:
+            bool: True for success or False otherwise
+        """
         resourceNameList = resourceNameList if resourceNameList else ["chembl", "pharos", "drugbank"]
         retOk = True
         for resourceName in resourceNameList:
             startTime = time.time()
-            ok = self.__buildCofactorData(referenceResourceName, resourceName, backup=backup, remotePrefix=remotePrefix)
+            ok = self.__buildCofactorData(referenceResourceName, resourceName, backup=backup, remotePrefix=remotePrefix, maxActivity=maxActivity)
             logger.info(
                 "Completed building cofactor data for %s (status %r)  at %s (%.4f seconds)",
                 resourceName,
@@ -325,17 +422,18 @@ class ProteinTargetSequenceWorkflow(object):
         #
         return retOk
 
-    def __buildCofactorData(self, referenceResourceName, resourceName, backup=False, remotePrefix=None):
+    def __buildCofactorData(self, referenceResourceName, resourceName, backup=False, remotePrefix=None, maxActivity=10):
         """Build cofactor data inferred from sequence comparison results between the input resources."""
         try:
-            maxActivity = 5
             crmpObj = ChemRefMappingProvider(cachePath=self.__cachePath, useCache=True)
+            lnmpObj = LigandNeighborMappingProvider(cachePath=self.__cachePath, useCache=True)
+
             okB = True
             resultPath = self.__getFilteredSearchResultPath(resourceName, referenceResourceName)
             #
             if resourceName == "chembl":
                 aP = ChEMBLTargetCofactorProvider(cachePath=self.__cachePath, useCache=True)
-                ok = aP.buildCofactorList(resultPath, crmpObj=crmpObj, maxActivity=maxActivity)
+                ok = aP.buildCofactorList(resultPath, crmpObj=crmpObj, lnmpObj=lnmpObj, maxActivity=maxActivity)
                 #
                 if backup:
                     okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
@@ -343,14 +441,14 @@ class ProteinTargetSequenceWorkflow(object):
 
             elif resourceName == "pharos":
                 aP = PharosTargetCofactorProvider(cachePath=self.__cachePath, useCache=True)
-                ok = aP.buildCofactorList(resultPath, crmpObj=crmpObj, maxActivity=maxActivity)
+                ok = aP.buildCofactorList(resultPath, crmpObj=crmpObj, lnmpObj=lnmpObj, maxActivity=maxActivity)
                 if backup:
                     okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
                     logger.info("%r cofactor data backup status (%r)", resourceName, okB)
 
             elif resourceName == "drugbank":
                 aP = DrugBankTargetCofactorProvider(cachePath=self.__cachePath, useCache=True)
-                ok = aP.buildCofactorList(resultPath, crmpObj=crmpObj)
+                ok = aP.buildCofactorList(resultPath, crmpObj=crmpObj, lnmpObj=lnmpObj)
                 if backup:
                     okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
                     logger.info("%r cofactor data backup status (%r)", resourceName, okB)
