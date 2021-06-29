@@ -39,7 +39,7 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
     def setUp(self):
         self.__mockTopPath = os.path.join(TOPDIR, "rcsb", "mock-data")
         configPath = os.path.join(TOPDIR, "rcsb", "mock-data", "config", "dbload-setup-example.yml")
-        configName = "site_info_remote_configuration"
+        configName = "site_info_configuration"
         self.__cfgOb = ConfigUtil(configPath=configPath, defaultSectionName=configName, mockTopPath=self.__mockTopPath)
         self.__cachePath = os.path.join(HERE, "test-output", "CACHE")
         #
@@ -176,7 +176,7 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
             )
             self.assertTrue(ok)
             ok = ptsW.search(
-                referenceResourceName="pdbprent", resourceNameList=["card"], identityCutoff=0.95, sensitivity=4.5, timeOutSeconds=100, useBitScore=True, formatOutput=formatOutput
+                referenceResourceName="pdbprent", resourceNameList=["card"], identityCutoff=0.95, sensitivity=4.5, timeOutSeconds=600, useBitScore=True, formatOutput=formatOutput
             )
             self.assertTrue(ok)
         except Exception as e:

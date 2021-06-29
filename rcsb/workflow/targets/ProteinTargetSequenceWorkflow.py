@@ -226,7 +226,8 @@ class ProteinTargetSequenceWorkflow(object):
             timeOutSeconds (int, optional): sequence comparision operation timeout. Defaults to 10s.
             sensitivity (float, optional): mmseq2 search sensitivity. Defaults to 4.5.
             useBitScore (bool, optional): use bitscore value as an additional comparison threshold. Defaults to False.
-            formatOutput(str, optional):  mmseq2 search fields exported. Defaults to "query,target,taxid,taxname,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,raw,bits,qlen,tlen,qaln,taln,cigar".
+            formatOutput(str, optional):  mmseq2 search fields exported. Defaults to "query,target,taxid,taxname,pident,alnlen,mismatch,
+                                                                         gapopen,qstart,qend,tstart,tend,evalue,raw,bits,qlen,tlen,qaln,taln,cigar".
 
         Returns:
              bool: True for success or False otherwise
@@ -371,7 +372,10 @@ class ProteinTargetSequenceWorkflow(object):
             #
             if resourceName == "chembl":
                 aP = ChEMBLTargetActivityProvider(cachePath=self.__cachePath, useCache=True)
-                aP.restore(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
+                try:
+                    aP.restore(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
+                except Exception:
+                    pass
                 targetIdList = aP.getTargetIdList(resultPath)
                 targetIdList = targetIdList[:maxTargets] if maxTargets else targetIdList
                 ok = aP.fetchTargetActivityDataMulti(targetIdList, skip="tried", chunkSize=50, numProc=6)
