@@ -37,6 +37,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         self.__cfgOb = ConfigUtil(configPath=configPath, defaultSectionName=configName, mockTopPath=self.__mockTopPath)
         self.__cachePath = os.path.join(HERE, "test-output", "CACHE")
         #
+        self.__remotePrefix = None
         self.__startTime = time.time()
         logger.info("Starting at %s", time.strftime("%Y %m %d %H:%M:%S", time.localtime()))
 
@@ -136,7 +137,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.buildFeatureData(referenceResourceName="pdbprent", resourceNameList=["sabdab", "card"], backup=True, remotePrefix="T")
+            ok = ptsW.buildFeatureData(referenceResourceName="pdbprent", resourceNameList=["sabdab", "card"], backup=True, remotePrefix=self.__remotePrefix)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return ok
@@ -146,7 +147,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.buildActivityData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos"], backup=True, remotePrefix="T")
+            ok = ptsW.buildActivityData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos"], backup=True, remotePrefix=self.__remotePrefix)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return ok
@@ -156,7 +157,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.buildCofactorData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos", "drugbank"], backup=True, remotePrefix="T")
+            ok = ptsW.buildCofactorData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos", "drugbank"], backup=True, remotePrefix=self.__remotePrefix)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return ok
