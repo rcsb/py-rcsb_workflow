@@ -123,9 +123,9 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
             ok1 = ptsW.search(
-                referenceResourceName="pdbprent", resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"], identityCutoff=0.95, sensitivity=4.5, timeOutSeconds=300
+                referenceResourceName="pdbprent", resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"], identityCutoff=0.95, sensitivity=4.5, timeOutSeconds=1000
             )
-            ok2 = ptsW.search(referenceResourceName="pdbprent", resourceNameList=["card"], identityCutoff=0.95, sensitivity=4.5, timeOutSeconds=100, useBitScore=True)
+            ok2 = ptsW.search(referenceResourceName="pdbprent", resourceNameList=["card"], identityCutoff=0.95, sensitivity=4.5, timeOutSeconds=1000, useBitScore=True)
             ok = ok1 and ok2
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -168,10 +168,10 @@ class ProteinTargetSequenceExecutionWorkflow(object):
 def fullWorkflow():
     ptsWf = ProteinTargetSequenceExecutionWorkflow()
     ok = True
-    # ok = ptsWf.fetchUniProtTaxonomy()
-    # ok = ptsWf.fetchProteinEntityData() and ok
-    # ok = ptsWf.fetchChemicalReferenceMappingData() and ok
-    # ok = ptsWf.fetchLigandNeighborMappingData() and ok
+    ok = ptsWf.fetchUniProtTaxonomy()
+    ok = ptsWf.fetchProteinEntityData() and ok
+    ok = ptsWf.fetchChemicalReferenceMappingData() and ok
+    ok = ptsWf.fetchLigandNeighborMappingData() and ok
     ok = ptsWf.exportFasta() and ok
     ok = ptsWf.createSearchDatabases() and ok
     ok = ptsWf.searchDatabases() and ok
@@ -184,4 +184,4 @@ def fullWorkflow():
 
 if __name__ == "__main__":
     status = fullWorkflow()
-    print("Workflow completion status (%r)", status)
+    print("Full workflow completion status (%r)", status)

@@ -171,12 +171,12 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
                 resourceNameList=["sabdab", "chembl", "pharos"],
                 identityCutoff=0.95,
                 sensitivity=4.5,
-                timeOutSeconds=300,
+                timeOutSeconds=1000,
                 formatOutput=formatOutput,
             )
             self.assertTrue(ok)
             ok = ptsW.search(
-                referenceResourceName="pdbprent", resourceNameList=["card"], identityCutoff=0.95, sensitivity=4.5, timeOutSeconds=600, useBitScore=True, formatOutput=formatOutput
+                referenceResourceName="pdbprent", resourceNameList=["card"], identityCutoff=0.95, sensitivity=4.5, timeOutSeconds=1000, useBitScore=True, formatOutput=formatOutput
             )
             self.assertTrue(ok)
         except Exception as e:
