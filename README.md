@@ -12,7 +12,7 @@ Download the library source software from the project repository:
 
 ```bash
 
-git clone   --recurse-submodules https://github.com/rcsb/py-rcsb_workflow.git
+git clone  --recurse-submodules https://github.com/rcsb/py-rcsb_workflow.git
 
 # or to make sure the submodules are updated --
 git submodule update --recursive --init
