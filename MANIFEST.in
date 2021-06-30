@@ -1,5 +1,7 @@
 #
-# File: py-rcsb_utils_chemref/MANIFEST.in
+# File: py-rcsb_workflow/MANIFEST.in
 #
 include HISTORY.txt
+include requirements.txt
+include README.md
 #

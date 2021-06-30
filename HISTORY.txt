@@ -14,4 +14,4 @@
 20-Jun-2021 - V0.22 Adding activity and cofactor workflows in ProteinTargetSequenceWorkflow()
 22-Jun-2021 - V0.23 Aligning cofactor content model across data sources
 29-Jun-2021 - V0.24 Adding additional selection filters for neighbor interactions, setup abbreviate tests disabling taxonomy processing
-
+29-Jun-2021 - V0.25 Update dependencies and install procedures
