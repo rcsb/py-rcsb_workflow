@@ -280,13 +280,14 @@ class ProteinTargetSequenceWorkflow(object):
             logger.exception("Failing with %s", str(e))
         return False
 
-    def buildFeatureData(self, referenceResourceName, resourceNameList=None, backup=False, remotePrefix=None):
+    def buildFeatureData(self, referenceResourceName, resourceNameList=None, useTaxonomy=True, backup=False, remotePrefix=None):
         """Create feature data for the input data resources based on sequence comparison with the
            input reference resource.
 
         Args:
             referenceResourceName (str): reference resource name (e.g., pdbprent)
             resourceNameList (list, optional): list of data resources. Defaults to ["sabdab", "card"].
+            useTaxonomy (bool, optional): use taxonomy in filtering selections where implemented  (e.g., card). Defaults to True.
             backup (bool, optional): backup results to stash storage. Defaults to False.
             remotePrefix (str, optional): channel prefix for stash storage. Defaults to None.
 
@@ -297,7 +298,7 @@ class ProteinTargetSequenceWorkflow(object):
         retOk = True
         for resourceName in resourceNameList:
             startTime = time.time()
-            ok = self.__buildFeatureData(referenceResourceName, resourceName, backup=backup, remotePrefix=remotePrefix)
+            ok = self.__buildFeatureData(referenceResourceName, resourceName, useTaxonomy=useTaxonomy, backup=backup, remotePrefix=remotePrefix)
             logger.info(
                 "Completed building features for %s (status %r)  at %s (%.4f seconds)",
                 resourceName,
@@ -309,7 +310,7 @@ class ProteinTargetSequenceWorkflow(object):
         #
         return retOk
 
-    def __buildFeatureData(self, referenceResourceName, resourceName, backup=False, remotePrefix=None):
+    def __buildFeatureData(self, referenceResourceName, resourceName, useTaxonomy=True, backup=False, remotePrefix=None):
         """Build features inferred from sequence comparison results between the input resources."""
         try:
             okB = True
@@ -324,7 +325,7 @@ class ProteinTargetSequenceWorkflow(object):
 
             elif resourceName == "card":
                 fP = CARDTargetFeatureProvider(cachePath=self.__cachePath, useCache=True)
-                ok = fP.buildFeatureList(resultPath)
+                ok = fP.buildFeatureList(resultPath, useTaxonomy=useTaxonomy)
                 if backup:
                     okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
                     logger.info("%r features backup status (%r)", resourceName, okB)
