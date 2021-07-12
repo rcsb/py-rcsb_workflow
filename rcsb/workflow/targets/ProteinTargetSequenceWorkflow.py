@@ -29,6 +29,7 @@ from rcsb.utils.targets.ChEMBLTargetActivityProvider import ChEMBLTargetActivity
 from rcsb.utils.targets.ChEMBLTargetCofactorProvider import ChEMBLTargetCofactorProvider
 from rcsb.utils.targets.DrugBankTargetProvider import DrugBankTargetProvider
 from rcsb.utils.targets.DrugBankTargetCofactorProvider import DrugBankTargetCofactorProvider
+from rcsb.utils.targets.IMGTTargetFeatureProvider import IMGTTargetFeatureProvider
 from rcsb.utils.targets.PharosTargetProvider import PharosTargetProvider
 from rcsb.utils.targets.PharosTargetActivityProvider import PharosTargetActivityProvider
 from rcsb.utils.targets.PharosTargetCofactorProvider import PharosTargetCofactorProvider
@@ -47,7 +48,7 @@ class ProteinTargetSequenceWorkflow(object):
         self.__configName = cfgOb.getDefaultSectionName()
         self.__cachePath = os.path.abspath(cachePath)
         self.__umP = None
-        self.__defaultResourceNameList = ["sabdab", "card", "drugbank", "chembl", "mysql", "pdbprent"]
+        self.__defaultResourceNameList = ["sabdab", "card", "drugbank", "chembl", "pdbprent"]
 
     def testCache(self):
         return True
@@ -329,7 +330,12 @@ class ProteinTargetSequenceWorkflow(object):
                 if backup:
                     okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
                     logger.info("%r features backup status (%r)", resourceName, okB)
-
+            elif resourceName == "imgt":
+                fP = IMGTTargetFeatureProvider(cachePath=self.__cachePath, useCache=True)
+                ok = fP.buildFeatureList(useCache=True)
+                if backup:
+                    okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
+                    logger.info("%r features backup status (%r)", resourceName, okB)
             return ok & okB
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -385,7 +391,6 @@ class ProteinTargetSequenceWorkflow(object):
                 if backup:
                     okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
                     logger.info("%r activity backup status (%r)", resourceName, okB)
-
             elif resourceName == "pharos":
                 aP = PharosTargetActivityProvider(cachePath=self.__cachePath, useCache=True)
                 ok = aP.fetchTargetActivityData()

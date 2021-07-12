@@ -137,7 +137,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.buildFeatureData(referenceResourceName="pdbprent", resourceNameList=["sabdab", "card"], useTaxonomy=True, backup=True, remotePrefix=self.__remotePrefix)
+            ok = ptsW.buildFeatureData(referenceResourceName="pdbprent", resourceNameList=["sabdab", "card", "imgt"], useTaxonomy=True, backup=True, remotePrefix=self.__remotePrefix)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return ok
