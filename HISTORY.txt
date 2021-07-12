@@ -16,3 +16,5 @@
 29-Jun-2021 - V0.24 Adding additional selection filters for neighbor interactions, setup abbreviate tests disabling taxonomy processing
 29-Jun-2021 - V0.25 Update dependencies and install procedures
  2-Jul-2021 - V0.26 Add support for CARD taxonomy filtering
+12-Jul-2021 - V0.27 Add activity reload after restore operation ChEMBLTargetActivityProvider()
+

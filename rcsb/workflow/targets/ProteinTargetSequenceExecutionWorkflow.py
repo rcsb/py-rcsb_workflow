@@ -35,7 +35,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         configPath = os.path.join(HERE, "exdb-config-example.yml")
         configName = "site_info_remote_configuration"
         self.__cfgOb = ConfigUtil(configPath=configPath, defaultSectionName=configName, mockTopPath=self.__mockTopPath)
-        self.__cachePath = os.path.join(HERE, "test-output", "CACHE")
+        self.__cachePath = os.path.join(HERE, "CACHE")
         #
         self.__remotePrefix = None
         self.__startTime = time.time()

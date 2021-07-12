@@ -375,6 +375,7 @@ class ProteinTargetSequenceWorkflow(object):
                 aP = ChEMBLTargetActivityProvider(cachePath=self.__cachePath, useCache=True)
                 try:
                     aP.restore(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
+                    aP.reload()
                 except Exception:
                     pass
                 targetIdList = aP.getTargetIdList(resultPath)
