@@ -18,4 +18,5 @@
  2-Jul-2021 - V0.26 Add support for CARD taxonomy filtering
 12-Jul-2021 - V0.27 Add activity reload after restore operation ChEMBLTargetActivityProvider()
 12-Jul-2021 - V0.28 Add IMGT feature production to the target workflow
+28-Jul-2021 - V0.29 Adding support for StashableBase backup and restore operations
 

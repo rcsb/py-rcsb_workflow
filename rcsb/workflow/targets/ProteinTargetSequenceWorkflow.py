@@ -6,6 +6,7 @@
 #    1. generate PDB protein sequence fasta file and related metadata --
 #
 #  Updates:
+#  25-Jul-2021 add new StashableBase options for git backup
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
@@ -19,6 +20,7 @@ import time
 from rcsb.exdb.chemref.ChemRefMappingProvider import ChemRefMappingProvider
 from rcsb.exdb.seq.LigandNeighborMappingProvider import LigandNeighborMappingProvider
 from rcsb.exdb.seq.PolymerEntityExtractor import PolymerEntityExtractor
+from rcsb.utils.chemref.PharosProvider import PharosProvider
 from rcsb.utils.io.MarshalUtil import MarshalUtil
 from rcsb.utils.seqalign.MMseqsUtils import MMseqsUtils
 from rcsb.utils.seq.UniProtIdMappingProvider import UniProtIdMappingProvider
@@ -59,7 +61,7 @@ class ProteinTargetSequenceWorkflow(object):
         try:
             crmP = ChemRefMappingProvider(self.__cachePath, useCache=False)
             okF = crmP.fetchChemRefMapping(self.__cfgOb)
-            okB = crmP.backup(self.__cfgOb, self.__configName)
+            okB = crmP.backup(self.__cfgOb, self.__configName, useStash=True, useGit=True)
             ok = okF and okB
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -71,7 +73,7 @@ class ProteinTargetSequenceWorkflow(object):
         try:
             crmP = LigandNeighborMappingProvider(self.__cachePath, useCache=False)
             okF = crmP.fetchLigandNeighborMapping(self.__cfgOb)
-            okB = crmP.backup(self.__cfgOb, self.__configName)
+            okB = crmP.backup(self.__cfgOb, self.__configName, useStash=True, useGit=True)
             ok = okF and okB
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -321,20 +323,20 @@ class ProteinTargetSequenceWorkflow(object):
                 fP = SAbDabTargetFeatureProvider(cachePath=self.__cachePath, useCache=True)
                 ok = fP.buildFeatureList(resultPath)
                 if backup:
-                    okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
+                    okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
                     logger.info("%r features backup status (%r)", resourceName, okB)
 
             elif resourceName == "card":
                 fP = CARDTargetFeatureProvider(cachePath=self.__cachePath, useCache=True)
                 ok = fP.buildFeatureList(resultPath, useTaxonomy=useTaxonomy)
                 if backup:
-                    okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
+                    okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
                     logger.info("%r features backup status (%r)", resourceName, okB)
             elif resourceName == "imgt":
                 fP = IMGTTargetFeatureProvider(cachePath=self.__cachePath, useCache=True)
                 ok = fP.buildFeatureList(useCache=True)
                 if backup:
-                    okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
+                    okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
                     logger.info("%r features backup status (%r)", resourceName, okB)
             return ok & okB
         except Exception as e:
@@ -374,7 +376,7 @@ class ProteinTargetSequenceWorkflow(object):
     def __buildActivityData(self, referenceResourceName, resourceName, backup=False, remotePrefix=None, maxTargets=None):
         """Build features inferred from sequence comparison results between the input resources."""
         try:
-            okB = True
+            okB = okC = True
             resultPath = self.__getFilteredSearchResultPath(resourceName, referenceResourceName)
             #
             if resourceName == "chembl":
@@ -389,16 +391,23 @@ class ProteinTargetSequenceWorkflow(object):
                 ok = aP.fetchTargetActivityDataMulti(targetIdList, skip="tried", chunkSize=50, numProc=6)
                 #
                 if backup:
-                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
+                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
                     logger.info("%r activity backup status (%r)", resourceName, okB)
             elif resourceName == "pharos":
                 aP = PharosTargetActivityProvider(cachePath=self.__cachePath, useCache=True)
                 ok = aP.fetchTargetActivityData()
                 if backup:
-                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
+                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
                     logger.info("%r activity data backup status (%r)", resourceName, okB)
+                #
+                chemblIdList = aP.fetchCompoundIdentifiers()
+                phP = PharosProvider(cachePath=self.__cachePath, useCache=False)
+                phP.load(chemblIdList, "identifiers", fmt="json", indent=0)
+                if backup:
+                    okC = phP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
+                    logger.info("%r identifier backup status (%r)", resourceName, okC)
 
-            return ok & okB
+            return ok and okB and okC
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return False
