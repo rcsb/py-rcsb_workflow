@@ -7,6 +7,7 @@
 #
 #  Updates:
 #  25-Jul-2021 add new StashableBase options for git backup
+#  29-Jul-2021 DrugBankProvider needs useCache=False to always rebuild
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
@@ -151,7 +152,7 @@ class ProteinTargetSequenceWorkflow(object):
             elif resourceName == "drugbank":
                 user = self.__cfgOb.get("_DRUGBANK_AUTH_USERNAME", sectionName=configName)
                 pw = self.__cfgOb.get("_DRUGBANK_AUTH_PASSWORD", sectionName=configName)
-                dbtP = DrugBankTargetProvider(cachePath=self.__cachePath, useCache=useCache, username=user, password=pw)
+                dbtP = DrugBankTargetProvider(cachePath=self.__cachePath, useCache=False, username=user, password=pw)
                 if dbtP.testCache():
                     ok = dbtP.exportFasta(fastaPath, taxonPath, addTaxonomy=addTaxonomy)
             elif resourceName == "chembl":

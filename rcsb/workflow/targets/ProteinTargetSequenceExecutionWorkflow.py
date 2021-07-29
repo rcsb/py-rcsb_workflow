@@ -20,6 +20,7 @@ import platform
 import resource
 import time
 
+from rcsb.utils.taxonomy.TaxonomyProvider import TaxonomyProvider
 from rcsb.workflow.targets.ProteinTargetSequenceWorkflow import ProteinTargetSequenceWorkflow
 from rcsb.utils.config.ConfigUtil import ConfigUtil
 
@@ -47,6 +48,16 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         logger.info("Maximum resident memory size %.4f %s", rusageMax / 10 ** 6, unitS)
         endTime = time.time()
         logger.info("Completed at %s (%.4f seconds)\n", time.strftime("%Y %m %d %H:%M:%S", time.localtime()), endTime - self.__startTime)
+
+    def cacheTaxonomy(self):
+        """Cache NCBI taxonomy database files"""
+        ok = False
+        try:
+            tU = TaxonomyProvider(cachePath=self.__cachePath, useCache=False, cleanup=False)
+            ok = tU.testCache()
+        except Exception as e:
+            logger.exception("Failing with %s", str(e))
+        return ok
 
     def fetchUniProtTaxonomy(self):
         """Reload UniProt taxonomy mapping"""
@@ -170,6 +181,7 @@ def fullWorkflow():
     """Entry point for the full targets sequence and cofactor update workflow."""
     ptsWf = ProteinTargetSequenceExecutionWorkflow()
     ok = True
+    ok = ptsWf.cacheTaxonomy()
     ok = ptsWf.fetchUniProtTaxonomy()
     ok = ptsWf.fetchProteinEntityData() and ok
     ok = ptsWf.fetchChemicalReferenceMappingData() and ok
