@@ -37,6 +37,7 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
     skipFull = True
 
     def setUp(self):
+        self.__isMac = platform.system() == "Darwin"
         self.__mockTopPath = os.path.join(TOPDIR, "rcsb", "mock-data")
         configPath = os.path.join(TOPDIR, "rcsb", "mock-data", "config", "dbload-setup-example.yml")
         configName = "site_info_configuration"
@@ -197,7 +198,10 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - build features from search results"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.buildActivityData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos"], backup=False, maxTargets=50)
+            if self.__isMac:
+                ok = ptsW.buildActivityData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos"], backup=False, maxTargets=50)
+            else:
+                ok = ptsW.buildActivityData(referenceResourceName="pdbprent", resourceNameList=["pharos"], backup=False, maxTargets=50)
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
