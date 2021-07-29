@@ -457,11 +457,11 @@ class ProteinTargetSequenceWorkflow(object):
                 ok = aP.buildCofactorList(resultPath, crmpObj=crmpObj, lnmpObj=lnmpObj, maxActivity=maxActivity)
                 #
                 if backup:
-                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
+                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
                     logger.info("%r cofactor backup status (%r)", resourceName, okB)
 
             elif resourceName == "pharos":
-                aP = PharosTargetCofactorProvider(cachePath=self.__cachePath, useCache=True)
+                aP = PharosTargetCofactorProvider(cachePath=self.__cachePath, useCache=True, useStash=True, useGit=True)
                 ok = aP.buildCofactorList(resultPath, crmpObj=crmpObj, lnmpObj=lnmpObj, maxActivity=maxActivity)
                 if backup:
                     okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
@@ -471,7 +471,7 @@ class ProteinTargetSequenceWorkflow(object):
                 aP = DrugBankTargetCofactorProvider(cachePath=self.__cachePath, useCache=True)
                 ok = aP.buildCofactorList(resultPath, crmpObj=crmpObj, lnmpObj=lnmpObj)
                 if backup:
-                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix)
+                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
                     logger.info("%r cofactor data backup status (%r)", resourceName, okB)
 
             return ok & okB

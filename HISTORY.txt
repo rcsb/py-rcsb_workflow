@@ -20,4 +20,4 @@
 12-Jul-2021 - V0.28 Add IMGT feature production to the target workflow
 28-Jul-2021 - V0.29 Adding support for StashableBase backup and restore operations
 29-Jul-2021 - V0.30 Cache taxonomy data at the beginning of the ProteinTargetSequenceWorkflow, force rebuild of DrugBankProvider()
-
+29-Jul-2021 - V0.31 Broaden cache policy for cofactor providers.
