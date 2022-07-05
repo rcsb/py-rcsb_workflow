@@ -42,12 +42,13 @@ class ChemCompImageWorkflow(object):
         cachePath = os.path.abspath(cachePath)
 
         #
+        # changed molBuildType from "model-xyz" to "connection-table" per ticket RO-3041
         self.__oemp = OeMoleculeProvider(
             ccUrlTarget=ccUrlTarget,
             birdUrlTarget=birdUrlTarget,
             ccFileNamePrefix="cc-full",
             cachePath=cachePath,
-            molBuildType="model-xyz",
+            molBuildType="connection-table",
             useCache=True,
             oeFileNamePrefix="oe-full",
         )
