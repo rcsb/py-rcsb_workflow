@@ -22,3 +22,4 @@
 29-Jul-2021 - V0.30 Cache taxonomy data at the beginning of the ProteinTargetSequenceWorkflow, force rebuild of DrugBankProvider()
 29-Jul-2021 - V0.31 Broaden cache policy for cofactor providers.
 26-Aug-2021 - V0.32 Update dependencies
+27-Jun-2022 - V0.33 Change the molBuildType value from "model-xyz" to "connection-table" in ChemCompImageWorkflow()
