@@ -50,9 +50,9 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         self.__stashRemotePrefix = kwargs.get("stashRemotePrefix", None)
         #
         self.__debugFlag = kwargs.get("debugFlag", False)
+        self.__startTime = time.time()
         if self.__debugFlag:
             logger.setLevel(logging.DEBUG)
-            self.__startTime = time.time()
             logger.debug("Starting at %s", time.strftime("%Y %m %d %H:%M:%S", time.localtime()))
         #
 
