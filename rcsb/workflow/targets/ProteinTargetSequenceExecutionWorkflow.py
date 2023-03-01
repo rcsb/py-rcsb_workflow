@@ -205,7 +205,7 @@ def fullWorkflow():
     ptsWf = ProteinTargetSequenceExecutionWorkflow()
     ok = True
     ok = ptsWf.cacheTaxonomy()
-    ok = ptsWf.fetchUniProtTaxonomy()
+    ok = ptsWf.updateUniProtTaxonomy()
     ok = ptsWf.fetchProteinEntityData() and ok
     ok = ptsWf.fetchChemicalReferenceMappingData() and ok
     ok = ptsWf.fetchLigandNeighborMappingData() and ok
