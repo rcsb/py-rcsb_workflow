@@ -24,3 +24,4 @@
 26-Aug-2021 - V0.32 Update dependencies
 27-Jun-2022 - V0.33 Change the molBuildType value from "model-xyz" to "connection-table" in ChemCompImageWorkflow()
  9-Jan-2023 - V0.34 Configuration changes to support tox 4
+ 3-Mar-2023 - V0.35 Standardize args in ProteinTargetSequenceExecutionWorkflow

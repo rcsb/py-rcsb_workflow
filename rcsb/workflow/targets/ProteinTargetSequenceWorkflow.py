@@ -8,6 +8,7 @@
 #  Updates:
 #  25-Jul-2021 add new StashableBase options for git backup
 #  29-Jul-2021 DrugBankProvider needs useCache=False to always rebuild
+#   3-Mar-2023 Fix error for missing taxonPath
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
