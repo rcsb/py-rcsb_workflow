@@ -128,8 +128,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.exportTargetsFasta(useCache=True, addTaxonomy=True, reloadPharos=True, fromDbPharos=True,
-                                         resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"])
+            ok = ptsW.exportTargetsFasta(useCache=True, addTaxonomy=True, reloadPharos=True, fromDbPharos=True, resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"])
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return ok
@@ -139,9 +138,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.createSearchDatabases(resourceNameList=["sabdab", "card", "drugbank", "chembl",
-                                                              "pharos", "pdbprent"],
-                                            addTaxonomy=True, timeOutSeconds=3600, verbose=False)
+            ok = ptsW.createSearchDatabases(resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos", "pdbprent"], addTaxonomy=True, timeOutSeconds=3600, verbose=False)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return ok
@@ -152,11 +149,9 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
             ok1 = ptsW.search(
-                referenceResourceName="pdbprent", resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"],
-                identityCutoff=0.95, sensitivity=4.5, timeOutSeconds=1000
+                referenceResourceName="pdbprent", resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"], identityCutoff=0.95, sensitivity=4.5, timeOutSeconds=1000
             )
-            ok2 = ptsW.search(referenceResourceName="pdbprent", resourceNameList=["card"], identityCutoff=0.95,
-                              sensitivity=4.5, timeOutSeconds=1000, useBitScore=True)
+            ok2 = ptsW.search(referenceResourceName="pdbprent", resourceNameList=["card"], identityCutoff=0.95, sensitivity=4.5, timeOutSeconds=1000, useBitScore=True)
             ok = ok1 and ok2
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -167,8 +162,13 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.buildFeatureData(referenceResourceName="pdbprent", resourceNameList=["sabdab", "card", "imgt"],
-                                       useTaxonomy=True, backup=True, remotePrefix=self.__stashRemotePrefix)
+            ok = ptsW.buildFeatureData(
+                referenceResourceName="pdbprent",
+                resourceNameList=["sabdab", "card", "imgt"],
+                useTaxonomy=True,
+                backup=True,
+                remotePrefix=self.__stashRemotePrefix
+            )
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return ok
@@ -178,8 +178,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.buildActivityData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos"],
-                                        backup=True, remotePrefix=self.__stashRemotePrefix)
+            ok = ptsW.buildActivityData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos"], backup=True, remotePrefix=self.__stashRemotePrefix)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return ok
@@ -189,9 +188,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.buildCofactorData(referenceResourceName="pdbprent",
-                                        resourceNameList=["chembl", "pharos", "drugbank"], backup=True,
-                                        remotePrefix=self.__stashRemotePrefix)
+            ok = ptsW.buildCofactorData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos", "drugbank"], backup=True, remotePrefix=self.__stashRemotePrefix)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return ok
