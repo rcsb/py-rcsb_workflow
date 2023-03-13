@@ -9,6 +9,7 @@
 #  25-Jul-2021 add new StashableBase options for git backup
 #  29-Jul-2021 DrugBankProvider needs useCache=False to always rebuild
 #   3-Mar-2023 Fix error for missing taxonPath
+#  13-Mar-2023 Change CARDTargetFeatureProvider to CARDTargetAnnotationProvider
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
@@ -27,7 +28,7 @@ from rcsb.utils.io.MarshalUtil import MarshalUtil
 from rcsb.utils.seqalign.MMseqsUtils import MMseqsUtils
 from rcsb.utils.seq.UniProtIdMappingProvider import UniProtIdMappingProvider
 from rcsb.utils.targets.CARDTargetProvider import CARDTargetProvider
-from rcsb.utils.targets.CARDTargetFeatureProvider import CARDTargetFeatureProvider
+from rcsb.utils.targets.CARDTargetAnnotationProvider import CARDTargetAnnotationProvider
 from rcsb.utils.targets.ChEMBLTargetProvider import ChEMBLTargetProvider
 from rcsb.utils.targets.ChEMBLTargetActivityProvider import ChEMBLTargetActivityProvider
 from rcsb.utils.targets.ChEMBLTargetCofactorProvider import ChEMBLTargetCofactorProvider
@@ -316,7 +317,7 @@ class ProteinTargetSequenceWorkflow(object):
         return retOk
 
     def __buildFeatureData(self, referenceResourceName, resourceName, useTaxonomy=True, backup=False, remotePrefix=None):
-        """Build features inferred from sequence comparison results between the input resources."""
+        """Build features and annotations inferred from sequence comparison results between the input resources."""
         try:
             okB = True
             resultPath = self.__getFilteredSearchResultPath(resourceName, referenceResourceName)
@@ -327,13 +328,12 @@ class ProteinTargetSequenceWorkflow(object):
                 if backup:
                     okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
                     logger.info("%r features backup status (%r)", resourceName, okB)
-
             elif resourceName == "card":
-                fP = CARDTargetFeatureProvider(cachePath=self.__cachePath, useCache=True)
-                ok = fP.buildFeatureList(resultPath, useTaxonomy=useTaxonomy)
+                fP = CARDTargetAnnotationProvider(cachePath=self.__cachePath, useCache=True)
+                ok = fP.buildAnnotationList(resultPath, useTaxonomy=useTaxonomy)
                 if backup:
                     okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
-                    logger.info("%r features backup status (%r)", resourceName, okB)
+                    logger.info("%r annotations backup status (%r)", resourceName, okB)
             elif resourceName == "imgt":
                 fP = IMGTTargetFeatureProvider(cachePath=self.__cachePath, useCache=True)
                 ok = fP.buildFeatureList(useCache=True)
