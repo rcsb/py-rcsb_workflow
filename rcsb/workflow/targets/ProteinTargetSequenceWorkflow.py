@@ -9,7 +9,7 @@
 #  25-Jul-2021 add new StashableBase options for git backup
 #  29-Jul-2021 DrugBankProvider needs useCache=False to always rebuild
 #   3-Mar-2023 Fix error for missing taxonPath
-#  13-Mar-2023 Change CARDTargetFeatureProvider to CARDTargetAnnotationProvider
+#  14-Mar-2023 Generate CARD annotations instead of CARD features
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
