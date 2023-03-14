@@ -65,6 +65,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
 
     def cacheTaxonomy(self):
         """Cache NCBI taxonomy database files"""
+        logger.info("Running cacheTaxonomy...")
         ok = False
         try:
             tU = TaxonomyProvider(cachePath=self.__cachePath, useCache=False, cleanup=False)
@@ -75,6 +76,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
 
     def fetchUniProtTaxonomy(self):
         """Reload UniProt taxonomy mapping"""
+        logger.info("Running fetchUniProtTaxonomy...")
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
@@ -85,6 +87,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
 
     def updateUniProtTaxonomy(self):
         """Test case - initialize the UniProt taxonomy provider (from scratch ~3482 secs)"""
+        logger.info("Running updateUniProtTaxonomy...")
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
@@ -95,6 +98,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
 
     def fetchProteinEntityData(self):
         """Export RCSB protein entity sequence FASTA, taxonomy, and sequence details"""
+        logger.info("Running fetchProteinEntityData...")
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
@@ -105,6 +109,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
 
     def fetchChemicalReferenceMappingData(self):
         """Export RCSB chemical reference identifier mapping details"""
+        logger.info("Running fetchChemicalReferenceMappingData...")
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
@@ -115,6 +120,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
 
     def fetchLigandNeighborMappingData(self):
         """Export RCSB ligand neighbor mapping details"""
+        logger.info("Running fetchLigandNeighborMappingData...")
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
@@ -125,6 +131,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
 
     def exportFasta(self):
         """Export FASTA target files (and load Pharos from source)"""
+        logger.info("Running exportFasta...")
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
@@ -135,6 +142,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
 
     def createSearchDatabases(self):
         """Create search databases"""
+        logger.info("Running createSearchDatabases...")
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
@@ -145,6 +153,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
 
     def searchDatabases(self):
         """Search sequence databases"""
+        logger.info("Running searchDatabases...")
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
@@ -159,6 +168,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
 
     def buildFeatures(self):
         """Build features from search results"""
+        logger.info("Running buildFeatures...")
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
@@ -175,6 +185,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
 
     def buildActivityData(self):
         """Build features from search results"""
+        logger.info("Running buildActivityData...")
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
@@ -185,6 +196,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
 
     def buildCofactorData(self):
         """Build features from search results"""
+        logger.info("Running buildCofactorData...")
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
