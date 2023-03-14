@@ -34,19 +34,19 @@ class ProteinTargetSequenceExecutionWorkflow(object):
     def __init__(self, **kwargs):
         """Workflow wrapper  --  Workflow to rebuild and stash "buildable" cache resources.
 
-        Args:
-            configPath (str, optional): path to configuration file (default: exdb-config-example.yml)
-            configName (str, optional): configuration section name (default: site_info_configuration)
-            cachePath (str, optional):  path to cache directory (default: '.')
+        kwargs:
+            configPath (str, optional): path to configuration file (default: 'exdb-config-example.yml')
+            configName (str, optional): configuration section name (default: 'site_info_configuration')
+            workPath (str, optional):  path to working directory (default: HERE)
             stashRemotePrefix (str, optional): file name prefix (channel) applied to remote stash file artifacts (default: None)
         """
         configPath = kwargs.get("configPath", "exdb-config-example.yml")
         self.__configName = kwargs.get("configName", "site_info_configuration")
         mockTopPath = kwargs.get("mockTopPath", None)
         self.__cfgOb = ConfigUtil(configPath=configPath, defaultSectionName=self.__configName, mockTopPath=mockTopPath)
+        self.__workPath = kwargs.get("workPath", HERE)
+        self.__cachePath = os.path.join(self.__workPath, "CACHE")
         #
-        self.__cachePath = kwargs.get("cachePath", ".")
-        self.__cachePath = os.path.abspath(self.__cachePath)
         self.__stashRemotePrefix = kwargs.get("stashRemotePrefix", None)
         #
         self.__debugFlag = kwargs.get("debugFlag", False)
