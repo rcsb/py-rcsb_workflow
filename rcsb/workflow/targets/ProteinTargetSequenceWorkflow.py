@@ -8,6 +8,7 @@
 #  Updates:
 #  25-Jul-2021 add new StashableBase options for git backup
 #  29-Jul-2021 DrugBankProvider needs useCache=False to always rebuild
+#   3-Mar-2023 Fix error for missing taxonPath
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
@@ -273,7 +274,7 @@ class ProteinTargetSequenceWorkflow(object):
                 resourceName, seqDbTopPath, referenceResourceName, rawPath, minSeqId=identityCutoff, timeOut=timeOut, sensitivity=sensitivity, formatOutput=formatOutput
             )
             #
-            if mU.exists(taxonPath):
+            if taxonPath and mU.exists(taxonPath):
                 mL = mmS.getMatchResults(rawPath, taxonPath, useTaxonomy=True, misMatchCutoff=-1, sequenceIdentityCutoff=identityCutoff, useBitScore=useBitScore)
             else:
                 mL = mmS.getMatchResults(rawPath, None, useTaxonomy=False, misMatchCutoff=-1, sequenceIdentityCutoff=identityCutoff, useBitScore=useBitScore)
