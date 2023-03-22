@@ -5,6 +5,7 @@
 #
 # Updates:
 #   3-Mar-2023 Standard args passed into workflow
+#  21-Mar-2023 Allow backing up Pharos-targets to stash, more __init__ improvement
 ##
 """
 Execution workflow for protein target data ETL operations.
@@ -34,18 +35,21 @@ class ProteinTargetSequenceExecutionWorkflow(object):
     def __init__(self, **kwargs):
         """Workflow wrapper  --  Workflow to rebuild and stash "buildable" cache resources.
 
-        kwargs:
-            configPath (str, optional): path to configuration file (default: 'exdb-config-example.yml')
-            configName (str, optional): configuration section name (default: 'site_info_configuration')
-            workPath (str, optional):  path to working directory (default: HERE)
-            stashRemotePrefix (str, optional): file name prefix (channel) applied to remote stash file artifacts (default: None)
+        Args:
+        configPath (str, optional): path to configuration file (default: exdb-config-example.yml)
+        configName (str, optional): configuration section name (default: site_info_remote_configuration)
+        mockTopPath (str, optional):  mockTopPath is prepended to path configuration options if it specified (default=None)
+        workPath (str, optional):  path to working directory (default: HERE)
+        cachePath (str, optional):  path to cache directory (default: HERE/CACHE)
+        stashRemotePrefix (str, optional): file name prefix (channel) applied to remote stash file artifacts (default: None)
+        debugFlag (bool, optional):  sets logger to debug mode (default: False)
         """
         configPath = kwargs.get("configPath", "exdb-config-example.yml")
-        self.__configName = kwargs.get("configName", "site_info_configuration")
+        self.__configName = kwargs.get("configName", "site_info_remote_configuration")
         mockTopPath = kwargs.get("mockTopPath", None)
         self.__cfgOb = ConfigUtil(configPath=configPath, defaultSectionName=self.__configName, mockTopPath=mockTopPath)
         self.__workPath = kwargs.get("workPath", HERE)
-        self.__cachePath = os.path.join(self.__workPath, "CACHE")
+        self.__cachePath = kwargs.get("cachePath", os.path.join(self.__workPath, "CACHE"))
         #
         self.__stashRemotePrefix = kwargs.get("stashRemotePrefix", None)
         #
@@ -135,7 +139,15 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.exportTargetsFasta(useCache=True, addTaxonomy=True, reloadPharos=True, fromDbPharos=True, resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"])
+            ok = ptsW.exportTargetsFasta(
+                useCache=True,
+                addTaxonomy=True,
+                reloadPharos=True,
+                fromDbPharos=True,
+                resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"],
+                backupPharos=True,
+                remotePrefix=self.__stashRemotePrefix
+            )
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return ok
@@ -212,9 +224,8 @@ class ProteinTargetSequenceExecutionWorkflow(object):
 def fullWorkflow():
     """Entry point for the full targets sequence and cofactor update workflow."""
     ptsWf = ProteinTargetSequenceExecutionWorkflow()
-    ok = True
     ok = ptsWf.cacheTaxonomy()
-    ok = ptsWf.updateUniProtTaxonomy()
+    ok = ptsWf.updateUniProtTaxonomy() and ok
     ok = ptsWf.fetchProteinEntityData() and ok
     ok = ptsWf.fetchChemicalReferenceMappingData() and ok
     ok = ptsWf.fetchLigandNeighborMappingData() and ok
