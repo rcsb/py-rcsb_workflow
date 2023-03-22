@@ -145,7 +145,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
                 reloadPharos=True,
                 fromDbPharos=True,
                 resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"],
-                backup=True,
+                backupPharos=True,
                 remotePrefix=self.__stashRemotePrefix
             )
         except Exception as e:

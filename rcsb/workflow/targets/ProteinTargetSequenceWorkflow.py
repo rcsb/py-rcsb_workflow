@@ -120,7 +120,7 @@ class ProteinTargetSequenceWorkflow(object):
             ok2 = umP.backup(self.__cfgOb, self.__configName)
         return ok1 & ok2
 
-    def exportTargetsFasta(self, resourceNameList=None, useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False, backup=False, remotePrefix=None):
+    def exportTargetsFasta(self, resourceNameList=None, useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False, backupPharos=False, remotePrefix=None):
         """Export the target FASTA files for the input data resources.
 
         Args:
@@ -129,7 +129,7 @@ class ProteinTargetSequenceWorkflow(object):
             addTaxonomy (bool, optional): add taxonomy details to each target record. Defaults to False.
             reloadPharos (bool, optional): reload Pharos target resources from SQL dump. Defaults to False.
             fromDbPharos (bool, optional): export Pharos target resources from local database server. Defaults to False.
-            backup (bool, optional): export Pharos target resources from local database server. Defaults to False.
+            backupPharos (bool, optional): export Pharos target resources from local database server. Defaults to False.
             remotePrefix (str, optional): channel prefix for stash storage. Defaults to None.
 
         Returns:
@@ -145,14 +145,14 @@ class ProteinTargetSequenceWorkflow(object):
                 addTaxonomy=addTaxonomy,
                 reloadPharos=reloadPharos,
                 fromDbPharos=fromDbPharos,
-                backup=backup,
+                backupPharos=backupPharos,
                 remotePrefix=remotePrefix
             )
             logger.info("Completed loading %s targets (status %r)at %s (%.4f seconds)", resourceName, ok, time.strftime("%Y %m %d %H:%M:%S", time.localtime()), time.time() - startTime)
             retOk = retOk and ok
         return retOk
 
-    def __exportTargetsFasta(self, resourceName, useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False, backup=False, remotePrefix=None):
+    def __exportTargetsFasta(self, resourceName, useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False, backupPharos=False, remotePrefix=None):
         ok = False
         try:
             configName = self.__cfgOb.getDefaultSectionName()
@@ -178,7 +178,7 @@ class ProteinTargetSequenceWorkflow(object):
                 ptP = PharosTargetProvider(cachePath=self.__cachePath, useCache=useCache, reloadDb=reloadPharos, fromDb=fromDbPharos, mysqlUser=user, mysqlPassword=pw)
                 if ptP.testCache():
                     ok = ptP.exportProteinFasta(fastaPath, taxonPath, addTaxonomy=addTaxonomy)
-                    if backup:
+                    if backupPharos:
                         okB = ptP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
                         logger.info("%r targets backup status (%r)", resourceName, okB)
             elif resourceName == "sabdab":
