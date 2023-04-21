@@ -134,7 +134,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
             logger.exception("Failing with %s", str(e))
         return ok
 
-    def exportFasta(self, fromDbPharos=True):
+    def exportFasta(self, reloadPharos=True, fromDbPharos=True):
         """Export FASTA target files (and load Pharos from source)"""
         logger.info("Running exportFasta...")
         ok = False
@@ -143,7 +143,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
             ok = ptsW.exportTargetsFasta(
                 useCache=True,
                 addTaxonomy=True,
-                reloadPharos=True,
+                reloadPharos=reloadPharos,
                 fromDbPharos=fromDbPharos,
                 resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"],
                 backupPharos=True,
