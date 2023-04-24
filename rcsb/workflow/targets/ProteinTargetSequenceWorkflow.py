@@ -181,6 +181,10 @@ class ProteinTargetSequenceWorkflow(object):
                     if backupPharos:
                         okB = ptP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
                         logger.info("%r targets backup status (%r)", resourceName, okB)
+                elif not (reloadPharos or fromDbPharos):
+                    ptP.restore(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
+                    if ptP.testCache():
+                        ok = ptP.exportProteinFasta(fastaPath, taxonPath, addTaxonomy=addTaxonomy)
             elif resourceName == "sabdab":
                 stP = SAbDabTargetProvider(cachePath=self.__cachePath, useCache=False)
                 if stP.testCache():
