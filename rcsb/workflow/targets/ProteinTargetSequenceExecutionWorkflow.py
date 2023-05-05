@@ -6,7 +6,7 @@
 # Updates:
 #   3-Mar-2023 Standard args passed into workflow
 #  21-Mar-2023 Allow backing up Pharos-targets to stash, more __init__ improvement
-#  21-Apr-2023 Pass in fromDbPharos parameter to exportFasta()
+#   5-May-2023 Pass in fromDbPharos and reloadPharos parameters to exportFasta()
 ##
 """
 Execution workflow for protein target data ETL operations.
