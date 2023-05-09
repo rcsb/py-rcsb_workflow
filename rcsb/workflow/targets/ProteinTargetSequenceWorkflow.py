@@ -11,7 +11,7 @@
 #   3-Mar-2023 Fix error for missing taxonPath
 #  14-Mar-2023 Generate CARD annotations instead of CARD features
 #  21-Mar-2023 Allow backing up Pharos-targets to stash
-#   5-May-2023 Restore from stash if in fromDbPharos and reloadPharos parameters are False
+#   5-May-2023 Restore from stash if fromDbPharos and reloadPharos parameters are False
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
