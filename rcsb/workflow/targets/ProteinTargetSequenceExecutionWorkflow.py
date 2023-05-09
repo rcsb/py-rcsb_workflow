@@ -6,6 +6,7 @@
 # Updates:
 #   3-Mar-2023 Standard args passed into workflow
 #  21-Mar-2023 Allow backing up Pharos-targets to stash, more __init__ improvement
+#   5-May-2023 Pass in fromDbPharos and reloadPharos parameters to exportFasta()
 ##
 """
 Execution workflow for protein target data ETL operations.
@@ -133,7 +134,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
             logger.exception("Failing with %s", str(e))
         return ok
 
-    def exportFasta(self):
+    def exportFasta(self, reloadPharos=True, fromDbPharos=True):
         """Export FASTA target files (and load Pharos from source)"""
         logger.info("Running exportFasta...")
         ok = False
@@ -142,8 +143,8 @@ class ProteinTargetSequenceExecutionWorkflow(object):
             ok = ptsW.exportTargetsFasta(
                 useCache=True,
                 addTaxonomy=True,
-                reloadPharos=True,
-                fromDbPharos=True,
+                reloadPharos=reloadPharos,
+                fromDbPharos=fromDbPharos,
                 resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"],
                 backupPharos=True,
                 remotePrefix=self.__stashRemotePrefix

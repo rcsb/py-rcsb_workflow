@@ -27,3 +27,4 @@
  3-Mar-2023 - V0.35 Standardize args in ProteinTargetSequenceExecutionWorkflow
 14-Mar-2023 - V0.36 Generate CARD annotations instead of features during ProteinTargetSequenceExecutionWorkflow
 21-Mar-2023 - V0.37 Allow backing up Pharos-targets to stash
+ 5-May-2023 - V0.38 Add fromDbPharos and reloadPharos parameters to ProteinTargetSequenceExecutionWorkflow.exportFasta()
