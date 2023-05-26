@@ -66,7 +66,7 @@ class ProteinTargetSequenceWorkflow(object):
         try:
             crmP = ChemRefMappingProvider(self.__cachePath, useCache=False)
             okF = crmP.fetchChemRefMapping(self.__cfgOb)
-            okB = crmP.backup(self.__cfgOb, self.__configName, useStash=True, useGit=True)
+            okB = crmP.backup(self.__cfgOb, self.__configName, useStash=True, useGit=False)
             ok = okF and okB
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -78,7 +78,7 @@ class ProteinTargetSequenceWorkflow(object):
         try:
             crmP = LigandNeighborMappingProvider(self.__cachePath, useCache=False)
             okF = crmP.fetchLigandNeighborMapping(self.__cfgOb)
-            okB = crmP.backup(self.__cfgOb, self.__configName, useStash=True, useGit=True)
+            okB = crmP.backup(self.__cfgOb, self.__configName, useStash=True, useGit=False)
             ok = okF and okB
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -180,7 +180,7 @@ class ProteinTargetSequenceWorkflow(object):
                 if ptP.testCache():
                     ok = ptP.exportProteinFasta(fastaPath, taxonPath, addTaxonomy=addTaxonomy)
                     if backupPharos:
-                        okB = ptP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
+                        okB = ptP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                         logger.info("%r targets backup status (%r)", resourceName, okB)
                 elif not (reloadPharos or fromDbPharos):
                     ptP.restore(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
@@ -340,19 +340,19 @@ class ProteinTargetSequenceWorkflow(object):
                 fP = SAbDabTargetFeatureProvider(cachePath=self.__cachePath, useCache=True)
                 ok = fP.buildFeatureList(resultPath)
                 if backup:
-                    okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
+                    okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                     logger.info("%r features backup status (%r)", resourceName, okB)
             elif resourceName == "card":
                 fP = CARDTargetAnnotationProvider(cachePath=self.__cachePath, useCache=True)
                 ok = fP.buildAnnotationList(resultPath, useTaxonomy=useTaxonomy)
                 if backup:
-                    okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
+                    okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                     logger.info("%r annotations backup status (%r)", resourceName, okB)
             elif resourceName == "imgt":
                 fP = IMGTTargetFeatureProvider(cachePath=self.__cachePath, useCache=True)
                 ok = fP.buildFeatureList(useCache=True)
                 if backup:
-                    okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
+                    okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                     logger.info("%r features backup status (%r)", resourceName, okB)
             return ok & okB
         except Exception as e:
@@ -407,20 +407,20 @@ class ProteinTargetSequenceWorkflow(object):
                 ok = aP.fetchTargetActivityDataMulti(targetIdList, skip="tried", chunkSize=50, numProc=6)
                 #
                 if backup:
-                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
+                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                     logger.info("%r activity backup status (%r)", resourceName, okB)
             elif resourceName == "pharos":
                 aP = PharosTargetActivityProvider(cachePath=self.__cachePath, useCache=True)
                 ok = aP.fetchTargetActivityData()
                 if backup:
-                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
+                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                     logger.info("%r activity data backup status (%r)", resourceName, okB)
                 #
                 chemblIdList = aP.fetchCompoundIdentifiers()
                 phP = PharosProvider(cachePath=self.__cachePath, useCache=False)
                 phP.load(chemblIdList, "identifiers", fmt="json", indent=0)
                 if backup:
-                    okC = phP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
+                    okC = phP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                     logger.info("%r identifier backup status (%r)", resourceName, okC)
 
             return ok and okB and okC
@@ -472,21 +472,21 @@ class ProteinTargetSequenceWorkflow(object):
                 ok = aP.buildCofactorList(resultPath, crmpObj=crmpObj, lnmpObj=lnmpObj, maxActivity=maxActivity)
                 #
                 if backup:
-                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
+                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                     logger.info("%r cofactor backup status (%r)", resourceName, okB)
 
             elif resourceName == "pharos":
                 aP = PharosTargetCofactorProvider(cachePath=self.__cachePath, useCache=True, useStash=True, useGit=True)
                 ok = aP.buildCofactorList(resultPath, crmpObj=crmpObj, lnmpObj=lnmpObj, maxActivity=maxActivity)
                 if backup:
-                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useGit=True)
+                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
                     logger.info("%r cofactor data backup status (%r)", resourceName, okB)
 
             elif resourceName == "drugbank":
                 aP = DrugBankTargetCofactorProvider(cachePath=self.__cachePath, useCache=True)
                 ok = aP.buildCofactorList(resultPath, crmpObj=crmpObj, lnmpObj=lnmpObj)
                 if backup:
-                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=True)
+                    okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                     logger.info("%r cofactor data backup status (%r)", resourceName, okB)
 
             return ok & okB
