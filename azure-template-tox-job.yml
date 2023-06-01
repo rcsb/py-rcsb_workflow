@@ -93,7 +93,19 @@ jobs:
               grep -q avx2 /proc/cpuinfo && echo "AVX2: Yes" || echo "AVX2: No"
             displayName: "Check architecture"
           - bash: |
-              wget https://mmseqs.com/latest/mmseqs-linux-avx2.tar.gz
+              echo "Downloading latest MMseqs2 static build"
+              attempt=1
+              while [[ $attempt -le 5 ]]; do
+                  wget https://mmseqs.com/latest/mmseqs-linux-avx2.tar.gz
+                  if [[ $? -eq 0 ]]; then
+                      echo "Download successful."
+                      break
+                  else
+                      echo "Download failed. Retrying in 5 seconds..."
+                      sleep 5
+                      attempt=$((attempt + 1))
+                  fi
+              done
               tar xvzf mmseqs-linux-avx2.tar.gz
               sudo cp mmseqs/bin/mmseqs /usr/local/bin/mmseqs
             displayName: "Install mmseqs2 binary"
