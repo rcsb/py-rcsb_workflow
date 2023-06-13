@@ -7,6 +7,7 @@
 #   3-Mar-2023 Standard args passed into workflow
 #  21-Mar-2023 Allow backing up Pharos-targets to stash, more __init__ improvement
 #   5-May-2023 Pass in fromDbPharos and reloadPharos parameters to exportFasta()
+#  12-Jun-2023 dwp Set useTaxonomy filter to False for CARD annotations
 ##
 """
 Execution workflow for protein target data ETL operations.
@@ -188,7 +189,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
             ok = ptsW.buildFeatureData(
                 referenceResourceName="pdbprent",
                 resourceNameList=["sabdab", "card", "imgt"],
-                useTaxonomy=True,
+                useTaxonomy=False,
                 backup=True,
                 remotePrefix=self.__stashRemotePrefix
             )

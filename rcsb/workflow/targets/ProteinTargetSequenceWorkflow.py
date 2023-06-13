@@ -13,6 +13,7 @@
 #  21-Mar-2023 Allow backing up Pharos-targets to stash
 #   5-May-2023 Restore from stash if fromDbPharos and reloadPharos parameters are False
 #   1-Jun-2023 aae Don't back up resources to GitHub during cache update workflows
+#  12-Jun-2023 dwp Set useTaxonomy filter to False for CARD annotations
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
@@ -331,7 +332,7 @@ class ProteinTargetSequenceWorkflow(object):
         #
         return retOk
 
-    def __buildFeatureData(self, referenceResourceName, resourceName, useTaxonomy=True, backup=False, remotePrefix=None):
+    def __buildFeatureData(self, referenceResourceName, resourceName, useTaxonomy=False, backup=False, remotePrefix=None):
         """Build features and annotations inferred from sequence comparison results between the input resources."""
         try:
             okB = True
