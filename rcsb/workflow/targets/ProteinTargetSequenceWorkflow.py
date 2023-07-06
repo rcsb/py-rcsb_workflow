@@ -122,7 +122,7 @@ class ProteinTargetSequenceWorkflow(object):
         umP.clearCache()
         ok1 = umP.reload(useCache=True, useLegacy=False, fmt="tdd", mapNames=["NCBI-taxon"])
         logger.info("Completed building UniProt Id mapping (%r) at %s (%.4f seconds)", ok1, time.strftime("%Y %m %d %H:%M:%S", time.localtime()), time.time() - startTime)
-        if ok1:
+        if ok1 and umP.testCache():
             ok2 = umP.backup(self.__cfgOb, self.__configName)
         return ok1 & ok2
 
@@ -184,7 +184,7 @@ class ProteinTargetSequenceWorkflow(object):
                 ptP = PharosTargetProvider(cachePath=self.__cachePath, useCache=useCache, reloadDb=reloadPharos, fromDb=fromDbPharos, mysqlUser=user, mysqlPassword=pw)
                 if ptP.testCache():
                     ok = ptP.exportProteinFasta(fastaPath, taxonPath, addTaxonomy=addTaxonomy)
-                    if ok and backupPharos:
+                    if ok and backupPharos and ptP.testCache():
                         okB = ptP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                         logger.info("%r targets backup status (%r)", resourceName, okB)
                 elif not (reloadPharos or fromDbPharos):
@@ -344,19 +344,19 @@ class ProteinTargetSequenceWorkflow(object):
             if resourceName == "sabdab":
                 fP = SAbDabTargetFeatureProvider(cachePath=self.__cachePath, useCache=True)
                 ok = fP.buildFeatureList(resultPath)
-                if ok and backup:
+                if ok and backup and fP.testCache():
                     okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                     logger.info("%r features backup status (%r)", resourceName, okB)
             elif resourceName == "card":
                 fP = CARDTargetAnnotationProvider(cachePath=self.__cachePath, useCache=True)
                 ok = fP.buildAnnotationList(resultPath, useTaxonomy=useTaxonomy)
-                if ok and backup:
+                if ok and backup and fP.testCache():
                     okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                     logger.info("%r annotations backup status (%r)", resourceName, okB)
             elif resourceName == "imgt":
                 fP = IMGTTargetFeatureProvider(cachePath=self.__cachePath, useCache=True)
                 ok = fP.buildFeatureList(useCache=True)
-                if ok and backup:
+                if ok and backup and fP.testCache():
                     okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                     logger.info("%r features backup status (%r)", resourceName, okB)
             return ok & okB
@@ -411,20 +411,20 @@ class ProteinTargetSequenceWorkflow(object):
                 targetIdList = targetIdList[:maxTargets] if maxTargets else targetIdList
                 ok = aP.fetchTargetActivityDataMulti(targetIdList, skip="tried", chunkSize=50, numProc=6)
                 #
-                if ok and backup:
+                if ok and backup and aP.testCache(1):
                     okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                     logger.info("%r activity backup status (%r)", resourceName, okB)
             elif resourceName == "pharos":
                 aP = PharosTargetActivityProvider(cachePath=self.__cachePath, useCache=True)
                 ok = aP.fetchTargetActivityData()
-                if ok and backup:
+                if ok and backup and aP.testCache(1):
                     okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                     logger.info("%r activity data backup status (%r)", resourceName, okB)
                 #
                 chemblIdList = aP.fetchCompoundIdentifiers()
                 phP = PharosProvider(cachePath=self.__cachePath, useCache=False)
                 okC = phP.load(chemblIdList, "identifiers", fmt="json", indent=0)
-                if okC and backup:
+                if okC and backup and phP.testCache(1):
                     okD = phP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                     logger.info("%r identifier backup status (%r)", resourceName, okC)
 
@@ -476,21 +476,21 @@ class ProteinTargetSequenceWorkflow(object):
                 aP = ChEMBLTargetCofactorProvider(cachePath=self.__cachePath, useCache=True)
                 ok = aP.buildCofactorList(resultPath, crmpObj=crmpObj, lnmpObj=lnmpObj, maxActivity=maxActivity)
                 #
-                if ok and backup:
+                if ok and backup and aP.testCache():
                     okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                     logger.info("%r cofactor backup status (%r)", resourceName, okB)
 
             elif resourceName == "pharos":
                 aP = PharosTargetCofactorProvider(cachePath=self.__cachePath, useCache=True, useStash=True, useGit=True)
                 ok = aP.buildCofactorList(resultPath, crmpObj=crmpObj, lnmpObj=lnmpObj, maxActivity=maxActivity)
-                if ok and backup:
+                if ok and backup and aP.testCache():
                     okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                     logger.info("%r cofactor data backup status (%r)", resourceName, okB)
 
             elif resourceName == "drugbank":
                 aP = DrugBankTargetCofactorProvider(cachePath=self.__cachePath, useCache=True)
                 ok = aP.buildCofactorList(resultPath, crmpObj=crmpObj, lnmpObj=lnmpObj)
-                if ok and backup:
+                if ok and backup and aP.testCache():
                     okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                     logger.info("%r cofactor data backup status (%r)", resourceName, okB)
 
