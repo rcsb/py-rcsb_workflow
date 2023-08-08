@@ -36,8 +36,8 @@ logger = logging.getLogger()
 class ChemCompImageWorkflowTests(unittest.TestCase):
     def setUp(self):
         self.__startTime = time.time()
+        self.__cachePath = os.path.join(HERE, "test-data")
         self.__workPath = os.path.join(HERE, "test-output")
-        self.__cachePath = os.path.join(HERE, "test-output")
         logger.debug("Running tests on version %s", __version__)
         logger.info("Starting %s at %s", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()))
 
