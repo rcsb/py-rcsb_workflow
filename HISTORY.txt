@@ -31,3 +31,4 @@
 22-May-2023 - V0.39 Add retries to tox task for MMseqs2 download
  1-Jun-2023 - V0.40 Don't back up resources to GitHub during cache update workflows
 12-Jun-2023 - V0.41 Set useTaxonomy filter to False for CARD annotations
+ 8-Aug-2023 - V0.42 Reduce resource footprint for Azure tests

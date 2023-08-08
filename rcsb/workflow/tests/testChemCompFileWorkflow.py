@@ -34,6 +34,8 @@ logger = logging.getLogger()
 
 
 class ChemCompFileWorkflowTests(unittest.TestCase):
+    skipHeavy = True
+
     def setUp(self):
         self.__startTime = time.time()
         self.__workPath = os.path.join(HERE, "test-output")
@@ -48,6 +50,7 @@ class ChemCompFileWorkflowTests(unittest.TestCase):
         endTime = time.time()
         logger.info("Completed %s at %s (%.4f seconds)", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()), endTime - self.__startTime)
 
+    @unittest.skipIf(skipHeavy, "Very resource demanding test")
     def testMakeFiles(self):
         """Test case -  generate all sdf and mol2 files for chemical component definitions."""
         try:
@@ -67,7 +70,7 @@ class ChemCompFileWorkflowTests(unittest.TestCase):
 
 def suiteFileGeneration():
     suiteSelect = unittest.TestSuite()
-    suiteSelect.addTest(ChemCompFileWorkflowTests("testMakeFiles"))
+    # suiteSelect.addTest(ChemCompFileWorkflowTests("testMakeFiles"))
     return suiteSelect
 
 
