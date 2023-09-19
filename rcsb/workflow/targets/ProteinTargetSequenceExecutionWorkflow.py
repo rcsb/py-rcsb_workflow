@@ -227,20 +227,31 @@ def fullWorkflow():
     """Entry point for the full targets sequence and cofactor update workflow."""
     ptsWf = ProteinTargetSequenceExecutionWorkflow()
     ok = ptsWf.cacheTaxonomy()
+    logger.info("cacheTaxonomy status %r", ok)
     ok = ptsWf.updateUniProtTaxonomy() and ok
+    logger.info("updateUniProtTaxonomy status %r", ok)
     ok = ptsWf.fetchProteinEntityData() and ok
+    logger.info("fetchProteinEntityData status %r", ok)
     ok = ptsWf.fetchChemicalReferenceMappingData() and ok
+    logger.info("fetchChemicalReferenceMappingData status %r", ok)
     ok = ptsWf.fetchLigandNeighborMappingData() and ok
+    logger.info("fetchLigandNeighborMappingData status %r", ok)
     ok = ptsWf.exportFasta() and ok
+    logger.info("exportFasta status %r", ok)
     ok = ptsWf.createSearchDatabases() and ok
+    logger.info("createSearchDatabases status %r", ok)
     ok = ptsWf.searchDatabases() and ok
+    logger.info("searchDatabases status %r", ok)
     ok = ptsWf.buildFeatures() and ok
+    logger.info("buildFeatures status %r", ok)
     ok = ptsWf.buildActivityData() and ok
+    logger.info("buildActivityData status %r", ok)
     ok = ptsWf.buildCofactorData() and ok
+    logger.info("buildCofactorData status %r", ok)
     ptsWf.resourceCheck()
     return ok
 
 
 if __name__ == "__main__":
     status = fullWorkflow()
-    print("Full workflow completion status (%r)", status)
+    logger.info("Full workflow completion status (%r)", status)
