@@ -207,6 +207,7 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
             logger.exception("Failing with %s", str(e))
             self.fail()
 
+    @unittest.skip("Skipping until proper fixture is created to provide necessary chembl and pharos cofactor data files in starting cache")
     def testFFBuildCofactorData(self):
         """Test case - build features from search results"""
         try:

@@ -492,16 +492,19 @@ class ProteinTargetSequenceWorkflow(object):
             if resourceName == "chembl":
                 aP = ChEMBLTargetCofactorProvider(cachePath=self.__cachePath, useCache=True)
                 ok = aP.buildCofactorList(resultPath, crmpObj=crmpObj, lnmpObj=lnmpObj, maxActivity=maxActivity)
-                aP.reload()
+                ok = aP.reload() and ok
+                logger.info("%r cofactor data build status (%r)", resourceName, ok)
                 #
                 if ok and backup and aP.testCache():
                     okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
-                    logger.info("%r cofactor backup status (%r)", resourceName, okB)
+                    logger.info("%r cofactor data backup status (%r)", resourceName, okB)
 
             elif resourceName == "pharos":
                 aP = PharosTargetCofactorProvider(cachePath=self.__cachePath, useCache=True, useStash=True, useGit=True)
                 ok = aP.buildCofactorList(resultPath, crmpObj=crmpObj, lnmpObj=lnmpObj, maxActivity=maxActivity)
-                aP.reload()
+                ok = aP.reload() and ok
+                logger.info("%r cofactor data build status (%r)", resourceName, ok)
+                #
                 if ok and backup and aP.testCache():
                     okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                     logger.info("%r cofactor data backup status (%r)", resourceName, okB)
@@ -509,12 +512,14 @@ class ProteinTargetSequenceWorkflow(object):
             elif resourceName == "drugbank":
                 aP = DrugBankTargetCofactorProvider(cachePath=self.__cachePath, useCache=True)
                 ok = aP.buildCofactorList(resultPath, crmpObj=crmpObj, lnmpObj=lnmpObj)
-                aP.reload()
+                ok = aP.reload() and ok
+                logger.info("%r cofactor data build status (%r)", resourceName, ok)
+                #
                 if ok and backup and aP.testCache():
                     okB = aP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                     logger.info("%r cofactor data backup status (%r)", resourceName, okB)
-
-            return ok & okB
+            #
+            return ok and okB
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return False
