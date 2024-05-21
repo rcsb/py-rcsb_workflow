@@ -244,6 +244,7 @@ def fullWorkflow():
     logger.info("searchDatabases status %r", ok)
     ok = ptsWf.buildFeatures() and ok
     logger.info("buildFeatures status %r", ok)
+    # To rebuild ChEMBL-target-activity data from scratch (non-incremental), set skip=None in fetchTargetActivityDataMulti()
     ok = ptsWf.buildActivityData() and ok
     logger.info("buildActivityData status %r", ok)
     ok = ptsWf.buildCofactorData() and ok

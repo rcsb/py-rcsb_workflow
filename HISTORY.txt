@@ -34,3 +34,4 @@
 19-Sep-2023 - V0.42 Don't overwrite Buildlocker files if there is no data;
                     Reduce resource footprint for Azure tests;
                     Make CARDTargetOntologyProvider stashable on Buildlocker
+21-May-2024 - V0.43 Fix pylinting
