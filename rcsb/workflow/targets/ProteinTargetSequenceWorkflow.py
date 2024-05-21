@@ -69,11 +69,12 @@ class ProteinTargetSequenceWorkflow(object):
         ok = False
         try:
             crmP = ChemRefMappingProvider(self.__cachePath, useCache=False)
-            okF = crmP.fetchChemRefMapping(self.__cfgOb)
+            ok = crmP.fetchChemRefMapping(self.__cfgOb)
+            logger.info("Completed fetch ChemRefMappingProvider (%r)", ok)
             crmP.reload()
-            if okF and crmP.testCache(minCount=1):
-                okB = crmP.backup(self.__cfgOb, self.__configName, useStash=True, useGit=False)
-            ok = okF and okB
+            if ok and crmP.testCache(minCount=1):
+                ok = crmP.backup(self.__cfgOb, self.__configName, useStash=True, useGit=False)
+                logger.info("Completed backup ChemRefMappingProvider (%r)", ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return ok
@@ -83,11 +84,12 @@ class ProteinTargetSequenceWorkflow(object):
         ok = False
         try:
             crmP = LigandNeighborMappingProvider(self.__cachePath, useCache=False)
-            okF = crmP.fetchLigandNeighborMapping(self.__cfgOb)
+            ok = crmP.fetchLigandNeighborMapping(self.__cfgOb)
+            logger.info("Completed fetch LigandNeighborMappingProvider (%r)", ok)
             crmP.reload()
-            if okF and crmP.testCache(minCount=1):
-                okB = crmP.backup(self.__cfgOb, self.__configName, useStash=True, useGit=False)
-            ok = okF and okB
+            if ok and crmP.testCache(minCount=1):
+                ok = crmP.backup(self.__cfgOb, self.__configName, useStash=True, useGit=False)
+                logger.info("Completed backup LigandNeighborMappingProvider (%r)", ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return ok
@@ -123,11 +125,12 @@ class ProteinTargetSequenceWorkflow(object):
         startTime = time.time()
         umP = UniProtIdMappingProvider(cachePath=self.__cachePath)
         umP.clearCache()
-        ok1 = umP.reload(useCache=True, useLegacy=False, fmt="tdd", mapNames=["NCBI-taxon"])
-        logger.info("Completed building UniProt Id mapping (%r) at %s (%.4f seconds)", ok1, time.strftime("%Y %m %d %H:%M:%S", time.localtime()), time.time() - startTime)
-        if ok1 and umP.testCache():
-            ok2 = umP.backup(self.__cfgOb, self.__configName)
-        return ok1 & ok2
+        ok = umP.reload(useCache=True, useLegacy=False, fmt="tdd", mapNames=["NCBI-taxon"])
+        logger.info("Completed building UniProt Id mapping (%r) at %s (%.4f seconds)", ok, time.strftime("%Y %m %d %H:%M:%S", time.localtime()), time.time() - startTime)
+        if ok and umP.testCache():
+            ok = umP.backup(self.__cfgOb, self.__configName)
+            logger.info("Completed backup UniProt Id mapping (%r)", ok)
+        return ok
 
     def exportTargetsFasta(self, resourceNameList=None, useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False, backupPharos=False, remotePrefix=None):
         """Export the target FASTA files for the input data resources.
@@ -423,6 +426,7 @@ class ProteinTargetSequenceWorkflow(object):
                     pass
                 targetIdList = aP.getTargetIdList(resultPath)
                 targetIdList = targetIdList[:maxTargets] if maxTargets else targetIdList
+                # To rebuild ChEMBL-target-activity data from scratch (non-incremental), change skip=None
                 ok = aP.fetchTargetActivityDataMulti(targetIdList, skip="tried", chunkSize=50, numProc=6)
                 #
                 aP.reload()
