@@ -219,6 +219,17 @@ class ProteinTargetSequenceExecutionWorkflow(object):
             logger.exception("Failing with %s", str(e))
         return ok
 
+    def loadTargetCofactorData(self):
+        """Load target cofactor data from search results"""
+        logger.info("Running loadTargetCofactorData...")
+        ok = False
+        try:
+            ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
+            ok = ptsW.loadTargetCofactorData(resourceNameList=["chembl", "pharos", "drugbank"])
+        except Exception as e:
+            logger.exception("Failing with %s", str(e))
+        return ok
+
     #
     # --- --- --- ---
 

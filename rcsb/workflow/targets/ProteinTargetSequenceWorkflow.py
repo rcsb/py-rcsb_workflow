@@ -46,6 +46,7 @@ from rcsb.utils.targets.PharosTargetActivityProvider import PharosTargetActivity
 from rcsb.utils.targets.PharosTargetCofactorProvider import PharosTargetCofactorProvider
 from rcsb.utils.targets.SAbDabTargetProvider import SAbDabTargetProvider
 from rcsb.utils.targets.SAbDabTargetFeatureProvider import SAbDabTargetFeatureProvider
+from rcsb.utils.targets.TargetCofactorDbProvider import TargetCofactorDbProvider
 
 logger = logging.getLogger(__name__)
 
@@ -320,7 +321,7 @@ class ProteinTargetSequenceWorkflow(object):
 
         Args:
             referenceResourceName (str): reference resource name (e.g., pdbprent)
-            resourceNameList (list, optional): list of data resources. Defaults to ["sabdab", "card"].
+            resourceNameList (list, optional): list of data resources. Defaults to ["sabdab", "card", "imgt"].
             useTaxonomy (bool, optional): use taxonomy in filtering selections where implemented  (e.g., card). Defaults to True.
             backup (bool, optional): backup results to stash storage. Defaults to False.
             remotePrefix (str, optional): channel prefix for stash storage. Defaults to None.
@@ -328,7 +329,7 @@ class ProteinTargetSequenceWorkflow(object):
         Returns:
             bool: True for success or False otherwise
         """
-        resourceNameList = resourceNameList if resourceNameList else ["sabdab", "card"]
+        resourceNameList = resourceNameList if resourceNameList else ["sabdab", "card", "imgt"]
         retOk = True
         for resourceName in resourceNameList:
             startTime = time.time()
@@ -490,7 +491,7 @@ class ProteinTargetSequenceWorkflow(object):
             crmpObj = ChemRefMappingProvider(cachePath=self.__cachePath, useCache=True)
             lnmpObj = LigandNeighborMappingProvider(cachePath=self.__cachePath, useCache=True)
 
-            okB = True
+            ok = okB = True
             resultPath = self.__getFilteredSearchResultPath(resourceName, referenceResourceName)
             #
             if resourceName == "chembl":
@@ -524,6 +525,56 @@ class ProteinTargetSequenceWorkflow(object):
                     logger.info("%r cofactor data backup status (%r)", resourceName, okB)
             #
             return ok and okB
+        except Exception as e:
+            logger.exception("Failing with %s", str(e))
+        return False
+
+    def loadTargetCofactorData(self, resourceNameList=None):
+        """Load target cofactor data to MongoDB.
+
+        Args:
+            resourceNameList (list, optional): list of data resources. Defaults to ["pharos", "chembl"].
+
+        Returns:
+            bool: True for success or False otherwise
+        """
+        resourceNameList = resourceNameList if resourceNameList else ["chembl", "pharos", "drugbank"]
+        retOk = True
+        for resourceName in resourceNameList:
+            startTime = time.time()
+            ok = self.__loadTargetCofactorData(resourceName)
+            logger.info(
+                "Completed loading target cofactor data for %s (status %r)  at %s (%.4f seconds)",
+                resourceName,
+                ok,
+                time.strftime("%Y %m %d %H:%M:%S", time.localtime()),
+                time.time() - startTime,
+            )
+            retOk = retOk and ok
+        #
+        return retOk
+
+    def __loadTargetCofactorData(self, resourceName):
+        """Load cofactor data inferred from sequence comparison results to MongoDB."""
+        try:
+            ok = okLoad = False
+            #
+            if resourceName == "chembl":
+                aP = ChEMBLTargetCofactorProvider(cachePath=self.__cachePath, useCache=True)
+            elif resourceName == "pharos":
+                aP = PharosTargetCofactorProvider(cachePath=self.__cachePath, useCache=True, useStash=True, useGit=True)
+            elif resourceName == "drugbank":
+                aP = DrugBankTargetCofactorProvider(cachePath=self.__cachePath, useCache=True)
+
+            ok = aP.reload()
+            logger.info("%r cofactor data reload status (%r)", resourceName, ok)
+            #
+            if ok and aP.testCache():
+                tcDbP = TargetCofactorDbProvider(cachePath=self.__cachePath, cfgOb=self.__cfgOb, cofactorResourceName=resourceName)
+                okLoad = tcDbP.loadCofactorData(resourceName, aP)
+                logger.info("%r cofactor data DB load status (%r)", resourceName, okLoad)
+
+            return ok and okLoad
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return False
