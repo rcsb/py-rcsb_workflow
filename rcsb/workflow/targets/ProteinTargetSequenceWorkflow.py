@@ -15,6 +15,7 @@
 #   1-Jun-2023 aae Don't back up resources to GitHub during cache update workflows
 #  12-Jun-2023 dwp Set useTaxonomy filter to False for CARD annotations
 #   6-Jul-2023 aae Don't overwrite Buildlocker files if there is no data
+#  20-Aug-2024 dwp Add step for loading target cofactor data to MongoDB
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
@@ -46,7 +47,6 @@ from rcsb.utils.targets.PharosTargetActivityProvider import PharosTargetActivity
 from rcsb.utils.targets.PharosTargetCofactorProvider import PharosTargetCofactorProvider
 from rcsb.utils.targets.SAbDabTargetProvider import SAbDabTargetProvider
 from rcsb.utils.targets.SAbDabTargetFeatureProvider import SAbDabTargetFeatureProvider
-from rcsb.utils.targets.TargetCofactorDbProvider import TargetCofactorDbProvider
 
 logger = logging.getLogger(__name__)
 
@@ -305,7 +305,7 @@ class ProteinTargetSequenceWorkflow(object):
             )
             #
             if taxonPath and mU.exists(taxonPath):
-                mL = mmS.getMatchResults(rawPath, taxonPath, useTaxonomy=True, misMatchCutoff=-1, sequenceIdentityCutoff=identityCutoff, useBitScore=useBitScore)
+                mL = mmS.getMatchResults(rawPath, taxonPath, useTaxonomy=True, useTaxonomyCache=True, misMatchCutoff=-1, sequenceIdentityCutoff=identityCutoff, useBitScore=useBitScore)
             else:
                 mL = mmS.getMatchResults(rawPath, None, useTaxonomy=False, misMatchCutoff=-1, sequenceIdentityCutoff=identityCutoff, useBitScore=useBitScore)
             logger.info("Query sequences with matches %r (%d) bitScore filter (%r)", resourceName, len(mL), useBitScore)
@@ -570,9 +570,7 @@ class ProteinTargetSequenceWorkflow(object):
             logger.info("%r cofactor data reload status (%r)", resourceName, ok)
             #
             if ok and aP.testCache():
-                tcDbP = TargetCofactorDbProvider(cachePath=self.__cachePath, cfgOb=self.__cfgOb, cofactorResourceName=resourceName)
-                okLoad = tcDbP.loadCofactorData(resourceName, aP)
-                logger.info("%r cofactor data DB load status (%r)", resourceName, okLoad)
+                okLoad = aP.loadCofactorData(cfgOb=self.__cfgOb)
 
             return ok and okLoad
         except Exception as e:
