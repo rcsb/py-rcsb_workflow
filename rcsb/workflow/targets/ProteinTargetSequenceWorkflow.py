@@ -558,6 +558,7 @@ class ProteinTargetSequenceWorkflow(object):
         """Load cofactor data inferred from sequence comparison results to MongoDB."""
         try:
             ok = okLoad = False
+            aP = None
             #
             if resourceName == "chembl":
                 aP = ChEMBLTargetCofactorProvider(cachePath=self.__cachePath, useCache=True)
@@ -565,7 +566,7 @@ class ProteinTargetSequenceWorkflow(object):
                 aP = PharosTargetCofactorProvider(cachePath=self.__cachePath, useCache=True, useStash=True, useGit=True)
             elif resourceName == "drugbank":
                 aP = DrugBankTargetCofactorProvider(cachePath=self.__cachePath, useCache=True)
-
+            #
             ok = aP.reload()
             logger.info("%r cofactor data reload status (%r)", resourceName, ok)
             #
