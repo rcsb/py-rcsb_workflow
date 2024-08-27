@@ -36,3 +36,4 @@
                     Make CARDTargetOntologyProvider stashable on Buildlocker
 21-May-2024 - V0.43 Fix pylinting
 20-Aug-2024 - V0.44 Add step for loading target cofactor data to MongoDB
+27-Aug-2024 - V0.45 Update usage of CARDTargetOntologyProvider

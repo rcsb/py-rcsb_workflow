@@ -16,6 +16,7 @@
 #  12-Jun-2023 dwp Set useTaxonomy filter to False for CARD annotations
 #   6-Jul-2023 aae Don't overwrite Buildlocker files if there is no data
 #  20-Aug-2024 dwp Add step for loading target cofactor data to MongoDB
+#  27-Aug-2024 dwp Update usage of CARDTargetOntologyProvider
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
@@ -359,17 +360,18 @@ class ProteinTargetSequenceWorkflow(object):
                     okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                     logger.info("%r features backup status (%r)", resourceName, okB)
             elif resourceName == "card":
+                fP = CARDTargetOntologyProvider(cachePath=self.__cachePath, useCache=True)
+                ok = fP.buildOntologyData()
+                fP.reload()
+                if ok and backup and fP.testCache():
+                    okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
+                    logger.info("%r ontology backup status (%r)", resourceName, okB)
                 fP = CARDTargetAnnotationProvider(cachePath=self.__cachePath, useCache=True)
                 ok = fP.buildAnnotationList(resultPath, useTaxonomy=useTaxonomy)
                 fP.reload()
                 if ok and backup and fP.testCache():
                     okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
                     logger.info("%r annotations backup status (%r)", resourceName, okB)
-                fP = CARDTargetOntologyProvider(cachePath=self.__cachePath, useCache=False)
-                ok = fP.reload()
-                if ok and backup and fP.testCache():
-                    okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
-                    logger.info("%r ontology backup status (%r)", resourceName, okB)
             elif resourceName == "imgt":
                 fP = IMGTTargetFeatureProvider(cachePath=self.__cachePath, useCache=True)
                 ok = fP.buildFeatureList(useCache=True)
