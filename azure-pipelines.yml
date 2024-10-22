@@ -6,6 +6,7 @@
 #      21-Jul-2019 jdw update to Py38
 #      10-Mar-2020 jdw py38 only
 #       8-Dec-2020 jdw py39 only
+#      16-Oct-2024 dwp update to python 3.10
 #
 name: $(BuildDefinitionName)_$(Date:yyyyMMdd)$(Rev:.rr)
 
@@ -29,7 +30,7 @@ jobs:
     parameters:
       {
         tox: "format_pep8",
-        python: "3.9",
+        python: "3.10",
         os: "linux",
         fixtures: "mysql,mongodb,mmseqs2",
       }
@@ -37,7 +38,7 @@ jobs:
     parameters:
       {
         tox: "lint_pylint",
-        python: "3.9",
+        python: "3.10",
         os: "linux",
         fixtures: "mysql,mongodb,mmseqs2",
       }
@@ -45,7 +46,7 @@ jobs:
     parameters:
       {
         tox: "test_coverage",
-        python: "3.9",
+        python: "3.10",
         os: "linux",
         fixtures: "mysql,mongodb,mmseqs2",
       }
@@ -53,16 +54,16 @@ jobs:
   - template: azure-template-tox-job.yml
     parameters:
       {
-        tox: "py39",
-        python: "3.9",
+        tox: "py310",
+        python: "3.10",
         os: "linux",
         fixtures: "mysql,mongodb,mmseqs2",
       }
   #
   #- template: azure-template-tox-job.yml
   #  parameters:
-  #    { tox: "py39", python: "3.9", os: "macos", fixtures: "mysql,mongodb" }
+  #    { tox: "py310", python: "3.10", os: "macos", fixtures: "mysql,mongodb" }
   #
   - template: azure-template-publish-job.yml
-    parameters: { tox: "py39", python: "3.9", os: "linux" }
+    parameters: { tox: "py310", python: "3.10", os: "linux" }
   #

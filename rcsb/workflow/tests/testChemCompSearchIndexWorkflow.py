@@ -1,6 +1,6 @@
 ##
 #
-# File:    ChemCompImageWorkflowTests.py
+# File:    ChemCompSearchIndexWorkflowTests.py
 # Author:  jdw
 # Date:    10-Mar-2020
 # Version: 0.001
