@@ -17,6 +17,7 @@
 #   6-Jul-2023 aae Don't overwrite Buildlocker files if there is no data
 #  20-Aug-2024 dwp Add step for loading target cofactor data to MongoDB
 #  27-Aug-2024 dwp Update usage of CARDTargetOntologyProvider
+#  10-Dec-2024 dwp Add support for 'max-seqs' flag in mmseqs search
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
@@ -252,7 +253,7 @@ class ProteinTargetSequenceWorkflow(object):
             retOk = False
         return retOk
 
-    def search(self, referenceResourceName, resourceNameList=None, identityCutoff=0.90, timeOutSeconds=10, sensitivity=4.5, useBitScore=False, formatOutput=None):
+    def search(self, referenceResourceName, resourceNameList=None, identityCutoff=0.90, timeOutSeconds=10, sensitivity=4.5, useBitScore=False, formatOutput=None, maxSeqs=300):
         """Search for similar sequences in the reference resource and the input sequence resources.
 
         Args:
@@ -264,6 +265,7 @@ class ProteinTargetSequenceWorkflow(object):
             useBitScore (bool, optional): use bitscore value as an additional comparison threshold. Defaults to False.
             formatOutput(str, optional):  mmseq2 search fields exported. Defaults to "query,target,taxid,taxname,pident,alnlen,mismatch,
                                                                          gapopen,qstart,qend,tstart,tend,evalue,raw,bits,qlen,tlen,qaln,taln,cigar".
+            maxSeqs (int): Maximum results per query sequence allowed to pass the prefilter (affects sensitivity). Defaults to 300.
 
         Returns:
              bool: True for success or False otherwise
@@ -275,7 +277,14 @@ class ProteinTargetSequenceWorkflow(object):
                 continue
             startTime = time.time()
             ok = self.__searchSimilar(
-                referenceResourceName, resourceName, identityCutoff=identityCutoff, timeOut=timeOutSeconds, sensitivity=sensitivity, useBitScore=useBitScore, formatOutput=formatOutput
+                referenceResourceName,
+                resourceName,
+                identityCutoff=identityCutoff,
+                timeOut=timeOutSeconds,
+                sensitivity=sensitivity,
+                useBitScore=useBitScore,
+                formatOutput=formatOutput,
+                maxSeqs=maxSeqs,
             )
             logger.info(
                 "Completed searching %s targets (status %r) (cutoff=%r) at %s (%.4f seconds)",
@@ -289,7 +298,7 @@ class ProteinTargetSequenceWorkflow(object):
         #
         return retOk
 
-    def __searchSimilar(self, referenceResourceName, resourceName, identityCutoff=0.90, timeOut=10, sensitivity=4.5, useBitScore=False, formatOutput=None):
+    def __searchSimilar(self, referenceResourceName, resourceName, identityCutoff=0.90, timeOut=10, sensitivity=4.5, useBitScore=False, formatOutput=None, maxSeqs=300):
         """Search for similar sequences in reference resource and input resources"""
         try:
             resultDirPath = self.__getResultDirPath()
@@ -302,7 +311,7 @@ class ProteinTargetSequenceWorkflow(object):
             rawPath = self.__getSearchResultPath(resourceName, referenceResourceName)
             resultPath = self.__getFilteredSearchResultPath(resourceName, referenceResourceName)
             ok = mmS.searchDatabase(
-                resourceName, seqDbTopPath, referenceResourceName, rawPath, minSeqId=identityCutoff, timeOut=timeOut, sensitivity=sensitivity, formatOutput=formatOutput
+                resourceName, seqDbTopPath, referenceResourceName, rawPath, minSeqId=identityCutoff, timeOut=timeOut, sensitivity=sensitivity, formatOutput=formatOutput, maxSeqs=maxSeqs
             )
             #
             if taxonPath and mU.exists(taxonPath):
