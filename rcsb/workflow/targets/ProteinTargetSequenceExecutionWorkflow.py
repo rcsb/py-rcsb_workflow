@@ -224,7 +224,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
                 - CACHE/sequence-search-results/sabdab-vs-pdbprent-filtered-results.json
                 - CACHE/sequence-search-results/sabdab-vs-pdbprent-raw-results.json
                 - CACHE/sequence-search-results/sabdab-vs-pdbprent-raw-results.txt
-                - ...and more...                
+                - ...and more...
         """
         logger.info("Running searchDatabases...")
         ok = False
