@@ -8,6 +8,7 @@
 #  21-Mar-2023 Allow backing up Pharos-targets to stash, more __init__ improvement
 #   5-May-2023 Pass in fromDbPharos and reloadPharos parameters to exportFasta()
 #  12-Jun-2023 dwp Set useTaxonomy filter to False for CARD annotations
+#  10-Dec-2024 dwp Specify 'max-seqs' for mmseqs search to override default value
 ##
 """
 Execution workflow for protein target data ETL operations.
@@ -103,7 +104,9 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         return ok
 
     def fetchProteinEntityData(self):
-        """Export RCSB protein entity sequence FASTA, taxonomy, and sequence details"""
+        """Export RCSB protein entity sequence FASTA, taxonomy, and sequence details
+        by fetching from 'pdbx_core_polymer_entity'.
+        """
         logger.info("Running fetchProteinEntityData...")
         ok = False
         try:
@@ -114,7 +117,13 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         return ok
 
     def fetchChemicalReferenceMappingData(self):
-        """Export RCSB chemical reference identifier mapping details"""
+        """Export RCSB chemical reference identifier mapping details.
+
+        Fetch/prepare mapping of all chemical references from 'bird_chem_comp_core' (for DrugBank and ChEMBL)
+        (e.g., all CCs where {'rcsb_chem_comp_related.resource_name': 'DrugBank'}).
+
+            --> Creates file: CACHE/chemref-mapping/chemref-mapping-data.json
+        """
         logger.info("Running fetchChemicalReferenceMappingData...")
         ok = False
         try:
@@ -125,7 +134,14 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         return ok
 
     def fetchLigandNeighborMappingData(self):
-        """Export RCSB ligand neighbor mapping details"""
+        """Export RCSB ligand neighbor mapping details.
+
+        Fetch/prepare mapping of all polymer_entities and their associated ligands (e.g., "2E1B_1": ["ZN"]).
+        This is done by extracting out all "rcsb_ligand_neighbors" from all polymer_entity_instances, and then
+        grouping them together on a per-entity basis.
+
+            --> Creates file: CACHE/ligand-neighbor-mapping/ligand-neighbor-mapping-data.json
+        """
         logger.info("Running fetchLigandNeighborMappingData...")
         ok = False
         try:
@@ -136,7 +152,19 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         return ok
 
     def exportFasta(self, reloadPharos=True, fromDbPharos=True):
-        """Export FASTA target files (and load Pharos from source)"""
+        """Export FASTA files for each target resource (and load Pharos from source).
+
+            --> Creates files:
+                - CACHE/SAbDab-features/sabdab-data.json  (e.g., (1074) Thera-SAbDab data records and (31152) SAbDab assignments)
+                - CACHE/FASTA/sabdab-targets.fa  (e.g., SAbDab 2120 fasta sequences)
+                - CACHE/FASTA/card-targets.fa
+                - CACHE/FASTA/card-targets-taxon.tdd  (TDD is taxonomy database)
+                - CACHE/FASTA/chembl-targets.fa
+                - CACHE/FASTA/chembl-targets-taxon.tdd
+                - CACHE/FASTA/pharos-targets.fa
+                - CACHE/FASTA/pharos-targets-taxon.tdd
+                - ...and more...
+        """
         logger.info("Running exportFasta...")
         ok = False
         try:
@@ -155,7 +183,16 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         return ok
 
     def createSearchDatabases(self):
-        """Create search databases"""
+        """Create search databases for each target resource.
+
+            --> Creates directories/files:
+                - CACHE/sequence-databases/sabdab/    (SABDAB is only non-taxonomy database; no TDD)
+                - CACHE/sequence-databases/card/      (incl. taxonomy database, and all below)
+                - CACHE/sequence-databases/chembl/    (file 'chembl' contains all sequences)
+                - CACHE/sequence-databases/pharos/
+                - CACHE/sequence-databases/pdbprent/
+                - ...and more...
+        """
         logger.info("Running createSearchDatabases...")
         ok = False
         try:
@@ -166,15 +203,50 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         return ok
 
     def searchDatabases(self):
-        """Search sequence databases"""
+        """Perform a search for each target resource DB against the 'pdbprent' database.
+
+        Args (provided below):
+            maxSeqs (int): Maximum results per query sequence allowed to pass the prefilter (affects sensitivity).
+                           This corresponds to the '--max-seqs' flag in MMseqs2 (default: 300).
+                           The higher the value, the fewer sequences will be filtered out (in cases of high sequence redundancy).
+                           Note: Use with caution--this can dramatically increase disk usage (https://github.com/soedinglab/MMseqs2/wiki#disk-space).
+
+            --> Creates files:
+                - CACHE/sequence-search-results/card-vs-pdbprent-filtered-results.json  (number of keys represents number of query sequences with matches)
+                - CACHE/sequence-search-results/card-vs-pdbprent-raw-results.json
+                - CACHE/sequence-search-results/card-vs-pdbprent-raw-results.txt
+                - CACHE/sequence-search-results/chembl-vs-pdbprent-filtered-results.json
+                - CACHE/sequence-search-results/chembl-vs-pdbprent-raw-results.json
+                - CACHE/sequence-search-results/chembl-vs-pdbprent-raw-results.txt
+                - CACHE/sequence-search-results/pharos-vs-pdbprent-filtered-results.json
+                - CACHE/sequence-search-results/pharos-vs-pdbprent-raw-results.json
+                - CACHE/sequence-search-results/pharos-vs-pdbprent-raw-results.txt
+                - CACHE/sequence-search-results/sabdab-vs-pdbprent-filtered-results.json
+                - CACHE/sequence-search-results/sabdab-vs-pdbprent-raw-results.json
+                - CACHE/sequence-search-results/sabdab-vs-pdbprent-raw-results.txt
+                - ...and more...
+        """
         logger.info("Running searchDatabases...")
         ok = False
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
             ok1 = ptsW.search(
-                referenceResourceName="pdbprent", resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"], identityCutoff=0.95, sensitivity=4.5, timeOutSeconds=1000
+                referenceResourceName="pdbprent",
+                resourceNameList=["sabdab", "drugbank", "chembl", "pharos"],
+                identityCutoff=0.95,
+                sensitivity=4.5,
+                timeOutSeconds=1000,
+                maxSeqs=750,  # number of seqs permitted past the prefilter (default 300; use caution when increasing w.r.t. disk usage)
             )
-            ok2 = ptsW.search(referenceResourceName="pdbprent", resourceNameList=["card"], identityCutoff=0.95, sensitivity=4.5, timeOutSeconds=1000, useBitScore=True)
+            ok2 = ptsW.search(
+                referenceResourceName="pdbprent",
+                resourceNameList=["card"],
+                identityCutoff=0.95,
+                sensitivity=4.5,
+                timeOutSeconds=1000,
+                useBitScore=True,
+                maxSeqs=750,
+            )
             ok = ok1 and ok2
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -237,29 +309,47 @@ class ProteinTargetSequenceExecutionWorkflow(object):
 def fullWorkflow():
     """Entry point for the full targets sequence and cofactor update workflow."""
     ptsWf = ProteinTargetSequenceExecutionWorkflow()
+    #
+    # Fetch taxonomy data
     ok = ptsWf.cacheTaxonomy()
     logger.info("cacheTaxonomy status %r", ok)
     ok = ptsWf.updateUniProtTaxonomy() and ok
     logger.info("updateUniProtTaxonomy status %r", ok)
+    #
+    # Fetch all PDB entity sequences from 'pdbx_core_polymer_entity'
     ok = ptsWf.fetchProteinEntityData() and ok
     logger.info("fetchProteinEntityData status %r", ok)
+    #
+    # Fetch/prepare mapping of all chemical references from 'bird_chem_comp_core' (for DrugBank and ChEMBL)
     ok = ptsWf.fetchChemicalReferenceMappingData() and ok
     logger.info("fetchChemicalReferenceMappingData status %r", ok)
+    #
+    # Fetch/prepare mapping of all polymer_entities and their associated ligands (e.g., "2E1B_1": ["ZN"])
     ok = ptsWf.fetchLigandNeighborMappingData() and ok
     logger.info("fetchLigandNeighborMappingData status %r", ok)
+    #
+    # Export FASTA files for each target resource
     ok = ptsWf.exportFasta() and ok
     logger.info("exportFasta status %r", ok)
+    #
+    # Create search databases for each target resource
     ok = ptsWf.createSearchDatabases() and ok
     logger.info("createSearchDatabases status %r", ok)
+    #
+    # Search each target resource DB against the 'pdbprent' database...
     ok = ptsWf.searchDatabases() and ok
     logger.info("searchDatabases status %r", ok)
+    #
     ok = ptsWf.buildFeatures() and ok
     logger.info("buildFeatures status %r", ok)
+    #
     # To rebuild ChEMBL-target-activity data from scratch (non-incremental), set skip=None in fetchTargetActivityDataMulti()
     ok = ptsWf.buildActivityData() and ok
     logger.info("buildActivityData status %r", ok)
+    #
     ok = ptsWf.buildCofactorData() and ok
     logger.info("buildCofactorData status %r", ok)
+    #
     ptsWf.resourceCheck()
     return ok
 
