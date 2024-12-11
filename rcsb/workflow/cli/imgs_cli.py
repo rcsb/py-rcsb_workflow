@@ -1,7 +1,7 @@
 """Cli parser for imgs workflow."""
 
 import argparse
-from imgs_wf import images_gen_jpgs, images_gen_lists
+from rcsb.workflow.imgs_gen.imgs.imgs_wf import images_gen_jpgs, images_gen_lists
 
 
 def main() -> None:
