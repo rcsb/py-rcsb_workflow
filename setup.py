@@ -12,7 +12,7 @@ from setuptools import setup
 packages = []
 thisPackage = "rcsb.workflow"
 
-with open("rcsb/workflow/chem/__init__.py", "r", encoding="utf-8") as fd:
+with open("rcsb/workflow/cli/__init__.py", "r", encoding="utf-8") as fd:
     version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', fd.read(), re.MULTILINE).group(1)
 
 

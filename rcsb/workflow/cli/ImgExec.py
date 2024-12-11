@@ -1,7 +1,20 @@
 """Cli parser for imgs workflow."""
+##
+# File: ImgExec.py
+# Date: 11-Dec-2024  mjt
+#
+#  Execution wrapper  --  for chem image generation -
+#
+#  Updates:
+#  
+##
+__docformat__ = "google en"
+__author__ = "John Westbrook"
+__email__ = "jwest@rcsb.rutgers.edu"
+__license__ = "Apache 2.0"
 
 import argparse
-from imgs_gen.imgs import images_gen_jpgs, images_gen_lists
+from rcsb.workflow.wuw.PdbCsmImageWorkflow import images_gen_jpgs, images_gen_lists
 
 
 def main() -> None:
