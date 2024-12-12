@@ -139,7 +139,7 @@ class PdbCsmImageWorkflow:
             cmd = [
                 kwargs.get("jpgXvfbExecutable"),
                 "-a",
-                "-s", f"-ac -screen 0 {kwargs.get("jpgScreen")}",
+                "-s", f"-ac -screen 0 {kwargs.get('jpgScreen')}",
                 kwargs.get("molrenderExe"),
                 "all",
                 bcifFilePath,
