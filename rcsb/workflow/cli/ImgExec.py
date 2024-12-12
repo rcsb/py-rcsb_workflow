@@ -6,15 +6,15 @@
 #  Execution wrapper  --  for chem image generation -
 #
 #  Updates:
-#  
+#
 ##
 __docformat__ = "google en"
-__author__ = "John Westbrook"
-__email__ = "jwest@rcsb.rutgers.edu"
+__author__ = "Michael Trumbull"
+__email__ = "michael.trumbull@rcsb.org"
 __license__ = "Apache 2.0"
 
 import argparse
-from rcsb.workflow.wuw.PdbCsmImageWorkflow import images_gen_jpgs, images_gen_lists
+from rcsb.workflow.wuw.PdbCsmImageWorkflow import PdbCsmImageWorkflow
 
 
 def main() -> None:
@@ -25,46 +25,70 @@ def main() -> None:
         required=True,
         help="which function to call",
         choices=[
-            "gen_lists",
-            "gen_jpgs",
+            "genLists",
+            "genJpgs",
         ],
     )
 
-    parser.add_argument("--pdb_gz_path")
-    parser.add_argument("--csm_gz_path")
-    parser.add_argument("--pdb_base_dir")
-    parser.add_argument("--csm_base_dir")
-    parser.add_argument("--update_all_images", action='store_true')
-    parser.add_argument("--imgs_exclude_models", action='store_true')
-    parser.add_argument("--num_workers")
+    parser.add_argument("--pdbGzPath")
+    parser.add_argument("--csmGzPath")
+    parser.add_argument("--pdbBaseDir")
+    parser.add_argument("--csmBaseDir")
+    parser.add_argument("--updateallImages", action='storeTrue')
+    parser.add_argument("--imgsExcludeModels", action='storeTrue')
+    parser.add_argument("--numWorkers")
 
-    parser.add_argument("--id_list_path")
-    parser.add_argument("--update_tmp_base")
-    parser.add_argument("--prerelease_ftp_file_base_path")
-    parser.add_argument("--csm_file_repo_base_path")
-    parser.add_argument("--bcif_exe")
-    parser.add_argument("--images_tmp_base")
-    parser.add_argument("--molrender_exe")
-    parser.add_argument("--jpgs_out_dir")
+    parser.add_argument("--idListPath")
+    parser.add_argument("--updateTmpBase")
+    parser.add_argument("--prereleaseFtpFileBasePath")
+    parser.add_argument("--csmFileRepoBasePath")
+    parser.add_argument("--bcifExe")
+    parser.add_argument("--imagesTmpBase")
+    parser.add_argument("--molrenderExe")
+    parser.add_argument("--jpgsOutDir")
 
-    parser.add_argument("--file_number")
-    
-    parser.add_argument("--jpg_height", default=500)
-    parser.add_argument("--jpg_width", default=500)
-    parser.add_argument("--jpg_format", default='jpeg')
-    parser.add_argument("--jpg_additional_cmds", default=None)
-    parser.add_argument("--jpg_xvfb_executable", default='/usr/bin/xvfb-run')
-    parser.add_argument("--jpg_screen", default='1280x1024x24')
+    parser.add_argument("--fileNumber")
 
-    args = vars(parser.parse_args())
+    parser.add_argument("--jpgHeight", default=500)
+    parser.add_argument("--jpgWidth", default=500)
+    parser.add_argument("--jpgFormat", default='jpeg')
+    parser.add_argument("--jpgadditionalCmds", default=None)
+    parser.add_argument("--jpgXvfbExecutable", default='/usr/bin/xvfb-run')
+    parser.add_argument("--jpgScreen", default='1280x1024x24')
 
-    if args["op"] == "gen_lists":
-        images_gen_lists(args)
-    elif args["op"] == "gen_jpgs":
-        images_gen_jpgs(args)
+    args = parser.parse_args()
+
+    imgWF = PdbCsmImageWorkflow()
+    if args["op"] == "genLists":
+        imgWF.imagesGenLists(
+            pdbGzPath=args.pdbGzPath,
+            csmGzPath=args.csmGzPath,
+            pdbBaseDir=args.pdbBaseDir,
+            csmBaseDir=args.csmBaseDir,
+            updateallImages=args.updateAllImages,
+            imgsExcludeModels=args.imgsExcludeModels,
+            numWorkers=args.numWorkers,
+            idListPath=args.idListPath,
+            prereleaseFtpFileBasePath=args.prereleaseFtpFileBasePath,
+            csmFileRepoBasePath=args.csmFileRepoBasePath,
+        )
+    elif args["op"] == "genjpgs":
+        imgWF.imagesGenJpgs(
+            idListPath=args.idListPath,
+            bcifExe=args.bcifExe,
+            imagesTmpBase=args.imagesTmpBase,
+            molrenderExe=args.molrenderExe,
+            jpgsOutDir=args.jpgsOutDir,
+            fileNumber=args.fileNumber,
+            jpgHeight=args.jpgHeight,
+            jpgWidth=args.jpgWidth,
+            jpgFormat=args.jpgFormat,
+            jpgAdditionalCmds=args.jpgAdditionalCmds,
+            jpgXvfbExecutable=args.jpgXvfbExecutable,
+            jpgScreen=args.jpgScreen,
+        )
     else:
-        msg = "Cli --op flag error: not availible option"
-        raise ValueError(msg)
+        raise ValueError("Cli --op flag error: not availible option")
 
 
 if __name__ == "__main__":

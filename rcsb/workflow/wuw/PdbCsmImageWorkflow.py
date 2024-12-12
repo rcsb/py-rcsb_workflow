@@ -1,4 +1,18 @@
 """Images workflow functions that actually do the work."""
+##
+# File: PdbCsmImageWorkflow.py
+# Date: 11-Dec-2024  mjt
+#
+#  Pdb and Csm image generation  - for workflow pipeline
+#
+#  Updates:
+#  12-dec-2024 mjt Created class object
+#
+##
+__docformat__ = "google en"
+__author__ = "Michael Trumbull"
+__email__ = "michael.trumbull@rcsb.org"
+__license__ = "Apache 2.0"
 
 import gzip
 import json
@@ -11,147 +25,150 @@ import subprocess
 logger = logging.getLogger(__name__)
 
 
-def get_pdb_list(pdb_gz_path: str, update_all_images: bool, pdb_base_dir: str) -> list:
-    """Build pdb list via pdb gz file."""
-    pdb_ids_timestamps = {}
-    with gzip.open(pdb_gz_path) as f:
-        data = json.loads(f.read())
-        for id_val in data:
-            datetime_object = datetime.datetime.strptime(data[id_val], "%Y-%m-%dT%H:%M:%S%z")
-            pdb_ids_timestamps[id_val.lower()] = datetime_object
-    pdb_id_list = []
-    if update_all_images:
-        for id_val in pdb_ids_timestamps:
-            path = id_val[1:3] + "/" + id_val + ".bcif"
-            pdb_id_list.append(f"{id_val} {path} experimental")
-    else:
-        for id_val, timestamp in pdb_ids_timestamps.items():
-            path = id_val[1:3] + "/" + id_val + ".bcif"
-            bcif_file = pdb_base_dir + path
-            if Path.exists(bcif_file):
-                t1 = Path.stat(bcif_file).st_mtime
-                t2 = timestamp.timestamp()
-                if t1 < t2:
-                    pdb_id_list.append(f"{id_val} {path} experimental")
-            else:
-                pdb_id_list.append(f"{id_val} {path} experimental")
-    return pdb_id_list
+class PdbCsmImageWorkflow:
 
-
-def get_csm_list(csm_gz_path: str, update_all_images: bool, csm_base_dir: str) -> list:
-    """Build csm list via csm gz file."""
-    with gzip.open(csm_gz_path) as f:
-        data = json.loads(f.read())
-        dic = {}
-        for model_id in data:
-            item = data[model_id]
-            item["modelPath"] = item["modelPath"].lower()  # prod route of BinaryCIF wf produces lowercase filenames
-            item["datetime"] = datetime.datetime.strptime(item["lastModifiedDate"], "%Y-%m-%dT%H:%M:%S%z")
-            dic[model_id.lower()] = item
-    model_ids_metadata = dic
-    model_list = []
-
-    if update_all_images:
-        for model_id, metadata in model_ids_metadata.items():
-            model_path = metadata["modelPath"].replace(".cif", ".bcif").replace('.gz', '')
-            model_list.append(f"{model_id} {model_path} computational")
-    else:
-        # 'incremental' for weekly
-        for model_id, metadata in model_ids_metadata.items():
-            model_path = metadata["modelPath"].replace(".cif", ".bcif").replace('.gz', '')
-            bcif_file = csm_base_dir + model_path
-            if Path.exists(bcif_file):
-                t1 = Path.stat(bcif_file).st_mtime
-                t2 = metadata["datetime"].timestamp()
-                if t1 < t2:
-                    model_list.append(f"{model_id} {model_path} computational")
-            else:
-                model_list.append(f"{model_id} {model_path} computational")
-    return model_list
-
-
-def images_gen_lists(args: dict) -> None:
-    """Generate lists of pdbs/csms in files."""
-    pdb_id_list = get_pdb_list(pdb_gz_path=args['pdb_gz_path'], update_all_images=args['update_all_images'], pdb_base_dir=args['pdb_base_dir'])
-    comp_id_list = [] if args["imgs_exclude_models"] else get_csm_list(csm_gz_path=args['csm_gz_path'], update_all_images=['update_all_images'], csm_base_dir=args['csm_base_dir'])
-
-    # Print results, combine, and shuffle
-    if len(pdb_id_list) < 1 and len(comp_id_list) < 1:
-        msg = "pdb and csm id list empty"
-        raise ValueError(msg)
-    msg = f"There are {len(pdb_id_list)} pdb_ids and {len(comp_id_list)} comp_ids for which to generate BCIF and images"
-
-    full_id_list = pdb_id_list + comp_id_list
-    random.shuffle(full_id_list)
-
-    steps = int(len(full_id_list) / int(args["num_workers"]) )
-    for i in range(0, len(full_id_list), steps):
-        Path(args["id_list_path"]).mkdir(parents=True, exist_ok=True)
-        with Path.open(args["id_list_path"] + str(int(i/steps)), "w") as f:
-            for line in full_id_list[i : i + steps]:
-                f.write(line + "\n")
-
-def images_gen_jpgs(args: dict) -> None:
-    """Generate jpgs for given pdb/csm list."""
-    with Path.open(args["id_list_path"] + args['file_number'], 'r') as f:
-        id_list = [line.rstrip('\n') for line in f]
-    if not isinstance(id_list, list):
-        msg = "id_list not a list"
-        raise TypeError(msg)
-    
-    for line in id_list:
-        # Requirements:
-        # 1. bcif files must be unzipped
-        # 2. bcif files must be in a local dir (otherwise I'll have to add a curl step)
-        # 3. bcif files do not need conversion from cif files. This should be taken care of in bcif workflow
-        # 
-        # todo: add a step that checks:
-        # 1. the dir exists
-        # 2. the file is a bcif with data inside of it
-        # 3. the output dir is availible
-
-        file_id, bcif_file_name, sdm = line.split(" ")
-        content_type_dir = "pdb/" if sdm == "experimental" else "csm/"
-
-        bcif_file_path = args["pdb_base_dir"] + bcif_file_name if sdm == "experimental" else args["csm_base_dir"] + bcif_file_name 
-        
-        out_path = args["jpgs_out_dir"] + content_type_dir
-        Path(out_path).mkdir(parents=True, exist_ok=True)
-        
-        ### run_molrender ###
-        cmd = [
-            args['jpg_xvfb_executable'],
-            '-a',
-            '-s', f'-ac -screen 0 {args['jpg_screen']}',
-            args["molrender_exe"],
-            'all',
-            bcif_file_path,
-            out_path,
-            '--height', args['jpg_height'],
-            '--width', args['jpg_width'],
-            '--format', args['jpg_format'],
-            ]
-        if args['jpg_additional_cmds'] is None:
-            cmd = [*cmd, args['jpg_additional_cmds']]
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            logger.info("Command was successful!")
-            logger.info(result.stdout)
-        except subprocess.CalledProcessError as e:
-            msg = f"Command failed with exit code {e.returncode} \n Error output: {e.stderr}"
-            logging.exception(msg)
-            raise
-
-        ### check result ###
-        out_jpg_file = out_path + file_id + "_model-1.jpeg" 
-
-        if Path(out_jpg_file).is_file() and Path(out_jpg_file).stat().st_size > 0:
-            logger.info("Got the image file %s.", out_jpg_file)
+    def getPdbList(self, **kwargs: dict) -> list:
+        """Build pdb list via pdb gz file."""
+        pdbIdsTimestamps = {}
+        with gzip.open(kwargs.get("pdbGzPath")) as file:
+            data = json.loads(file.read())
+            for idVal in data:
+                datetimeObject = datetime.datetime.strptime(data[idVal], "%Y-%m-%dT%H:%M:%S%z")
+                pdbIdsTimestamps[idVal.lower()] = datetimeObject
+        pdbIdList = []
+        if kwargs.get("updateAllImages"):
+            for idVal in pdbIdsTimestamps:
+                path = idVal[1:3] + "/" + idVal + ".bcif"
+                pdbIdList.append(f"{idVal} {path} experimental")
         else:
-            logger.warning("No image file: %s.", out_jpg_file)
+            for idVal, timestamp in pdbIdsTimestamps.items():
+                path = idVal[1:3] + "/" + idVal + ".bcif"
+                bcifFile = kwargs.get("pdbBaseDir") + path
+                if Path.exists(bcifFile):
+                    t1 = Path.stat(bcifFile).stMtime
+                    t2 = timestamp.timestamp()
+                    if t1 < t2:
+                        pdbIdList.append(f"{idVal} {path} experimental")
+                else:
+                    pdbIdList.append(f"{idVal} {path} experimental")
+        return pdbIdList
 
-        # Potentially will need to zip afterwards. 
-        # This could be its own task
-        #### ZIP
-        # cmd = ["gzip", "-f", out_file]
-        # run(cmd)
+    def getCsmList(self, **kwargs: dict) -> list:
+        """Build csm list via csm gz file."""
+        with gzip.open(kwargs.get("csmGzPath")) as file:
+            data = json.loads(file.read())
+            dic = {}
+            for modelId in data:
+                item = data[modelId]
+                item["modelPath"] = item["modelPath"].lower()  # prod route of BinaryCIF wf produces lowercase filenames
+                item["datetime"] = datetime.datetime.strptime(item["lastModifiedDate"], "%Y-%m-%dT%H:%M:%S%z")
+                dic[modelId.lower()] = item
+        modelIdsMetadata = dic
+        modelList = []
+
+        if kwargs.get("updateAllImages"):
+            for modelId, metadata in modelIdsMetadata.items():
+                modelPath = metadata["modelPath"].replace(".cif", ".bcif").replace(".gz", "")
+                modelList.append(f"{modelId} {modelPath} computational")
+        else:
+            # "incremental" for weekly
+            for modelId, metadata in modelIdsMetadata.items():
+                modelPath = metadata["modelPath"].replace(".cif", ".bcif").replace(".gz", "")
+                bcifFile = kwargs.get("csmBaseDir") + modelPath
+                if Path.exists(bcifFile):
+                    t1 = Path.stat(bcifFile).stMtime
+                    t2 = metadata["datetime"].timestamp()
+                    if t1 < t2:
+                        modelList.append(f"{modelId} {modelPath} computational")
+                else:
+                    modelList.append(f"{modelId} {modelPath} computational")
+        return modelList
+
+    def imagesGenLists(self, **kwargs: dict) -> None:
+        """Generate lists of pdbs/csms in files."""
+        pdbIdList = self.getPdbList(pdbGzPath=kwargs.get("pdbGzPath"),
+                                    updateAllImages=kwargs.get("updateAllImages"),
+                                    pdbBaseDir=kwargs.get("pdbBaseDir")
+                                    )
+        compIdList = [] if kwargs.get("imgsExcludeModels") else self.getCsmList(csmGzPath=kwargs.get("csmGzPath"),
+                                                                                updateAllImages=kwargs.get("updateAllImages"),
+                                                                                csmBaseDir=kwargs.get("csmBaseDir")
+                                                                                )
+
+        # Print results, combine, and shuffle
+        if len(pdbIdList) < 1 and len(compIdList) < 1:
+            raise ValueError("pdb and csm id list empty")
+
+        fullIdList = pdbIdList + compIdList
+        random.shuffle(fullIdList)
+
+        steps = int(len(fullIdList) / int(kwargs.get("numWorkers")))
+        for i in range(0, len(fullIdList), steps):
+            Path(kwargs.get("idListPath")).mkdir(parents=True, exist_ok=True)
+            with Path.open(kwargs.get("idListPath") + str(int(i/steps)), "w", encoding="utf-8") as file:
+                for line in fullIdList[i: i + steps]:
+                    file.write(line + "\n")
+
+    def imagesGenJpgs(self, **kwargs: dict) -> None:
+        """Generate jpgs for given pdb/csm list."""
+        with Path.open(kwargs.get("idListPath") + kwargs.get("fileNumber"), "r", encoding="utf-8") as file:
+            idList = [line.rstrip("\n") for line in file]
+        if not isinstance(idList, list):
+            raise TypeError("idList not a list")
+
+        for line in idList:
+            # Requirements:
+            # 1. bcif files must be unzipped
+            # 2. bcif files must be in a local dir (otherwise I"ll have to add a curl step)
+            # 3. bcif files do not need conversion from cif files. This should be taken care of in bcif workflow
+            #
+            # add a step that checks:
+            # 1. the dir exists
+            # 2. the file is a bcif with data inside of it
+            # 3. the output dir is availible
+
+            fileId, bcifFileName, sdm = line.split(" ")
+            contentTypeDir = "pdb/" if sdm == "experimental" else "csm/"
+
+            bcifFilePath = kwargs.get("pdbBaseDir") + bcifFileName if sdm == "experimental" else kwargs.get("csmBaseDir") + bcifFileName
+
+            outPath = kwargs.get("jpgsOutDir") + contentTypeDir
+            Path(outPath).mkdir(parents=True, exist_ok=True)
+
+            # runMolrender
+            cmd = [
+                kwargs.get("jpgXvfbExecutable"),
+                "-a",
+                "-s", f"-ac -screen 0 {kwargs.get("jpgScreen")}",
+                kwargs.get("molrenderExe"),
+                "all",
+                bcifFilePath,
+                outPath,
+                "--height", kwargs.get("jpgHeight"),
+                "--width", kwargs.get("jpgWidth"),
+                "--format", kwargs.get("jpgFormat"),
+            ]
+            if kwargs.get("jpgAdditionalCmds") is None:
+                cmd = [*cmd, kwargs.get("jpgAdditionalCmds")]
+            try:
+                result = subprocess.run(cmd, captureOutput=True, text=True, check=True)
+                logger.info("Command was successful!")
+                logger.info(result.stdout)
+            except subprocess.CalledProcessError as e:
+                msg = f"Command failed with exit code {e.returncode} \n Error output: {e.stderr}"
+                logging.exception(msg)
+                raise
+
+            # check result
+            outJpgFile = outPath + fileId + "Model-1.jpeg"
+
+            if Path(outJpgFile).is_file() and Path(outJpgFile).stat().stSize > 0:
+                logger.info("Got the image file %s.", outJpgFile)
+            else:
+                logger.warning("No image file: %s.", outJpgFile)
+
+            # Potentially will need to zip afterwards.
+            # This could be its own task
+            # ZIP
+            # cmd = ["gzip", "-f", outFile]
+            # run(cmd)
