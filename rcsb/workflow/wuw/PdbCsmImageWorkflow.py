@@ -105,7 +105,7 @@ class PdbCsmImageWorkflow:
         steps = int(len(fullIdList) / int(kwargs.get("numWorkers")))
         for i in range(0, len(fullIdList), steps):
             Path(kwargs.get("idListPath")).mkdir(parents=True, exist_ok=True)
-            with Path.open(kwargs.get("idListPath") + str(int(i/steps)), "w", encoding="utf-8") as file:
+            with Path.open(kwargs.get("idListPath") + str(int(i / steps)), "w", encoding="utf-8") as file:
                 for line in fullIdList[i: i + steps]:
                     file.write(line + "\n")
 
