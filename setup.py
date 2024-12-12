@@ -12,7 +12,7 @@ from setuptools import setup
 packages = []
 thisPackage = "rcsb.workflow"
 
-with open("rcsb/workflow/chem/__init__.py", "r", encoding="utf-8") as fd:
+with open("rcsb/workflow/cli/__init__.py", "r", encoding="utf-8") as fd:
     version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', fd.read(), re.MULTILINE).group(1)
 
 
@@ -49,6 +49,7 @@ setup(
         "Programming Language :: Python :: 3.10",
     ],
     # entry_points={"console_scripts": ["cactvs_annotate_mol=rcsb.workflow.cactvsAnnotateMol:main"]},
+    entry_points={"console_scripts": ["imgs_exec_cli=rcsb.workflow.cli.ImgExec:main"]},
     #  The following is somewhat flakey --
     # dependency_links=[],
     install_requires=packagesRequired[1:],
