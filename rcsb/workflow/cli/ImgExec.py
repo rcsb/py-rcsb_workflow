@@ -48,6 +48,13 @@ def main() -> None:
     parser.add_argument("--jpgs_out_dir")
 
     parser.add_argument("--file_number")
+    
+    parser.add_argument("--jpg_height", default=500)
+    parser.add_argument("--jpg_width", default=500)
+    parser.add_argument("--jpg_format", default='jpeg')
+    parser.add_argument("--jpg_additional_cmds", default=None)
+    parser.add_argument("--jpg_xvfb_executable", default='/usr/bin/xvfb-run')
+    parser.add_argument("--jpg_screen", default='1280x1024x24')
 
     args = vars(parser.parse_args())
 

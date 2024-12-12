@@ -11,23 +11,23 @@ import subprocess
 logger = logging.getLogger(__name__)
 
 
-def get_pdb_list(args: dict) -> list:
+def get_pdb_list(pdb_gz_path: str, update_all_images: bool, pdb_base_dir: str) -> list:
     """Build pdb list via pdb gz file."""
     pdb_ids_timestamps = {}
-    with gzip.open(args["pdb_gz_path"]) as f:
+    with gzip.open(pdb_gz_path) as f:
         data = json.loads(f.read())
         for id_val in data:
             datetime_object = datetime.datetime.strptime(data[id_val], "%Y-%m-%dT%H:%M:%S%z")
             pdb_ids_timestamps[id_val.lower()] = datetime_object
     pdb_id_list = []
-    if args["update_all_images"]:
+    if update_all_images:
         for id_val in pdb_ids_timestamps:
             path = id_val[1:3] + "/" + id_val + ".bcif"
             pdb_id_list.append(f"{id_val} {path} experimental")
     else:
         for id_val, timestamp in pdb_ids_timestamps.items():
             path = id_val[1:3] + "/" + id_val + ".bcif"
-            bcif_file = args["pdb_base_dir"] + path
+            bcif_file = pdb_base_dir + path
             if Path.exists(bcif_file):
                 t1 = Path.stat(bcif_file).st_mtime
                 t2 = timestamp.timestamp()
@@ -38,9 +38,9 @@ def get_pdb_list(args: dict) -> list:
     return pdb_id_list
 
 
-def get_csm_list(args: dict) -> list:
+def get_csm_list(csm_gz_path: str, update_all_images: bool, csm_base_dir: str) -> list:
     """Build csm list via csm gz file."""
-    with gzip.open(args["csm_gz_path"]) as f:
+    with gzip.open(csm_gz_path) as f:
         data = json.loads(f.read())
         dic = {}
         for model_id in data:
@@ -51,7 +51,7 @@ def get_csm_list(args: dict) -> list:
     model_ids_metadata = dic
     model_list = []
 
-    if args["update_all_images"]:
+    if update_all_images:
         for model_id, metadata in model_ids_metadata.items():
             model_path = metadata["modelPath"].replace(".cif", ".bcif").replace('.gz', '')
             model_list.append(f"{model_id} {model_path} computational")
@@ -59,7 +59,7 @@ def get_csm_list(args: dict) -> list:
         # 'incremental' for weekly
         for model_id, metadata in model_ids_metadata.items():
             model_path = metadata["modelPath"].replace(".cif", ".bcif").replace('.gz', '')
-            bcif_file = args["csm_base_dir"] + model_path
+            bcif_file = csm_base_dir + model_path
             if Path.exists(bcif_file):
                 t1 = Path.stat(bcif_file).st_mtime
                 t2 = metadata["datetime"].timestamp()
@@ -72,8 +72,8 @@ def get_csm_list(args: dict) -> list:
 
 def images_gen_lists(args: dict) -> None:
     """Generate lists of pdbs/csms in files."""
-    pdb_id_list = get_pdb_list(args)
-    comp_id_list = [] if args["imgs_exclude_models"] else get_csm_list(args)
+    pdb_id_list = get_pdb_list(pdb_gz_path=args['pdb_gz_path'], update_all_images=args['update_all_images'], pdb_base_dir=args['pdb_base_dir'])
+    comp_id_list = [] if args["imgs_exclude_models"] else get_csm_list(csm_gz_path=args['csm_gz_path'], update_all_images=['update_all_images'], csm_base_dir=args['csm_base_dir'])
 
     # Print results, combine, and shuffle
     if len(pdb_id_list) < 1 and len(comp_id_list) < 1:
@@ -120,17 +120,19 @@ def images_gen_jpgs(args: dict) -> None:
         
         ### run_molrender ###
         cmd = [
-            '/usr/bin/xvfb-run',
+            args['jpg_xvfb_executable'],
             '-a',
-            '-s', '-ac -screen 0 1280x1024x24',
+            '-s', f'-ac -screen 0 {args['jpg_screen']}',
             args["molrender_exe"],
             'all',
             bcif_file_path,
             out_path,
-            '--height', '500',
-            '--width', '500',
-            '--format', 'jpeg'
+            '--height', args['jpg_height'],
+            '--width', args['jpg_width'],
+            '--format', args['jpg_format'],
             ]
+        if args['jpg_additional_cmds'] is None:
+            cmd = [*cmd, args['jpg_additional_cmds']]
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             logger.info("Command was successful!")
@@ -138,6 +140,7 @@ def images_gen_jpgs(args: dict) -> None:
         except subprocess.CalledProcessError as e:
             msg = f"Command failed with exit code {e.returncode} \n Error output: {e.stderr}"
             logging.exception(msg)
+            raise
 
         ### check result ###
         out_jpg_file = out_path + file_id + "_model-1.jpeg" 
