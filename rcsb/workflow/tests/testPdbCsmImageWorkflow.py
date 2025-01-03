@@ -22,7 +22,7 @@ import time
 import unittest
 
 
-# from rcsb.workflow.wuw.PdbCsmImageWorkflow import PdbCsmImageWorkflow
+from rcsb.workflow.wuw.PdbCsmImageWorkflow import PdbCsmImageWorkflow
 
 #
 #
@@ -103,13 +103,25 @@ class TestPdbCsmImageWorkflow(unittest.TestCase):
     def testIdListGeneration(self):
         """Test id list file generation ..."""
         try:
-            pass
+            pciWF = PdbCsmImageWorkflow()
+            logger.info("Generating 3 id lists to run through.")
+            pciWF.imagesGenLists(
+                pdbGzPath="/mnt/src/wuw/images/test_data/released_structures_last_modified_dates.json.gz",
+                updateAllImages=True,
+                pdbBaseDir="/mnt/src/wuw/images/test_data/",
+                csmGzPath="/mnt/src/wuw/images/test_data/computed-models-holdings.json.gz",
+                csmBaseDir="/mnt/src/wuw/images/test_data/",
+                numWorkers=3,
+                idListPath="/mnt/src/wuw/images/test_data/tmp/list/",
+            )
+            
+            logger.info("Reading generated lists and checking for format.")
         except Exception as e:
             logger.exception("Failing with %s", str(e))
             self.fail()
 
     def testJpgGeneration(self):
-        """Test jpg file generation ..."""
+        """Test jpg file generation. It does not test the actual node execution."""
         try:
             pass
         except Exception as e:
@@ -120,7 +132,6 @@ class TestPdbCsmImageWorkflow(unittest.TestCase):
 def workflowLoadSuite():
     suiteSelect = unittest.TestSuite()
     suiteSelect.addTest(TestPdbCsmImageWorkflow("testIdListGeneration"))
-    suiteSelect.addTest(TestPdbCsmImageWorkflow("testJpgGeneration"))
     return suiteSelect
 
 

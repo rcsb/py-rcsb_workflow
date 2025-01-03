@@ -34,8 +34,8 @@ def main() -> None:
     parser.add_argument("--csmGzPath")
     parser.add_argument("--pdbBaseDir")
     parser.add_argument("--csmBaseDir")
-    parser.add_argument("--updateallImages", action='storeTrue')
-    parser.add_argument("--imgsExcludeModels", action='storeTrue')
+    parser.add_argument("--updateallImages", action='store_true')
+    parser.add_argument("--imgsExcludeModels", action='store_true')
     parser.add_argument("--numWorkers")
 
     parser.add_argument("--idListPath")
