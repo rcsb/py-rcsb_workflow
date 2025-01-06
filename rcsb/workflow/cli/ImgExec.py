@@ -34,13 +34,13 @@ def main() -> None:
     parser.add_argument("--csmGzPath")
     parser.add_argument("--pdbBaseDir")
     parser.add_argument("--csmBaseDir")
-    parser.add_argument("--updateallImages", action='store_true')
+    parser.add_argument("--updateAllImages", action='store_true')
     parser.add_argument("--imgsExcludeModels", action='store_true')
     parser.add_argument("--numWorkers")
 
     parser.add_argument("--idListPath")
     parser.add_argument("--updateTmpBase")
-    parser.add_argument("--prereleaseFtpFileBasePath")
+    parser.add_argument("--prereleaseFtpFileBasePath")  # can i get rid of this?
     parser.add_argument("--csmFileRepoBasePath")
     parser.add_argument("--bcifExe")
     parser.add_argument("--imagesTmpBase")
@@ -65,7 +65,7 @@ def main() -> None:
             csmGzPath=args.csmGzPath,
             pdbBaseDir=args.pdbBaseDir,
             csmBaseDir=args.csmBaseDir,
-            updateallImages=args.updateAllImages,
+            updateAllImages=args.updateAllImages,
             imgsExcludeModels=args.imgsExcludeModels,
             numWorkers=args.numWorkers,
             idListPath=args.idListPath,
