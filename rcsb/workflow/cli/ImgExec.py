@@ -59,7 +59,7 @@ def main() -> None:
     args = parser.parse_args()
 
     imgWF = PdbCsmImageWorkflow()
-    if args["op"] == "genLists":
+    if args.op == "genLists":
         imgWF.imagesGenLists(
             pdbGzPath=args.pdbGzPath,
             csmGzPath=args.csmGzPath,
@@ -72,7 +72,7 @@ def main() -> None:
             prereleaseFtpFileBasePath=args.prereleaseFtpFileBasePath,
             csmFileRepoBasePath=args.csmFileRepoBasePath,
         )
-    elif args["op"] == "genjpgs":
+    elif args.op == "genjpgs":
         imgWF.imagesGenJpgs(
             idListPath=args.idListPath,
             bcifExe=args.bcifExe,
