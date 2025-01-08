@@ -38,11 +38,11 @@ class PdbCsmImageWorkflow:
         pdbIdList = []
         if kwargs.get("updateAllImages"):
             for idVal in pdbIdsTimestamps:
-                path = idVal[1:3] + "/" + idVal + ".bcif"
+                path = idVal + ".bcif" if kwargs.get("noSubdirs") else idVal[1:3] + "/" + idVal + ".bcif"
                 pdbIdList.append(f"{idVal} {path} experimental")
         else:
             for idVal, timestamp in pdbIdsTimestamps.items():
-                path = idVal[1:3] + "/" + idVal + ".bcif"
+                path = idVal + ".bcif" if kwargs.get("noSubdirs") else idVal[1:3] + "/" + idVal + ".bcif"  # idVal[1:3] + "/" + idVal + ".bcif"
                 bcifFile = kwargs.get("pdbBaseDir") + path
                 if Path.exists(bcifFile):
                     t1 = Path.stat(bcifFile).stMtime
@@ -85,14 +85,16 @@ class PdbCsmImageWorkflow:
         return modelList
 
     def imagesGenLists(self, **kwargs: dict) -> None:
+
         """Generate lists of pdbs/csms in files."""
         pdbIdList = self.getPdbList(pdbGzPath=kwargs.get("pdbGzPath"),
                                     updateAllImages=kwargs.get("updateAllImages"),
-                                    pdbBaseDir=kwargs.get("pdbBaseDir")
+                                    pdbBaseDir=kwargs.get("pdbBaseDir"),
+                                    noSubdirs = kwargs.get("noSubdirs"),
                                     )
         compIdList = [] if kwargs.get("imgsExcludeModels") else self.getCsmList(csmGzPath=kwargs.get("csmGzPath"),
                                                                                 updateAllImages=kwargs.get("updateAllImages"),
-                                                                                csmBaseDir=kwargs.get("csmBaseDir")
+                                                                                csmBaseDir=kwargs.get("csmBaseDir"),
                                                                                 )
 
         # Print results, combine, and shuffle

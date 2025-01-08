@@ -36,15 +36,15 @@ def main() -> None:
     parser.add_argument("--csmBaseDir")
     parser.add_argument("--updateAllImages", action='store_true')
     parser.add_argument("--imgsExcludeModels", action='store_true')
+    parser.add_argument("--noSubdirs", action='store_true')
     parser.add_argument("--numWorkers")
 
     parser.add_argument("--idListPath")
     parser.add_argument("--updateTmpBase")
     parser.add_argument("--prereleaseFtpFileBasePath")  # can i get rid of this?
     parser.add_argument("--csmFileRepoBasePath")
-    parser.add_argument("--bcifExe")
     parser.add_argument("--imagesTmpBase")
-    parser.add_argument("--molrenderExe")
+    parser.add_argument("--molrenderExe", default="/opt/modules/node_modules/molrender/build/bin/molrender.js")
     parser.add_argument("--jpgsOutDir")
 
     parser.add_argument("--fileNumber")
@@ -67,6 +67,7 @@ def main() -> None:
             csmBaseDir=args.csmBaseDir,
             updateAllImages=args.updateAllImages,
             imgsExcludeModels=args.imgsExcludeModels,
+            noSubdirs=args.noSubdirs,
             numWorkers=args.numWorkers,
             idListPath=args.idListPath,
             prereleaseFtpFileBasePath=args.prereleaseFtpFileBasePath,
@@ -74,18 +75,18 @@ def main() -> None:
         )
     elif args.op == "genjpgs":
         imgWF.imagesGenJpgs(
+            pdbBaseDir=args.pdbBaseDir,
+            csmBaseDir=args.csmBaseDir,
             idListPath=args.idListPath,
-            bcifExe=args.bcifExe,
-            imagesTmpBase=args.imagesTmpBase,
-            molrenderExe=args.molrenderExe,
+            molrenderExe=args.molrenderExe, #default
             jpgsOutDir=args.jpgsOutDir,
             fileNumber=args.fileNumber,
-            jpgHeight=args.jpgHeight,
-            jpgWidth=args.jpgWidth,
-            jpgFormat=args.jpgFormat,
-            jpgAdditionalCmds=args.jpgAdditionalCmds,
-            jpgXvfbExecutable=args.jpgXvfbExecutable,
-            jpgScreen=args.jpgScreen,
+            jpgHeight=args.jpgHeight, #default
+            jpgWidth=args.jpgWidth, #default
+            jpgFormat=args.jpgFormat, #default
+            jpgAdditionalCmds=args.jpgAdditionalCmds, #default
+            jpgXvfbExecutable=args.jpgXvfbExecutable, #default
+            jpgScreen=args.jpgScreen, #default
         )
     else:
         raise ValueError("Cli --op flag error: not availible option")
