@@ -52,7 +52,7 @@ def main() -> None:
     parser.add_argument("--jpgHeight", default=500)
     parser.add_argument("--jpgWidth", default=500)
     parser.add_argument("--jpgFormat", default='jpeg')
-    parser.add_argument("--jpgadditionalCmds", default=None)
+    parser.add_argument("--jpgAdditionalCmds", default=None)
     parser.add_argument("--jpgXvfbExecutable", default='/usr/bin/xvfb-run')
     parser.add_argument("--jpgScreen", default='1280x1024x24')
 
