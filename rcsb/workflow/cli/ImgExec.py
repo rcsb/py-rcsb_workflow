@@ -73,7 +73,7 @@ def main() -> None:
             prereleaseFtpFileBasePath=args.prereleaseFtpFileBasePath,
             csmFileRepoBasePath=args.csmFileRepoBasePath,
         )
-    elif args.op == "genjpgs":
+    elif args.op == "genJpgs":
         imgWF.imagesGenJpgs(
             pdbBaseDir=args.pdbBaseDir,
             csmBaseDir=args.csmBaseDir,
