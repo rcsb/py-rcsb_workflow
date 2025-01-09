@@ -146,11 +146,11 @@ class PdbCsmImageWorkflow:
                 "all",
                 bcifFilePath,
                 outPath,
-                "--height", kwargs.get("jpgHeight"),
-                "--width", kwargs.get("jpgWidth"),
+                "--height", str(kwargs.get("jpgHeight")),
+                "--width", str(kwargs.get("jpgWidth")),
                 "--format", kwargs.get("jpgFormat"),
             ]
-            if kwargs.get("jpgAdditionalCmds") is None:
+            if kwargs.get("jpgAdditionalCmds") is not  None:
                 cmd = [*cmd, kwargs.get("jpgAdditionalCmds")]
             try:
                 result = subprocess.run(cmd, capture_output=True, text=True, check=True)
