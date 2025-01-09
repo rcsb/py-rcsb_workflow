@@ -152,14 +152,16 @@ class PdbCsmImageWorkflow:
             ]
             if kwargs.get("jpgAdditionalCmds") is not  None:
                 cmd = [*cmd, kwargs.get("jpgAdditionalCmds")]
-            try:
-                result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-                logger.info("Command was successful!")
-                logger.info(result.stdout)
-            except subprocess.CalledProcessError as e:
-                msg = f"Command failed with exit code {e.returncode} \n Error output: {e.stderr}"
-                logging.exception(msg)
-                raise
+
+            if Path(bcifFilePath).is_file() and Path(bcifFilePath).stat().stSize > 0:
+                try:
+                    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                    logger.info("Command was successful!")
+                    logger.info(result.stdout)
+                except subprocess.CalledProcessError as e:
+                    msg = f"Command failed with exit code {e.returncode} \n Error output: {e.stderr}"
+                    logging.exception(msg)
+                    #raise
 
             # check result
             outJpgFile = outPath + fileId + "Model-1.jpeg"
