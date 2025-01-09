@@ -153,7 +153,7 @@ class PdbCsmImageWorkflow:
             if kwargs.get("jpgAdditionalCmds") is None:
                 cmd = [*cmd, kwargs.get("jpgAdditionalCmds")]
             try:
-                result = subprocess.run(cmd, captureOutput=True, text=True, check=True)
+                result = subprocess.run(cmd, capture_output=True, text=True, check=True)
                 logger.info("Command was successful!")
                 logger.info(result.stdout)
             except subprocess.CalledProcessError as e:
