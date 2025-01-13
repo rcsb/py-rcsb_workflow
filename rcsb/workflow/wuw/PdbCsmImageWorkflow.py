@@ -23,7 +23,8 @@ import logging
 import subprocess
 import math
 
-logger = logging.getLogger(__name__)
+
+logger = logging.getLogger(__name__).setLevel(logging.INFO)
 
 
 class PdbCsmImageWorkflow:
@@ -105,8 +106,8 @@ class PdbCsmImageWorkflow:
         fullIdList = pdbIdList + compIdList
         random.shuffle(fullIdList)
         logger.info('%s Ids split over %s files', len(fullIdList), kwargs.get("numWorkers"))
-        logger.warning('testing logger functionality warning')
-        logger.error('testing logger error func')
+        # logger.warning('testing logger functionality warning')
+        # logger.error('testing logger error func')
 
         # Calculate the size of each chunk
         chunk_size = math.ceil(len(fullIdList) / int(kwargs.get("numWorkers")))
