@@ -91,7 +91,7 @@ class PdbCsmImageWorkflow:
         pdbIdList = self.getPdbList(pdbGzPath=kwargs.get("pdbGzPath"),
                                     updateAllImages=kwargs.get("updateAllImages"),
                                     pdbBaseDir=kwargs.get("pdbBaseDir"),
-                                    noSubdirs = kwargs.get("noSubdirs"),
+                                    noSubdirs=kwargs.get("noSubdirs"),
                                     )
         compIdList = [] if kwargs.get("imgsExcludeModels") else self.getCsmList(csmGzPath=kwargs.get("csmGzPath"),
                                                                                 updateAllImages=kwargs.get("updateAllImages"),
@@ -105,6 +105,8 @@ class PdbCsmImageWorkflow:
         fullIdList = pdbIdList + compIdList
         random.shuffle(fullIdList)
         logger.info('%s Ids split over %s files', len(fullIdList), kwargs.get("numWorkers"))
+        logger.warning('testing logger functionality warning')
+        logger.error('testing logger error func')
 
         # Calculate the size of each chunk
         chunk_size = math.ceil(len(fullIdList) / int(kwargs.get("numWorkers")))
@@ -132,7 +134,7 @@ class PdbCsmImageWorkflow:
     def imagesGenJpgs(self, **kwargs: dict) -> None:
         """Generate jpgs for given pdb/csm list."""
         idListNumber = kwargs.get("fileNumber")
-        with Path.open(kwargs.get("idListPath") + f"idList_{idListNumber}.txt" , "r", encoding="utf-8") as file:
+        with Path.open(kwargs.get("idListPath") + f"idList_{idListNumber}.txt", "r", encoding="utf-8") as file:
             idList = [line.rstrip("\n") for line in file]
         if not isinstance(idList, list):
             raise TypeError("idList not a list")
@@ -169,13 +171,14 @@ class PdbCsmImageWorkflow:
                 "--width", str(kwargs.get("jpgWidth")),
                 "--format", kwargs.get("jpgFormat"),
             ]
-            if kwargs.get("jpgAdditionalCmds") is not  None:
+            if kwargs.get("jpgAdditionalCmds"):
                 cmd = [*cmd, kwargs.get("jpgAdditionalCmds")]
 
             if Path(bcifFilePath).is_file() and Path(bcifFilePath).stat().st_size > 0:
                 logger.info('Running %s', ' '.join(cmd))
                 try:
-                    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                    subprocess.run(cmd, capture_output=True, text=True, check=True)
+                    # result =
                     # logger.info("Command was successful!")
                     # logger.info(result.stdout)
                 except subprocess.CalledProcessError:

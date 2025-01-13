@@ -78,15 +78,15 @@ def main() -> None:
             pdbBaseDir=args.pdbBaseDir,
             csmBaseDir=args.csmBaseDir,
             idListPath=args.idListPath,
-            molrenderExe=args.molrenderExe, #default
+            molrenderExe=args.molrenderExe,  # default
             jpgsOutDir=args.jpgsOutDir,
             fileNumber=args.fileNumber,
-            jpgHeight=args.jpgHeight, #default
-            jpgWidth=args.jpgWidth, #default
-            jpgFormat=args.jpgFormat, #default
-            jpgAdditionalCmds=args.jpgAdditionalCmds, #default
-            jpgXvfbExecutable=args.jpgXvfbExecutable, #default
-            jpgScreen=args.jpgScreen, #default
+            jpgHeight=args.jpgHeight,  # default
+            jpgWidth=args.jpgWidth,  # default
+            jpgFormat=args.jpgFormat,  # default
+            jpgAdditionalCmds=args.jpgAdditionalCmds,  # default
+            jpgXvfbExecutable=args.jpgXvfbExecutable,  # default
+            jpgScreen=args.jpgScreen,  # default
         )
     else:
         raise ValueError("Cli --op flag error: not availible option")
