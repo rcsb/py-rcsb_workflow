@@ -104,7 +104,7 @@ class PdbCsmImageWorkflow:
 
         fullIdList = pdbIdList + compIdList
         random.shuffle(fullIdList)
-        logger.info('IdList: %s Ids split over %s files', len(fullIdList), kwargs.get("numWorkers"))
+        logger.info('%s Ids split over %s files', len(fullIdList), kwargs.get("numWorkers"))
 
         # Calculate the size of each chunk
         chunk_size = math.ceil(len(fullIdList) / int(kwargs.get("numWorkers")))
@@ -116,6 +116,7 @@ class PdbCsmImageWorkflow:
         Path(kwargs.get("idListPath")).mkdir(parents=True, exist_ok=True)
         for i, chunk in enumerate(chunks):
             filename = kwargs.get("idListPath") + f"idList_{i}.txt"
+            logger.info('%s contains %s ids', f"idList_{i}.txt", len(chunk))
             with Path.open(filename, 'w', encoding="utf-8") as file:
                 file.write("\n".join(chunk))  # Join the chunk items with newlines for readability
             if not (Path(filename).is_file() and Path(filename).stat().st_size > 0):
@@ -175,15 +176,15 @@ class PdbCsmImageWorkflow:
                 logger.info('Running %s', ' '.join(cmd))
                 try:
                     result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-                    logger.info("Command was successful!")
-                    logger.info(result.stdout)
-                except subprocess.CalledProcessError as e:
-                    msg = f"JPG generation command failed to run."
-                    logging.exception()
-                    #raise
+                    # logger.info("Command was successful!")
+                    # logger.info(result.stdout)
+                except subprocess.CalledProcessError:
+                    logger.exception()
+            else:
+                logger.error('Missing bcif file %s', bcifFilePath)
 
             # check result
-            outJpgFile = outPath + fileId + "Model-1.jpeg"
+            outJpgFile = outPath + fileId + "_model-1.jpeg"
 
             if Path(outJpgFile).is_file() and Path(outJpgFile).stat().st_size > 0:
                 logger.info("Got the image file %s.", outJpgFile)
