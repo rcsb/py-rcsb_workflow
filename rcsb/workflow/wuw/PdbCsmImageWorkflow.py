@@ -21,6 +21,7 @@ import random
 from pathlib import Path
 import logging
 import subprocess
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -103,17 +104,34 @@ class PdbCsmImageWorkflow:
 
         fullIdList = pdbIdList + compIdList
         random.shuffle(fullIdList)
+        logger.info('IdList: %s Ids split over %s files', len(fullIdList), kwargs.get("numWorkers"))
 
-        steps = int(len(fullIdList) / int(kwargs.get("numWorkers")))
-        for i in range(0, len(fullIdList), steps):
-            Path(kwargs.get("idListPath")).mkdir(parents=True, exist_ok=True)
-            with Path.open(kwargs.get("idListPath") + str(int(i / steps)), "w", encoding="utf-8") as file:
-                for line in fullIdList[i: i + steps]:
-                    file.write(line + "\n")
+        # Calculate the size of each chunk
+        chunk_size = math.ceil(len(fullIdList) / int(kwargs.get("numWorkers")))
+
+        # Split the list into n chunks
+        chunks = [fullIdList[i:i + chunk_size] for i in range(0, len(fullIdList), chunk_size)]
+
+        # Write each chunk to a separate file
+        Path(kwargs.get("idListPath")).mkdir(parents=True, exist_ok=True)
+        for i, chunk in enumerate(chunks):
+            filename = kwargs.get("idListPath") + f"idList_{i}.txt"
+            with Path.open(filename, 'w', encoding="utf-8") as file:
+                file.write("\n".join(chunk))  # Join the chunk items with newlines for readability
+            if not (Path(filename).is_file() and Path(filename).stat().st_size > 0):
+                logger.error('Missing or empty file %s', filename)
+
+        # steps = int(len(fullIdList) / int(kwargs.get("numWorkers")))
+        # for i in range(0, len(fullIdList), steps):
+        #     Path(kwargs.get("idListPath")).mkdir(parents=True, exist_ok=True)
+        #     with Path.open(kwargs.get("idListPath") + str(int(i / steps)), "w", encoding="utf-8") as file:
+        #         for line in fullIdList[i: i + steps]:
+        #             file.write(line + "\n")
 
     def imagesGenJpgs(self, **kwargs: dict) -> None:
         """Generate jpgs for given pdb/csm list."""
-        with Path.open(kwargs.get("idListPath") + kwargs.get("fileNumber"), "r", encoding="utf-8") as file:
+        idListNumber = kwargs.get("fileNumber")
+        with Path.open(kwargs.get("idListPath") + f"idList_{idListNumber}.txt" , "r", encoding="utf-8") as file:
             idList = [line.rstrip("\n") for line in file]
         if not isinstance(idList, list):
             raise TypeError("idList not a list")
@@ -153,20 +171,21 @@ class PdbCsmImageWorkflow:
             if kwargs.get("jpgAdditionalCmds") is not  None:
                 cmd = [*cmd, kwargs.get("jpgAdditionalCmds")]
 
-            if Path(bcifFilePath).is_file() and Path(bcifFilePath).stat().stSize > 0:
+            if Path(bcifFilePath).is_file() and Path(bcifFilePath).stat().st_size > 0:
+                logger.info('Running %s', ' '.join(cmd))
                 try:
                     result = subprocess.run(cmd, capture_output=True, text=True, check=True)
                     logger.info("Command was successful!")
                     logger.info(result.stdout)
                 except subprocess.CalledProcessError as e:
-                    msg = f"Command failed with exit code {e.returncode} \n Error output: {e.stderr}"
-                    logging.exception(msg)
+                    msg = f"JPG generation command failed to run."
+                    logging.exception()
                     #raise
 
             # check result
             outJpgFile = outPath + fileId + "Model-1.jpeg"
 
-            if Path(outJpgFile).is_file() and Path(outJpgFile).stat().stSize > 0:
+            if Path(outJpgFile).is_file() and Path(outJpgFile).stat().st_size > 0:
                 logger.info("Got the image file %s.", outJpgFile)
             else:
                 logger.warning("No image file: %s.", outJpgFile)
