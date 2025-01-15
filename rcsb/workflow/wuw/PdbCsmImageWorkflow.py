@@ -106,14 +106,12 @@ class PdbCsmImageWorkflow:
         fullIdList = pdbIdList + compIdList
         random.shuffle(fullIdList)
         logger.info('%s Ids split over %s files', len(fullIdList), kwargs.get("numWorkers"))
-        # logger.warning('testing logger functionality warning')
-        # logger.error('testing logger error func')
 
         # Calculate the size of each chunk
-        chunk_size = math.ceil(len(fullIdList) / int(kwargs.get("numWorkers")))
+        chunkSize = math.ceil(len(fullIdList) / int(kwargs.get("numWorkers")))
 
         # Split the list into n chunks
-        chunks = [fullIdList[i:i + chunk_size] for i in range(0, len(fullIdList), chunk_size)]
+        chunks = [fullIdList[i:i + chunkSize] for i in range(0, len(fullIdList), chunkSize)]
 
         # Write each chunk to a separate file
         Path(kwargs.get("idListPath")).mkdir(parents=True, exist_ok=True)
@@ -125,31 +123,21 @@ class PdbCsmImageWorkflow:
             if not (Path(filename).is_file() and Path(filename).stat().st_size > 0):
                 logger.error('Missing or empty file %s', filename)
 
-        # steps = int(len(fullIdList) / int(kwargs.get("numWorkers")))
-        # for i in range(0, len(fullIdList), steps):
-        #     Path(kwargs.get("idListPath")).mkdir(parents=True, exist_ok=True)
-        #     with Path.open(kwargs.get("idListPath") + str(int(i / steps)), "w", encoding="utf-8") as file:
-        #         for line in fullIdList[i: i + steps]:
-        #             file.write(line + "\n")
-
     def imagesGenJpgs(self, **kwargs: dict) -> None:
         """Generate jpgs for given pdb/csm list."""
         idListNumber = kwargs.get("fileNumber")
-        with Path.open(kwargs.get("idListPath") + f"idList_{idListNumber}.txt", "r", encoding="utf-8") as file:
+        idListFile = kwargs.get("idListPath") + f"idList_{idListNumber}.txt"
+        
+        if not (Path(idListFile).is_file() and Path(idListFile).stat().st_size > 0):
+            logger.warning('Missing idList file %s', idListFile)
+            return
+
+        with Path.open(idListFile, "r", encoding="utf-8") as file:
             idList = [line.rstrip("\n") for line in file]
         if not isinstance(idList, list):
             raise TypeError("idList not a list")
 
         for line in idList:
-            # Requirements:
-            # 1. bcif files must be unzipped
-            # 2. bcif files must be in a local dir (otherwise I"ll have to add a curl step)
-            # 3. bcif files do not need conversion from cif files. This should be taken care of in bcif workflow
-            #
-            # add a step that checks:
-            # 1. the dir exists
-            # 2. the file is a bcif with data inside of it
-            # 3. the output dir is availible
 
             fileId, bcifFileName, sdm = line.split(" ")
             contentTypeDir = "pdb/" if sdm == "experimental" else "csm/"
@@ -179,24 +167,13 @@ class PdbCsmImageWorkflow:
                 logger.info('Running %s', ' '.join(cmd))
                 try:
                     subprocess.run(cmd, capture_output=True, text=True, check=True)
-                    # result =
-                    # logger.info("Command was successful!")
-                    # logger.info(result.stdout)
                 except subprocess.CalledProcessError:
                     logger.exception()
+
+                # check result
+                outJpgFile = outPath + fileId + "_model-1.jpeg"
+
+                if not (Path(outJpgFile).is_file() and Path(outJpgFile).stat().st_size > 0):
+                    logger.error("No image file: %s.", outJpgFile)
             else:
                 logger.error('Missing bcif file %s', bcifFilePath)
-
-            # check result
-            outJpgFile = outPath + fileId + "_model-1.jpeg"
-
-            if Path(outJpgFile).is_file() and Path(outJpgFile).stat().st_size > 0:
-                logger.info("Got the image file %s.", outJpgFile)
-            else:
-                logger.warning("No image file: %s.", outJpgFile)
-
-            # Potentially will need to zip afterwards.
-            # This could be its own task
-            # ZIP
-            # cmd = ["gzip", "-f", outFile]
-            # run(cmd)
