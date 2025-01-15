@@ -68,7 +68,7 @@ class TestPdbCsmImageWorkflow(unittest.TestCase):
                 numWorkers=3,
                 idListPath=self.__workPath,
             )
-            
+
             logger.info("Reading generated lists and checking for format.")
 
             def checkList(ids: str) -> bool:

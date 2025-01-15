@@ -127,7 +127,7 @@ class PdbCsmImageWorkflow:
         """Generate jpgs for given pdb/csm list."""
         idListNumber = kwargs.get("fileNumber")
         idListFile = kwargs.get("idListPath") + f"idList_{idListNumber}.txt"
-        
+
         if not (Path(idListFile).is_file() and Path(idListFile).stat().st_size > 0):
             logger.warning('Missing idList file %s', idListFile)
             return
