@@ -105,7 +105,7 @@ class PdbCsmImageWorkflow:
 
         fullIdList = pdbIdList + compIdList
         random.shuffle(fullIdList)
-        logger.info('%s Ids split over %s files', len(fullIdList), kwargs.get("numWorkers"))
+        # logger.info('%s Ids split over %s files', len(fullIdList), kwargs.get("numWorkers"))
 
         # Calculate the size of each chunk
         chunkSize = math.ceil(len(fullIdList) / int(kwargs.get("numWorkers")))
