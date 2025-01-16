@@ -35,7 +35,7 @@ HERE = os.path.abspath(os.path.dirname(__file__))
 TOPDIR = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class TestPdbCsmImageWorkflow(unittest.TestCase):
@@ -57,8 +57,11 @@ class TestPdbCsmImageWorkflow(unittest.TestCase):
     def testIdListGeneration(self) -> None:
         """Test id list file generation ..."""
         try:
+            logger.info('creating object')
             pciWF = PdbCsmImageWorkflow()
             logger.info("Generating 3 id lists to run through.")
+            logger.info('mockdataDir %s', self.mockdataDir)
+            logger.info('workpath %s', self.__workPath)
             pciWF.imagesGenLists(
                 pdbGzPath=os.path.join(self.mockdataDir, "released_structures_last_modified_dates.json.gz"),
                 updateAllImages=True,
@@ -77,9 +80,12 @@ class TestPdbCsmImageWorkflow(unittest.TestCase):
                     with Path(ids).open("r", encoding="utf-8") as file:
                         idList = [line.rstrip("\n") for line in file]
                     for line in idList:
+                        logger.info('line from file is: %s', line)
                         fileId, bcifFileName, sdm = line.split(" ")
                         if not ((len(fileId) > 0) and (len(bcifFileName) > 0) and (len(sdm) > 0)):
+                            logger.error('Found one of the following had a length of zero %s %s %s', fileId, bcifFileName, sdm)
                             allDataPresent = False
+                    logger.info('End of a single checkList. Returning a value of %s', allDataPresent)
                     return allDataPresent
                 logger.error("Failed to find created file %s", ids)
                 return False
