@@ -75,7 +75,8 @@ class TestPdbCsmImageWorkflow(unittest.TestCase):
             logger.info("Reading generated lists and checking for format.")
 
             def checkList(ids: str) -> bool:
-                if Path(ids).is_file() and Path(ids).stat().st_size > 0:
+                try:
+                    logger.info('ids path for checkList %s', ids)
                     allDataPresent = True
                     with Path(ids).open("r", encoding="utf-8") as file:
                         idList = [line.rstrip("\n") for line in file]
@@ -87,8 +88,9 @@ class TestPdbCsmImageWorkflow(unittest.TestCase):
                             allDataPresent = False
                     logger.info('End of a single checkList. Returning a value of %s', allDataPresent)
                     return allDataPresent
-                logger.error("Failed to find created file %s", ids)
-                return False
+                except Exception:
+                    logger.exception("Failed to find created file %s", ids)
+                    return False
 
             ok1 = checkList(os.path.join(self.__workPath, "idList_0.txt"))
             if not ok1:
