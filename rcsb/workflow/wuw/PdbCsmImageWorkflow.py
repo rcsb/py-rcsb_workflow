@@ -118,10 +118,12 @@ class PdbCsmImageWorkflow:
         Path(kwargs.get("idListPath")).mkdir(parents=True, exist_ok=True)
         for i, chunk in enumerate(chunks):
             filename = kwargs.get("idListPath") + f"idList_{i}.txt"
-            logger.info('%s contains %s ids', f"idList_{i}.txt", len(chunk))
+            logger.info('%s contains %s ids', filename, len(chunk))
             with Path(filename).open('w', encoding="utf-8") as file:
                 file.write("\n".join(chunk))  # Join the chunk items with newlines for readability
-            if not (Path(filename).is_file() and Path(filename).stat().st_size > 0):
+            if Path(filename).is_file() and Path(filename).stat().st_size > 0:
+                logger.info('file exists and is full.')
+            else:
                 logger.error('Missing or empty file %s', filename)
 
     def imagesGenJpgs(self, **kwargs: dict) -> None:

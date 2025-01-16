@@ -42,7 +42,7 @@ class TestPdbCsmImageWorkflow(unittest.TestCase):
     def setUp(self) -> None:
         self.__startTime = time.time()
         # self.__cachePath = os.path.join(HERE, "test-data")
-        self.__workPath = os.path.join(HERE, "test-output")
+        self.__workPath = os.path.join(HERE, "test-output", "CACHE")
         self.mockdataDir = os.path.join(TOPDIR, "rcsb", "mock-data", "MOCK_IMGS_WF_BCIF_DATA")
         logger.debug("Running tests on version %s", __version__)
         logger.info("Starting %s at %s", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()))
