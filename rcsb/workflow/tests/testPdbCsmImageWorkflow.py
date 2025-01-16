@@ -87,13 +87,15 @@ class TestPdbCsmImageWorkflow(unittest.TestCase):
             ok1 = checkList(os.path.join(self.__workPath, "idList_0.txt"))
             if not ok1:
                 logger.error("idList_0.txt failed")
+            self.assertTrue(ok1)
             ok2 = checkList(os.path.join(self.__workPath, "idList_1.txt"))
             if not ok2:
                 logger.error("idList_1.txt failed")
+            self.assertTrue(ok2)
             ok3 = checkList(os.path.join(self.__workPath, "idList_2.txt"))
             if not ok3:
                 logger.error("idList_2.txt failed")
-            self.assertTrue(ok1 and ok2 and ok3)
+            self.assertTrue(ok3)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
             self.fail()

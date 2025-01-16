@@ -24,7 +24,8 @@ import subprocess
 import math
 
 
-logger = logging.getLogger(__name__).setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
+logger = logging.getLogger()
 
 
 class PdbCsmImageWorkflow:
@@ -164,7 +165,7 @@ class PdbCsmImageWorkflow:
                 cmd = [*cmd, kwargs.get("jpgAdditionalCmds")]
 
             if Path(bcifFilePath).is_file() and Path(bcifFilePath).stat().st_size > 0:
-                logger.info('Running %s', ' '.join(cmd))
+                # logger.info('Running %s', ' '.join(cmd))
                 try:
                     subprocess.run(cmd, capture_output=True, text=True, check=True)
                 except subprocess.CalledProcessError:
