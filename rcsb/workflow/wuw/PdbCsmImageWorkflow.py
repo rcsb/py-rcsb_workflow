@@ -22,6 +22,7 @@ from pathlib import Path
 import logging
 import subprocess
 import math
+import os
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
@@ -46,7 +47,7 @@ class PdbCsmImageWorkflow:
         else:
             for idVal, timestamp in pdbIdsTimestamps.items():
                 path = idVal + ".bcif" if kwargs.get("noSubdirs") else idVal[1:3] + "/" + idVal + ".bcif"  # idVal[1:3] + "/" + idVal + ".bcif"
-                bcifFile = kwargs.get("pdbBaseDir") + path
+                bcifFile = os.path.join(kwargs.get("pdbBaseDir"), path)
                 if Path.exists(bcifFile):
                     t1 = Path.stat(bcifFile).stMtime
                     t2 = timestamp.timestamp()
@@ -77,7 +78,7 @@ class PdbCsmImageWorkflow:
             # "incremental" for weekly
             for modelId, metadata in modelIdsMetadata.items():
                 modelPath = metadata["modelPath"].replace(".cif", ".bcif").replace(".gz", "")
-                bcifFile = kwargs.get("csmBaseDir") + modelPath
+                bcifFile = os.path.join(kwargs.get("csmBaseDir"), modelPath)
                 if Path.exists(bcifFile):
                     t1 = Path.stat(bcifFile).stMtime
                     t2 = metadata["datetime"].timestamp()
@@ -117,7 +118,7 @@ class PdbCsmImageWorkflow:
         # Write each chunk to a separate file
         Path(kwargs.get("idListPath")).mkdir(parents=True, exist_ok=True)
         for i, chunk in enumerate(chunks):
-            filename = kwargs.get("idListPath") + f"idList_{i}.txt"
+            filename = os.path.join(kwargs.get("idListPath"), f"idList_{i}.txt")
             logger.info('%s contains %s ids', filename, len(chunk))
             with Path(filename).open('w', encoding="utf-8") as file:
                 file.write("\n".join(chunk))  # Join the chunk items with newlines for readability
@@ -129,7 +130,7 @@ class PdbCsmImageWorkflow:
     def imagesGenJpgs(self, **kwargs: dict) -> None:
         """Generate jpgs for given pdb/csm list."""
         idListNumber = kwargs.get("fileNumber")
-        idListFile = kwargs.get("idListPath") + f"idList_{idListNumber}.txt"
+        idListFile = os.path.join(kwargs.get("idListPath"), f"idList_{idListNumber}.txt")
 
         if not (Path(idListFile).is_file() and Path(idListFile).stat().st_size > 0):
             logger.warning('Missing idList file %s', idListFile)
@@ -145,9 +146,9 @@ class PdbCsmImageWorkflow:
             fileId, bcifFileName, sdm = line.split(" ")
             contentTypeDir = "pdb/" if sdm == "experimental" else "csm/"
 
-            bcifFilePath = kwargs.get("pdbBaseDir") + bcifFileName if sdm == "experimental" else kwargs.get("csmBaseDir") + bcifFileName
+            bcifFilePath = os.path.join(kwargs.get("pdbBaseDir"), bcifFileName) if sdm == "experimental" else os.path.join(kwargs.get("csmBaseDir"), bcifFileName)
 
-            outPath = kwargs.get("jpgsOutDir") + contentTypeDir
+            outPath = os.path.join(kwargs.get("jpgsOutDir"), contentTypeDir)
             Path(outPath).mkdir(parents=True, exist_ok=True)
 
             # runMolrender
@@ -174,7 +175,7 @@ class PdbCsmImageWorkflow:
                     logger.exception()
 
                 # check result
-                outJpgFile = outPath + fileId + "_model-1.jpeg"
+                outJpgFile = os.path.join(outPath, fileId + "_model-1.jpeg")
 
                 if not (Path(outJpgFile).is_file() and Path(outJpgFile).stat().st_size > 0):
                     logger.error("No image file: %s.", outJpgFile)
