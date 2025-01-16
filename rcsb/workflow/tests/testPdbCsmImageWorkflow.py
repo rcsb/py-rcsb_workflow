@@ -74,7 +74,7 @@ class TestPdbCsmImageWorkflow(unittest.TestCase):
             def checkList(ids: str) -> bool:
                 if Path(ids).is_file() and Path(ids).stat().st_size > 0:
                     allDataPresent = True
-                    with Path.open(ids, "r", encoding="utf-8") as file:
+                    with Path(ids).open("r", encoding="utf-8") as file:
                         idList = [line.rstrip("\n") for line in file]
                     for line in idList:
                         fileId, bcifFileName, sdm = line.split(" ")
@@ -98,7 +98,7 @@ class TestPdbCsmImageWorkflow(unittest.TestCase):
             self.assertTrue(ok3)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
-            self.fail()
+            self.fail("Failed to build idLists")
 
 
 def suiteFileGeneration():

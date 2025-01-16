@@ -119,7 +119,7 @@ class PdbCsmImageWorkflow:
         for i, chunk in enumerate(chunks):
             filename = kwargs.get("idListPath") + f"idList_{i}.txt"
             logger.info('%s contains %s ids', f"idList_{i}.txt", len(chunk))
-            with Path.open(filename, 'w', encoding="utf-8") as file:
+            with Path(filename).open('w', encoding="utf-8") as file:
                 file.write("\n".join(chunk))  # Join the chunk items with newlines for readability
             if not (Path(filename).is_file() and Path(filename).stat().st_size > 0):
                 logger.error('Missing or empty file %s', filename)
@@ -133,7 +133,7 @@ class PdbCsmImageWorkflow:
             logger.warning('Missing idList file %s', idListFile)
             return
 
-        with Path.open(idListFile, "r", encoding="utf-8") as file:
+        with Path(idListFile).open("r", encoding="utf-8") as file:
             idList = [line.rstrip("\n") for line in file]
         if not isinstance(idList, list):
             raise TypeError("idList not a list")
