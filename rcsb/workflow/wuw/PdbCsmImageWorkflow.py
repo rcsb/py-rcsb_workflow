@@ -129,6 +129,7 @@ class PdbCsmImageWorkflow:
         """Generate jpgs for given pdb/csm list."""
         idListNumber = kwargs.get("fileNumber")
         idListFile = os.path.join(kwargs.get("idListPath"), f"idList_{idListNumber}.txt")
+        logger.info('using id file %s', idListFile)
 
         if not (Path(idListFile).is_file() and Path(idListFile).stat().st_size > 0):
             logger.warning('Missing idList file %s', idListFile)
@@ -171,7 +172,7 @@ class PdbCsmImageWorkflow:
                 try:
                     subprocess.run(cmd, capture_output=True, text=True, check=True)
                 except subprocess.CalledProcessError:
-                    logger.exception()
+                    logger.exception("Unable to run cmd %s", ' '.join(cmd))
 
                 # check result
                 outJpgFile = os.path.join(outPath, fileId + "_model-1.jpeg")
