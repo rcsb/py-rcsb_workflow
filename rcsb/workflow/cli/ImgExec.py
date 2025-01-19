@@ -88,7 +88,7 @@ def main() -> None:
             jpgAdditionalCmds=args.jpgAdditionalCmds,  # default
             jpgXvfbExecutable=args.jpgXvfbExecutable,  # default
             jpgScreen=args.jpgScreen,  # default
-            jpgRender=args.jpgRender, # default
+            jpgRender=args.jpgRender,  # default
         )
     else:
         raise ValueError("Cli --op flag error: not availible option")
