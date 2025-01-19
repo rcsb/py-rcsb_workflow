@@ -55,6 +55,7 @@ def main() -> None:
     parser.add_argument("--jpgAdditionalCmds", default=None)
     parser.add_argument("--jpgXvfbExecutable", default='/usr/bin/xvfb-run')
     parser.add_argument("--jpgScreen", default='1280x1024x24')
+    parser.add_argument("--jpgRender", default='all')
 
     args = parser.parse_args()
 
@@ -87,6 +88,7 @@ def main() -> None:
             jpgAdditionalCmds=args.jpgAdditionalCmds,  # default
             jpgXvfbExecutable=args.jpgXvfbExecutable,  # default
             jpgScreen=args.jpgScreen,  # default
+            jpgRender=args.jpgRender, # default
         )
     else:
         raise ValueError("Cli --op flag error: not availible option")

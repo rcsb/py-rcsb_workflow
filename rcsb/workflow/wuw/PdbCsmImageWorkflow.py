@@ -157,7 +157,7 @@ class PdbCsmImageWorkflow:
                 "-a",
                 "-s", f"-ac -screen 0 {kwargs.get('jpgScreen')}",
                 kwargs.get("molrenderExe"),
-                "all",
+                kwargs.get("jpgRender"),
                 bcifFilePath,
                 outPath,
                 "--height", str(kwargs.get("jpgHeight")),
