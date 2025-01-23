@@ -78,9 +78,9 @@ class PdbCsmImageWorkflow:
                 try:
                     result = subprocess.run(cmd, capture_output=True, text=True, check=True)
                     logger.info(result.stdout)
-                except subprocess.CalledProcessError:
-                    logger.error(result.stderr)
-                    logger.exception("Unable to run cmd %s", ' '.join(cmd))
+                except subprocess.CalledProcessError as e:
+                    logger.error("Error:", e)
+                    logger.error("Stderr:", e.stderr)
 
                 # check result
                 outJpgFile = os.path.join(outPath, fileId + "_model-1.jpeg")
