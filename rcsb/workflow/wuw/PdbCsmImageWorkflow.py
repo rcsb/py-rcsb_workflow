@@ -31,104 +31,10 @@ logger = logging.getLogger()
 
 class PdbCsmImageWorkflow:
 
-    def getPdbList(self, **kwargs: dict) -> list:
-        """Build pdb list via pdb gz file."""
-        pdbIdsTimestamps = {}
-        with gzip.open(kwargs.get("pdbGzPath")) as file:
-            data = json.loads(file.read())
-            for idVal in data:
-                datetimeObject = datetime.datetime.strptime(data[idVal], "%Y-%m-%dT%H:%M:%S%z")
-                pdbIdsTimestamps[idVal.lower()] = datetimeObject
-        pdbIdList = []
-        if kwargs.get("updateAllImages"):
-            for idVal in pdbIdsTimestamps:
-                path = idVal + ".bcif" if kwargs.get("noSubdirs") else idVal[1:3] + "/" + idVal + ".bcif"
-                pdbIdList.append(f"{idVal} {path} experimental")
-        else:
-            for idVal, timestamp in pdbIdsTimestamps.items():
-                path = idVal + ".bcif" if kwargs.get("noSubdirs") else idVal[1:3] + "/" + idVal + ".bcif"  # idVal[1:3] + "/" + idVal + ".bcif"
-                bcifFile = os.path.join(kwargs.get("pdbBaseDir"), path)
-                if Path.exists(bcifFile):
-                    t1 = Path.stat(bcifFile).stMtime
-                    t2 = timestamp.timestamp()
-                    if t1 < t2:
-                        pdbIdList.append(f"{idVal} {path} experimental")
-                else:
-                    pdbIdList.append(f"{idVal} {path} experimental")
-        return pdbIdList
-
-    def getCsmList(self, **kwargs: dict) -> list:
-        """Build csm list via csm gz file."""
-        with gzip.open(kwargs.get("csmGzPath")) as file:
-            data = json.loads(file.read())
-            dic = {}
-            for modelId in data:
-                item = data[modelId]
-                item["modelPath"] = item["modelPath"].lower()  # prod route of BinaryCIF wf produces lowercase filenames
-                item["datetime"] = datetime.datetime.strptime(item["lastModifiedDate"], "%Y-%m-%dT%H:%M:%S%z")
-                dic[modelId.lower()] = item
-        modelIdsMetadata = dic
-        modelList = []
-
-        if kwargs.get("updateAllImages"):
-            for modelId, metadata in modelIdsMetadata.items():
-                modelPath = metadata["modelPath"].replace(".cif", ".bcif").replace(".gz", "")
-                modelList.append(f"{modelId} {modelPath} computational")
-        else:
-            # "incremental" for weekly
-            for modelId, metadata in modelIdsMetadata.items():
-                modelPath = metadata["modelPath"].replace(".cif", ".bcif").replace(".gz", "")
-                bcifFile = os.path.join(kwargs.get("csmBaseDir"), modelPath)
-                if Path.exists(bcifFile):
-                    t1 = Path.stat(bcifFile).stMtime
-                    t2 = metadata["datetime"].timestamp()
-                    if t1 < t2:
-                        modelList.append(f"{modelId} {modelPath} computational")
-                else:
-                    modelList.append(f"{modelId} {modelPath} computational")
-        return modelList
-
-    def imagesGenLists(self, **kwargs: dict) -> None:
-
-        """Generate lists of pdbs/csms in files."""
-        pdbIdList = self.getPdbList(pdbGzPath=kwargs.get("pdbGzPath"),
-                                    updateAllImages=kwargs.get("updateAllImages"),
-                                    pdbBaseDir=kwargs.get("pdbBaseDir"),
-                                    noSubdirs=kwargs.get("noSubdirs"),
-                                    )
-        compIdList = [] if kwargs.get("imgsExcludeModels") else self.getCsmList(csmGzPath=kwargs.get("csmGzPath"),
-                                                                                updateAllImages=kwargs.get("updateAllImages"),
-                                                                                csmBaseDir=kwargs.get("csmBaseDir"),
-                                                                                )
-
-        # Print results, combine, and shuffle
-        if len(pdbIdList) < 1 and len(compIdList) < 1:
-            raise ValueError("pdb and csm id list empty")
-
-        fullIdList = pdbIdList + compIdList
-        random.shuffle(fullIdList)
-        # logger.info('%s Ids split over %s files', len(fullIdList), kwargs.get("numWorkers"))
-
-        # Calculate the size of each chunk
-        chunkSize = math.ceil(len(fullIdList) / int(kwargs.get("numWorkers")))
-
-        # Split the list into n chunks
-        chunks = [fullIdList[i:i + chunkSize] for i in range(0, len(fullIdList), chunkSize)]
-
-        # Write each chunk to a separate file
-        Path(kwargs.get("idListPath")).mkdir(parents=True, exist_ok=True)
-        for i, chunk in enumerate(chunks):
-            filename = os.path.join(kwargs.get("idListPath"), f"idList_{i}.txt")
-            logger.info('%s contains %s ids', filename, len(chunk))
-            with Path(filename).open('w', encoding="utf-8") as file:
-                file.write("\n".join(chunk))  # Join the chunk items with newlines for readability
-            if not (Path(filename).is_file() and Path(filename).stat().st_size > 0):
-                logger.error('Missing or empty file %s', filename)
-
     def imagesGenJpgs(self, **kwargs: dict) -> None:
         """Generate jpgs for given pdb/csm list."""
-        idListNumber = kwargs.get("fileNumber")
-        idListFile = os.path.join(kwargs.get("idListPath"), f"idList_{idListNumber}.txt")
+        idListName = kwargs.get("idListName")
+        idListFile = os.path.join(kwargs.get("idListPath"), idListName)
         logger.info('using id file %s', idListFile)
 
         if not (Path(idListFile).is_file() and Path(idListFile).stat().st_size > 0):
@@ -170,8 +76,10 @@ class PdbCsmImageWorkflow:
             if Path(bcifFilePath).is_file() and Path(bcifFilePath).stat().st_size > 0:
                 # logger.info('Running %s', ' '.join(cmd))
                 try:
-                    subprocess.run(cmd, capture_output=True, text=True, check=True)
+                    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                    logger.info(result.stdout)
                 except subprocess.CalledProcessError:
+                    logger.error(result.stderr)
                     logger.exception("Unable to run cmd %s", ' '.join(cmd))
 
                 # check result

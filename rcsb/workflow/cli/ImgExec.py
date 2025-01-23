@@ -30,19 +30,12 @@ def main() -> None:
         ],
     )
 
-    parser.add_argument("--pdbGzPath")
-    parser.add_argument("--csmGzPath")
     parser.add_argument("--pdbBaseDir")
     parser.add_argument("--csmBaseDir")
-    parser.add_argument("--updateAllImages", action='store_true')
-    parser.add_argument("--imgsExcludeModels", action='store_true')
-    parser.add_argument("--noSubdirs", action='store_true')
-    parser.add_argument("--numWorkers")
 
     parser.add_argument("--idListPath")
+    parser.add_argument("--idListName")
     parser.add_argument("--updateTmpBase")
-    parser.add_argument("--prereleaseFtpFileBasePath")  # can i get rid of this?
-    parser.add_argument("--csmFileRepoBasePath")
     parser.add_argument("--imagesTmpBase")
     parser.add_argument("--molrenderExe", default="/opt/modules/node_modules/molrender/build/bin/molrender.js")
     parser.add_argument("--jpgsOutDir")
@@ -60,36 +53,8 @@ def main() -> None:
     args = parser.parse_args()
 
     imgWF = PdbCsmImageWorkflow()
-    if args.op == "genLists":
-        imgWF.imagesGenLists(
-            pdbGzPath=args.pdbGzPath,
-            csmGzPath=args.csmGzPath,
-            pdbBaseDir=args.pdbBaseDir,
-            csmBaseDir=args.csmBaseDir,
-            updateAllImages=args.updateAllImages,
-            imgsExcludeModels=args.imgsExcludeModels,
-            noSubdirs=args.noSubdirs,
-            numWorkers=args.numWorkers,
-            idListPath=args.idListPath,
-            prereleaseFtpFileBasePath=args.prereleaseFtpFileBasePath,
-            csmFileRepoBasePath=args.csmFileRepoBasePath,
-        )
-    elif args.op == "genJpgs":
-        imgWF.imagesGenJpgs(
-            pdbBaseDir=args.pdbBaseDir,
-            csmBaseDir=args.csmBaseDir,
-            idListPath=args.idListPath,
-            molrenderExe=args.molrenderExe,  # default
-            jpgsOutDir=args.jpgsOutDir,
-            fileNumber=args.fileNumber,
-            jpgHeight=args.jpgHeight,  # default
-            jpgWidth=args.jpgWidth,  # default
-            jpgFormat=args.jpgFormat,  # default
-            jpgAdditionalCmds=args.jpgAdditionalCmds,  # default
-            jpgXvfbExecutable=args.jpgXvfbExecutable,  # default
-            jpgScreen=args.jpgScreen,  # default
-            jpgRender=args.jpgRender,  # default
-        )
+    if args.op == "genJpgs":
+        imgWF.imagesGenJpgs(**args)
     else:
         raise ValueError("Cli --op flag error: not availible option")
 
