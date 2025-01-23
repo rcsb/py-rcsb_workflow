@@ -14,14 +14,9 @@ __author__ = "Michael Trumbull"
 __email__ = "michael.trumbull@rcsb.org"
 __license__ = "Apache 2.0"
 
-import gzip
-import json
-import datetime
-import random
 from pathlib import Path
 import logging
 import subprocess
-import math
 import os
 
 
