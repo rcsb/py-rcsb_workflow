@@ -19,7 +19,7 @@ import logging
 import subprocess
 import os
 
-from rcsb.utils.io.MarshalUtil import MarshalUtil  
+from rcsb.utils.io.MarshalUtil import MarshalUtil
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
 logger = logging.getLogger()
@@ -41,7 +41,6 @@ class PdbCsmImageWorkflow:
         jpgFormat = kwargs.get("jpgFormat")
         jpgAdditionalCmds = kwargs.get("jpgAdditionalCmds", None)
 
-
         logger.info('using id file %s', idListFile)
 
         fileObj = Path(idListFile)
@@ -50,7 +49,7 @@ class PdbCsmImageWorkflow:
             return
 
         mU = MarshalUtil()
-        idList = mU.doImport("idListFile", fmt="list") 
+        idList = mU.doImport("idListFile", fmt="list")
         if not isinstance(idList, list):
             raise TypeError("idList not a list")
 
