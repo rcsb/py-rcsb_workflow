@@ -1,9 +1,9 @@
-"""Cli parser for imgs workflow."""
+"""Cli parser for jpg generation. This is a portion of imgs workflow which takes bcif images and generates these jpgs as well as chem images."""
 ##
 # File: ImgExec.py
 # Date: 11-Dec-2024  mjt
 #
-#  Execution wrapper  --  for chem image generation -
+#  Execution wrapper  --  for jpg generation -
 #
 #  Updates:
 #
@@ -56,7 +56,7 @@ def main() -> None:
     if args.op == "genJpgs":
         imgWF.imagesGenJpgs(**args)
     else:
-        raise ValueError("Cli --op flag error: not availible option")
+        raise ValueError("Cli --op flag error: not availible option %r" % args.op)
 
 
 if __name__ == "__main__":
