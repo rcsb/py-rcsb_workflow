@@ -33,8 +33,7 @@ def main() -> None:
     parser.add_argument("--pdbBaseDir")
     parser.add_argument("--csmBaseDir")
 
-    parser.add_argument("--idListPath")
-    parser.add_argument("--idListName")
+    parser.add_argument("--idListFilePath")
     parser.add_argument("--updateTmpBase")
     parser.add_argument("--imagesTmpBase")
     parser.add_argument("--molrenderExe", default="/opt/modules/node_modules/molrender/build/bin/molrender.js")
@@ -49,6 +48,7 @@ def main() -> None:
     parser.add_argument("--jpgXvfbExecutable", default='/usr/bin/xvfb-run')
     parser.add_argument("--jpgScreen", default='1280x1024x24')
     parser.add_argument("--jpgRender", default='all')
+    parser.add_argument("--checkFileAppend")
 
     args = parser.parse_args()
 

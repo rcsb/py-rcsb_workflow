@@ -29,8 +29,7 @@ class PdbCsmImageWorkflow:
 
     def imagesGenJpgs(self, **kwargs: dict) -> None:
         """Generate jpgs for given pdb/csm list."""
-        idListName = kwargs.get("idListName", None)
-        idListFile = os.path.join(kwargs.get("idListPath"), idListName)
+        idListFile = kwargs.get("idListFilePath", None)
 
         jpgXvfbExecutable = kwargs.get("jpgXvfbExecutable")
         jpgScreen = kwargs.get('jpgScreen')
@@ -40,6 +39,7 @@ class PdbCsmImageWorkflow:
         jpgWidth = str(kwargs.get("jpgWidth"))
         jpgFormat = kwargs.get("jpgFormat")
         jpgAdditionalCmds = kwargs.get("jpgAdditionalCmds", None)
+        checkFileAppend = kwargs.get("checkFileAppend","_model-1.jpeg")
 
         logger.info('using id file %s', idListFile)
 
@@ -82,18 +82,16 @@ class PdbCsmImageWorkflow:
 
             fileObj = Path(bcifFilePath)
             if fileObj.is_file() and fileObj.stat().st_size > 0:
-                # logger.info('Running %s', ' '.join(cmd))
                 try:
                     result = subprocess.run(cmd, capture_output=True, text=True, check=True)
                     logger.info(result.stdout)
                 except subprocess.CalledProcessError as e:
-                    logger.error("Error: %s", e)
-                    logger.error("Stderr: %s", e.stderr)
+                    logger.exception("Failed to run cmd %s", e)
 
                 # check result
-                outJpgFile = os.path.join(outPath, fileId + "_model-1.jpeg")
+                outJpgFile = os.path.join(outPath, fileId + checkFileAppend)
                 fileObj = Path(outJpgFile)
                 if not (fileObj.is_file() and fileObj.stat().st_size > 0):
-                    logger.error("No image file: %s.", outJpgFile)
+                    raise ValueError("No image file: %s.", outJpgFile)
             else:
-                logger.error('Missing bcif file %s', bcifFilePath)
+                raise ValueError('Missing bcif file %s', bcifFilePath)
