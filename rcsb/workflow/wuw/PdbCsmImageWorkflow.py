@@ -39,7 +39,7 @@ class PdbCsmImageWorkflow:
         jpgWidth = str(kwargs.get("jpgWidth"))
         jpgFormat = kwargs.get("jpgFormat")
         jpgAdditionalCmds = kwargs.get("jpgAdditionalCmds", None)
-        checkFileAppend = kwargs.get("checkFileAppend","_model-1.jpeg")
+        checkFileAppend = kwargs.get("checkFileAppend", "_model-1.jpeg")
 
         logger.info('using id file %s', idListFile)
 
@@ -86,12 +86,12 @@ class PdbCsmImageWorkflow:
                     result = subprocess.run(cmd, capture_output=True, text=True, check=True)
                     logger.info(result.stdout)
                 except subprocess.CalledProcessError as e:
-                    logger.exception("Failed to run cmd %s", e)
+                    logger.exception("Failed to run cmd")
 
                 # check result
                 outJpgFile = os.path.join(outPath, fileId + checkFileAppend)
                 fileObj = Path(outJpgFile)
                 if not (fileObj.is_file() and fileObj.stat().st_size > 0):
-                    raise ValueError("No image file: %s.", outJpgFile)
+                    raise ValueError("No image file: ", outJpgFile)
             else:
-                raise ValueError('Missing bcif file %s', bcifFilePath)
+                raise ValueError('Missing bcif file ', bcifFilePath)
