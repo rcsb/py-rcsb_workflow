@@ -47,7 +47,7 @@ def main() -> None:
     args = vars(parser.parse_args())
 
     imgWF = PdbCsmImageWorkflow()
-    if args.op == "genJpgs":
+    if args["op"] == "genJpgs":
         imgWF.imagesGenJpgs(**args)
     else:
         raise ValueError("CLI --op flag error: not available option %r" % args.op)
