@@ -44,7 +44,7 @@ def main() -> None:
     parser.add_argument("--jpgRender", default="all", help="Which elements of the potein do you want to render.")
     parser.add_argument("--checkFileAppend", default="_model-1.jpeg", help="What jpg file do you want to check exists after the process runs.")
 
-    args = parser.parse_args()
+    args = vars(parser.parse_args())
 
     imgWF = PdbCsmImageWorkflow()
     if args.op == "genJpgs":
