@@ -30,25 +30,19 @@ def main() -> None:
         ],
     )
 
-    parser.add_argument("--pdbBaseDir")
-    parser.add_argument("--csmBaseDir")
-
-    parser.add_argument("--idListFilePath")
-    parser.add_argument("--updateTmpBase")
-    parser.add_argument("--imagesTmpBase")
-    parser.add_argument("--molrenderExe", default="/opt/modules/node_modules/molrender/build/bin/molrender.js")
-    parser.add_argument("--jpgsOutDir")
-
-    parser.add_argument("--fileNumber")
-
-    parser.add_argument("--jpgHeight", default=500)
-    parser.add_argument("--jpgWidth", default=500)
-    parser.add_argument("--jpgFormat", default='jpeg')
-    parser.add_argument("--jpgAdditionalCmds", default=None)
-    parser.add_argument("--jpgXvfbExecutable", default='/usr/bin/xvfb-run')
-    parser.add_argument("--jpgScreen", default='1280x1024x24')
-    parser.add_argument("--jpgRender", default='all')
-    parser.add_argument("--checkFileAppend")
+    parser.add_argument("--pdbBaseDir", help="Base path for experimental bcif file.")
+    parser.add_argument("--csmBaseDir", help="Base path for computational bcif file.")
+    parser.add_argument("--idListFilePath", help="List of ids to generate images for.")
+    parser.add_argument("--molrenderExe", default="/opt/modules/node_modules/molrender/build/bin/molrender.js", help="Molrender executable location.")
+    parser.add_argument("--jpgsOutDir", help="Where to put the complete jpg images.")
+    parser.add_argument("--jpgHeight", default=500, help="Height of generated jpg.")
+    parser.add_argument("--jpgWidth", default=500, help="Width of generated jpg.")
+    parser.add_argument("--jpgFormat", default="jpeg", help="Output image format.")
+    parser.add_argument("--jpgAdditionalCmds", default=None, help="Any additional commands to pass to molrender.")
+    parser.add_argument("--jpgXvfbExecutable", default="/usr/bin/xvfb-run", help="Linux executable that allows this gui application to run in cli.")
+    parser.add_argument("--jpgScreen", default="1280x1024x24", help="Screen dimensions image will be rendered for.")
+    parser.add_argument("--jpgRender", default="all", help="Which elements of the potein do you want to render.")
+    parser.add_argument("--checkFileAppend", default="_model-1.jpeg", help="What jpg file do you want to check exists after the process runs.")
 
     args = parser.parse_args()
 
@@ -56,7 +50,7 @@ def main() -> None:
     if args.op == "genJpgs":
         imgWF.imagesGenJpgs(**args)
     else:
-        raise ValueError("Cli --op flag error: not availible option %r" % args.op)
+        raise ValueError("CLI --op flag error: not available option %r" % args.op)
 
 
 if __name__ == "__main__":

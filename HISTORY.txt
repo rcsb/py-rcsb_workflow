@@ -40,4 +40,4 @@
 22-Oct-2024 - V0.46 Update requirements and CI/CD (to use python 3.10)
 10-Dec-2024 - V0.47 Add support for 'max-seqs' flag in mmseqs database search;
                     Update Azure pipelines to run on latest macOS and ubuntu version
-11-Dec-2024 - V0.48 Adding images workflow functionality including cli utility
+28-Jan-2025 - V0.48 Adding images workflow functionality including cli utility
