@@ -38,7 +38,6 @@ class PdbCsmImageWorkflow:
         jpgHeight = str(kwargs.get("jpgHeight"))
         jpgWidth = str(kwargs.get("jpgWidth"))
         jpgFormat = kwargs.get("jpgFormat")
-        jpgAdditionalCmds = kwargs.get("jpgAdditionalCmds", None)
         checkFileAppend = kwargs.get("checkFileAppend", "_model-1.jpeg")
         pdbBaseDir = kwargs.get("pdbBaseDir")
         csmBaseDir = kwargs.get("csmBaseDir")
@@ -83,9 +82,6 @@ class PdbCsmImageWorkflow:
                 "--width", jpgWidth,
                 "--format", jpgFormat,
             ]
-            if jpgAdditionalCmds:
-                cmd = [*cmd, jpgAdditionalCmds]
-
             bcifFileObj = Path(bcifFilePath)
             if bcifFileObj.is_file() and bcifFileObj.stat().st_size > 0:
                 try:

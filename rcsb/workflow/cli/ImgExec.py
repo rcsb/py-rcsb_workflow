@@ -38,7 +38,6 @@ def main() -> None:
     parser.add_argument("--jpgHeight", default=500, help="Height of generated jpg.")
     parser.add_argument("--jpgWidth", default=500, help="Width of generated jpg.")
     parser.add_argument("--jpgFormat", default="jpeg", help="Output image format.")
-    parser.add_argument("--jpgAdditionalCmds", default=None, help="Any additional commands to pass to molrender.")
     parser.add_argument("--jpgXvfbExecutable", default="/usr/bin/xvfb-run", help="Linux executable that allows this gui application to run in cli.")
     parser.add_argument("--jpgScreen", default="1280x1024x24", help="Screen dimensions image will be rendered for.")
     parser.add_argument("--jpgRender", default="all", help="Which elements of the potein do you want to render.")
