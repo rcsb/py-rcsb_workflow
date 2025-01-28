@@ -2,41 +2,58 @@
 
 [![Build Status](https://dev.azure.com/rcsb/RCSB%20PDB%20Python%20Projects/_apis/build/status/rcsb.py-rcsb_workflow?branchName=master)](https://dev.azure.com/rcsb/RCSB%20PDB%20Python%20Projects/_build/latest?definitionId=21&branchName=master)
 
-## Introduction
-
 RCSB Python workflow entry points for data processing and ETL/ELT operations.
 
-### Installation
+## Setup
 
-Download the library source software from the project repository:
+> [!IMPORTANT]
+> These instructions use [uv](https://docs.astral.sh/uv/).
+> To install it, run
+> ```bash
+> uv -V || curl -L -f https://astral.sh/uv/install.sh | sh
+> ```
+> Unfortunately, `rcsb.workflow` is not yet friendly to uv or modern pip:
+> To work around this, I recommend following the instructions below exactly.
+
+### To use the package
+
+Navigate to a directory you want to create a `.venv` in.
+Then run
 
 ```bash
-
-git clone  --recurse-submodules https://github.com/rcsb/py-rcsb_workflow.git
-
-# or to make sure the submodules are updated --
-git submodule update --recursive --init
-git submodule update --recursive --remote
-
+uv venv --python 3.10 --seed
+uv run \
+  pip install \
+  --extra-index-url https://pypi.anaconda.org/OpenEye/simple \
+  --use-deprecated=legacy-resolver \
+  rcsb.workflow~=0.47
+uv run exdb_exec_cli --help > /dev/null
 ```
 
-Optionally, run test suite (Python versions 3.8) using
-[setuptools](https://setuptools.readthedocs.io/en/latest/) or
-[tox](http://tox.readthedocs.io/en/latest/example/platform.html):
+<!------------------------------------------------------------->
+<!-- !!!NOTE TO MAINTAINERS!!! SYNCHRONIZE THE VERSION ABOVE -->
+<!------------------------------------------------------------->
+
+<b>Explanation:</b>
+`uv pip` does not support deprecated pip options, so true pip needs to be installed.
+It's installed directly in the runtime (non-dev) environment with the `--seed` option.
+This will not work in Python 3.12 or later.
+
+### Cloning
+
+To run tests, you will need to fetch Git submodules and install the package in editable mode (i.e. `pip -e`).
 
 ```bash
-
-  pip install -r requirements.txt
-  python setup.py test
-
-or simply run:
-
-  tox
-```
-
-Installation is via the program [pip](https://pypi.python.org/pypi/pip).  To run tests
-from the source tree, the package must be installed in editable mode (i.e. -e):
-
-```bash
-pip install -e .
+git clone \
+  --recurse-submodules \
+  https://github.com/rcsb/py-rcsb_workflow.git
+cd py-rcsb_workflow
+uv venv --python 3.10
+uv run pip install
+  --extra-index-url https://pypi.anaconda.org/OpenEye/simple \
+  --use-deprecated=legacy-resolver \
+  --editable \
+  .
+uv run pip install setuptools tox
+uv run tox
 ```
