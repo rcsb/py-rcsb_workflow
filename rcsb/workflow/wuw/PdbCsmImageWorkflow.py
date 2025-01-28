@@ -52,7 +52,7 @@ class PdbCsmImageWorkflow:
             return
 
         mU = MarshalUtil()
-        idList = mU.doImport("idListFile", fmt="list")
+        idList = mU.doImport(idListFile, fmt="list")
         if not isinstance(idList, list) and not idList:
             raise TypeError("idList not a list or is empty.")
 
