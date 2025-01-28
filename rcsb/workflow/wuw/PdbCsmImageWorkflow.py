@@ -92,8 +92,8 @@ class PdbCsmImageWorkflow:
                     result = subprocess.run(cmd, capture_output=True, text=True, check=True)
                     logger.info(result.stdout)
                 except subprocess.CalledProcessError as e:
-                    logger.error("Error: %s", e)  
-                    logger.error("Stderr: %s", e.stderr)  
+                    logger.error("Error: %s", e)
+                    logger.error("Stderr: %s", e.stderr)
                     raise
 
                 # check result
