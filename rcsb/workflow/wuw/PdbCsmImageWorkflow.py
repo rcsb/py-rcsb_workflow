@@ -85,7 +85,7 @@ class PdbCsmImageWorkflow:
                 try:
                     result = subprocess.run(cmd, capture_output=True, text=True, check=True)
                     logger.info(result.stdout)
-                except subprocess.CalledProcessError as e:
+                except subprocess.CalledProcessError:
                     logger.exception("Failed to run cmd")
 
                 # check result
