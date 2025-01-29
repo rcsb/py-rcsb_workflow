@@ -36,9 +36,6 @@ TOPDIR = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 
 
 class ExDbWorkflowTests(unittest.TestCase):
-    def __init__(self, methodName="runTest"):
-        super(ExDbWorkflowTests, self).__init__(methodName)
-
     def setUp(self):
         self.__isMac = platform.system() == "Darwin"
         self.__excludeTypeL = None if self.__isMac else ["optional"]
@@ -46,7 +43,6 @@ class ExDbWorkflowTests(unittest.TestCase):
         configPath = os.path.join(mockTopPath, "config", "dbload-setup-example.yml")
         configName = "site_info_configuration"
         cachePath = os.path.join(TOPDIR, "CACHE")
-        self.__dataPath = os.path.join(HERE, "test-data")
         #
         self.__commonD = {
             "configPath": configPath,
