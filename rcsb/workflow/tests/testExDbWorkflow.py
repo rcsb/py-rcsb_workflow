@@ -38,7 +38,6 @@ TOPDIR = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 class ExDbWorkflowTests(unittest.TestCase):
     def __init__(self, methodName="runTest"):
         super(ExDbWorkflowTests, self).__init__(methodName)
-        self.__verbose = True
 
     def setUp(self):
         self.__isMac = platform.system() == "Darwin"
@@ -60,20 +59,6 @@ class ExDbWorkflowTests(unittest.TestCase):
             "restoreUseStash": False,
         }
         self.__loadCommonD = {"readBackCheck": True, "numProc": 2, "chunkSize": 5, "refChunkSize": 5, "loadType": "full", "useFilteredLists": True}
-        #
-        # These are test source files for chemical component/BIRD indices
-        ccUrlTarget = os.path.join(self.__dataPath, "components-abbrev.cif")
-        birdUrlTarget = os.path.join(self.__dataPath, "prdcc-abbrev.cif")
-        ccFileNamePrefix = "cc-abbrev"
-        self.__chemEtlD = {
-            "fetchLimit": 4,
-            "numProc": 1,
-            "chunkSize": 20,
-            "loadType": "full",
-            "ccUrlTarget": ccUrlTarget,
-            "birdUrlTarget": birdUrlTarget,
-            "ccFileNamePrefix": ccFileNamePrefix,
-        }
         #
         self.__startTime = time.time()
         logger.debug("Starting %s at %s", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()))
