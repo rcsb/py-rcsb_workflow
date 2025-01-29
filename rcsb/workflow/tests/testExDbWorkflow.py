@@ -36,8 +36,8 @@ TOPDIR = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 
 
 class ExDbWorkflowTests(unittest.TestCase):
-    def __init__(self, methodName="runTest"):
-        super(ExDbWorkflowTests, self).__init__(methodName)
+    # def __init__(self, methodName="runTest"):
+    #     super(ExDbWorkflowTests, self).__init__(methodName)
 
     def setUp(self):
         self.__isMac = platform.system() == "Darwin"
