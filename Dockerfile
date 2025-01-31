@@ -25,17 +25,17 @@ RUN mkdir -p /opt/mmseqs2 \
     && ln -s /opt/mmseqs2/bin/mmseqs /usr/local/bin/mmseqs
 
 # Install the required Python packages
-# RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "setuptools>=40.8.0" "wheel>=0.43.0" \
-#     && pip install --no-cache-dir --user -r /app/requirements.txt \
-#     && pip install --no-cache-dir "pymongo>=4.10.1"
+RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "setuptools>=40.8.0" "wheel>=0.43.0" \
+    && pip install --no-cache-dir --user -r /app/requirements.txt \
+    && pip install --no-cache-dir "pymongo>=4.10.1"
 
 # Install the latest version of THIS packages
-# RUN pip install --no-cache-dir "rcsb.exdb>=1.26"
+RUN pip install --no-cache-dir "rcsb.exdb>=1.26"
 
 # UV replaces pip
-ENV UV_NO_CACHE=1 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-WORKDIR /app  
-COPY . /app/
-RUN uv sync --frozen --no-dev 
-ENV PATH="/app/.venv/bin:$PATH"
+# ENV UV_NO_CACHE=1 
+# COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+# WORKDIR /app  
+# COPY . /app/
+# RUN uv sync --frozen --no-dev 
+# ENV PATH="/app/.venv/bin:$PATH"

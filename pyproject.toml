@@ -44,7 +44,7 @@ classifiers = [
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
 ]
-urls = { Homepage="https://github.com/rcsb/weekly-update-workflow" }
+urls = { Homepage="https://github.com/rcsb/py-rcsb_workflow" }
 
 #=================================== dependencies ==============================#
 # Upper bounds are included here only when known; add them as needed.
@@ -102,13 +102,7 @@ url = "https://pypi.anaconda.org/OpenEye/simple"
 
 [tool.hatch.build.targets.wheel]
 # TODO: src/ layout -- use src/weekly_update
-packages = ["weekly_update"]
-
-[tool.hatch.build.target.sdist]
-force-include = [
-    "rcsb/workflow/cli/ExDbExec.py",
-    "rcsb/workflow/cli/ImgExec.py",
-]
+packages = ["rcsb.workflow"]
 
 #########################################################################################
 #                            [tool.ruff]
