@@ -1,0 +1,248 @@
+# SPDX-FileCopyrightText: Copyright 2020-2024, Contributors to Tyrannosaurus
+# SPDX-PackageHomePage: https://github.com/dmyersturnbull/tyrannosaurus
+# SPDX-License-Identifier: Apache-2.0
+#
+# SPDX-FileCopyrightText: Copyright 2024, Contributors to weekly-update-workflow
+# SPDX-PackageHomePage: https://github.com/rcsb/weekly-update-workflow
+# SPDX-License-Identifier: Apache-2.0
+#
+# Adapted from Tyrannosaurus <https://github.com/dmyersturnbull/tyrannosaurus>.
+#--------------------------------------------------------------------------------------------------
+
+#########################################################################################
+#                            [build-system]
+#########################################################################################
+
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling>=1.27"]
+
+#########################################################################################
+#                            [project]
+#########################################################################################
+
+[project]
+
+name = "py-rcsb_workflow"
+version = "0.49"
+requires-python = "==3.10.*"
+
+#=================================== metadata ==============================#
+# 'readme' becomes 'description' in importlib.metadata
+readme = { file = "README.md", content-type = "text/markdown" }
+# 'description' becomes 'summary' in importlib.metadata
+description = "RCSB workflow"
+maintainers = []
+authors = []
+keywords = ["workflow", "rcsb", "imgs", "Images Workflow", "ExDb"]
+license = { text = "BSD-3-Clause" }
+classifiers = [
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Natural Language :: English",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3 :: Only",
+]
+urls = { Homepage="https://github.com/rcsb/weekly-update-workflow" }
+
+#=================================== dependencies ==============================#
+# Upper bounds are included here only when known; add them as needed.
+# OpenStack and Luigi have a lot of undeclared ("secret") dependencies.
+# Note that OpenStack's various Python packages are versioned independently.
+# Key: https://packaging.python.org/en/latest/specifications/version-specifiers/#id5
+# Note that `~=` means "compatible with".
+# After 1.0, `~=1.2` means `>=1.2,<2.0`.
+# Before 1.0, `~=0.5` means `>=0.5,<1.0`, but `~=0.5.0` means `>=0.5,<0.6`.
+dependencies = [
+  #****** Openeye dependencies ******#
+  "OpenEye-toolkits >= 2024.1.1",
+  #****** RCSB dependencies ******#
+  "rcsb.utils.chem >= 0.79",
+  "rcsb.utils.seq >= 0.82",
+  "rcsb.utils.targets >= 0.82",
+  "rcsb.utils.seqalign >= 0.31",
+  "rcsb.exdb >= 1.25",
+  "rcsb.utils.io >= 1.48",
+  #****** Miscellaneous dependencies ******#
+  "pymongo>=4.10.1", # from original dockerfile
+]
+
+[project.scripts]
+imgs_exec_cli = "rcsb.workflow.cli.ImgExec:main"
+exdb_wf_cli = "rcsb.exdb.cli.ExDbExec:main"
+
+#########################################################################################
+#                            [dependency-groups]
+#########################################################################################
+
+# See https://docs.astral.sh/uv/concepts/projects/dependencies/#dependency-groups
+[dependency-groups]
+dev = [
+  "pre-commit>=4.1",
+  "ruff>=0.9",
+]
+
+#########################################################################################
+#                            [tool.uv]
+#########################################################################################
+
+[tool.uv.sources]
+# TODO: remove with legacy chem service
+openeye-toolkits = { index = "openeye" }
+
+[[tool.uv.index]]
+# TODO: remove with legacy chem service
+name = "openeye"
+url = "https://pypi.anaconda.org/OpenEye/simple"
+
+#########################################################################################
+#                            [tool.hatch]
+#########################################################################################
+
+[tool.hatch.build.targets.wheel]
+# TODO: src/ layout -- use src/weekly_update
+packages = ["weekly_update"]
+
+#???
+# [tool.hatch.build.target.sdist.force-include]
+# "src/cli.py" = "src/project_name/cli.py"
+# "src/ImgExec.py" = "src/rcsb/workflow/cli/ImgExec.py"
+# "src/ExDbExec" = "src/rcsb/exdb/cli/ExDbExec.py"
+
+#########################################################################################
+#                            [tool.ruff]
+#########################################################################################
+
+[tool.ruff]
+
+line-length = 120 # 120 is hatch's default via 'hatch init'
+
+#=================================== Ruff lint ==============================#
+[tool.ruff.lint]
+
+# ------------------------- Ruff misc. options ----------------------
+# Enable preview (experimental) rules, but only when specified in select.
+preview = true
+explicit-preview-rules = true
+
+# ---------------------- Ruff selected rule sets --------------------
+select = [
+  "A",    # flake8-builtins
+  #"AIR", # Airflow //DISABLED: enable if using airflow//
+  "ANN",  # flake8-annotations
+  #"ARG", # flake8-unused-args //DISABLED: correct in overrides//
+  "ASYNC",# flake8-async
+  "B",    # flake8-bugbear
+  #"BLE", # flake8-blind-exception (try: * except: only) //DISABLED: covered by E722 (?)//
+  "C",    # flake8-comprehensions
+  "C4",   # flake8-comprehensions
+  #"C90", # mmcabe //DISABLED: useful but thin-lined and time-intensive//
+  #"COM", # flake8-commas //DISABLED: handled by formatter//
+  #"CPY", # flake8-copyright //DISABLED: handle carefully instead; also unmaintained//
+  "D",    # pydocstyle
+  #"DJ",  # flake8-django //DISABLED: enable if using Django//
+  "DTZ",  # flake8-datetimez
+  #"E",   # pycodestyle ERRORs //DISABLED: almost all handled by formatter//
+  "E502", # redundant backslash
+  "E71",  # == None, != False, not in, not is, etc.
+  "E72",  # bare except
+  "E73",  # lambda assignment
+  "E74",  # easily confused characters in names
+  "E9",   # can't lint -- syntax error, etc.
+  "EM",   # flake8-errmsg
+  #"ERA", # eradicate (commented-out code) //DISABLED: catches code in comments, etc.//
+  #"EXE", # flake8-executable //DISABLED: pre-commit shebang rules instead//
+  "F",    # pyflakes
+  "FA",   # flake8-future-annotations
+  #"FBT", # flake8-boolean-trap //DISABLED: debatable and sometimes unavoidable//
+  #"FIX", # flake8-fix*me //DISABLED: bans TO*DO, etc. and not configurable//
+  "FLY",  # flynt (https://pypi.org/project/flynt/; updates .format)
+  "FURB", # refurb (misc., mostly fixable)
+  #"E",   # flake8 errors //DISABLED: handled by formatter or nitpicky//
+  "G",    # flake8-logging-format
+  #"I",   # isort //DISABLED: handled by formatter//
+  #"ICN", # flake8-import-conventionals //DISABLED: handled by formatter//
+  "INP",  # flake8-no-pep420 (require __init__.py to import)
+  "INT",  # flake8-gettext (i18n)
+  "ISC",  # flake8-implicit-str-concat
+  "LOG",  # flake8-logging
+  "N",    # pep8-naming
+  #"NPY", # numpy-specific rules //DISABLED: enable if using numpy//
+  #"PD",  # pandas-vet //DISABLED: enable if using pandas//
+  "PERF", # perflint
+  "PGH",  # pygrep-hooks
+  "PIE",  # flake8-pie (misc. lint rules)
+  "PL",   # pylint
+  "PT",   # flake8-pytest-style
+  "PTH",  # flake8-use-pathlib
+  #"PYI", # flake8-pyi (rules for stub files) //DISABLED: auto-generate stub files//
+  #"Q",   # flake8-quotes //DISABLED: handled by formatter//
+  #"RSE", # flake8-raise //DISABLED: handled by formatter//
+  "RET",  # flake8-return (fixable)
+  "RUF",  # Ruff-specific tests
+  "S",    # bandit
+  "SIM",  # flake8-simplify
+  "SLF",  # flake8-self (private access)
+  "SLOT", # flake8-slots
+  "T10",  # flake8-debugger (bans debugger)
+  "T20",  # flake8-print (bands print and pprint)
+  "TD",   # flake8-to*do (mandates syntax; note: use 'to-do' in prose)
+  "TCH",  # flake8-type-checking
+  "TID",  # flake8-tidy-imports (bans relative imports)
+  "TRY",  # tryceratops (try-except-raise)
+  "UP",   # pyupgrade
+  #"W",   # warnings //DISABLED: most fixed by formatter//
+  "W60",  # E605 invalid escape character
+  "YTT",  # flake8-2020 (incorrect Python vr checks)
+  "RUF",  # Ruff-specific rules
+]
+
+# ------------------------ Ruff ignored rules ----------------------
+ignore = [
+  "COM812",  # contradicts Ruff formatter
+  "D107",    # missing docstring in __init__ (put in class docstring)
+  "D212",    # multi-line docstring start (contradictory)
+  "E203",    # clons with space before (sometimes useful expand)
+  "E225",    # missing whitespace around operator (sometimes useful to condense)
+  "E501",    # line > 79 chars (we use Ruff's formatter)
+  "INP001",  # missing __init__ -- false positives
+  "ISC001",  # contradicts Ruff formatter
+  "PLR0912", # too many branches
+  "PLR1711", # return None at end
+  "PLR0916", # too many boolean expressions
+  "PLR2044", # line with empty comment
+  "PLR6301", # 'self' not used -- correct for overrides etc.; and required in
+]
+
+# ------------------------ Ruff unfixable rules ---------------------
+unfixable = [
+  "F601",    # repeated key in dict {}
+  "F602",    # repeated key in dict()
+  "F811",    # unused and redefined
+  "F841",    # unused variable
+  "PGH004",  # blanketed noqa
+  "PLE2510", # invalid unescaped characters
+  "RUF100",  # unused noqa
+  "SIM112",  # uncapitalized env var
+  "TD006",   # 'to*do' -> 'TO*DO'
+  "W605",    # invalid escape sequence
+]
+
+# ---------------------- Ruff delegated options -------------------
+flake8-bandit.check-typed-exception = true
+pydocstyle.convention = "google"
+flake8-tidy-imports.ban-relative-imports = "all"
+
+# ------------------------ Ruff per-file ignores --------------------
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*" = [
+  "INP001",  # missing __init__
+  "PLR2004", # magic value
+  "S101",    # assert
+  "TID252",  # relative import
+  "S105",    # possible password
+  "S106",
+  "S107",
+  "S108",    # harcoded temp file
+]
