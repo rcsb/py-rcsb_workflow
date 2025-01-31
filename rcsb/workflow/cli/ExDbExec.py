@@ -13,6 +13,7 @@
 #  20-Aug-2024 dwp Add load_target_cofactors operation; change name of upd_targets_cofactors to upd_targets
 #  22-Oct-2024 dwp Add ccd_img_gen and ccd_file_gen operations
 #                  (latter will only be used briefly, as will stop generating SDF and Mol2 files in Dec 2024)
+#  31-Jan-2025 mjt Moved this script from rcsb.exdb (to remove circluar dependencies)
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"

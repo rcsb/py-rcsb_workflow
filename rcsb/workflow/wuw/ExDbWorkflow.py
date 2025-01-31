@@ -9,6 +9,7 @@
 #   9-Mar-2023 dwp Lower refChunkSize to 10 (UniProt API having trouble streaming XML responses)
 #  25-Apr-2024 dwp Add arguments and methods to support CLI usage from weekly-update workflow
 #  20-Aug-2024 dwp Add LoadTargetCofactors step; change name of UpdateTargetsCofactors step to UpdateTargetsData
+#  31-Jan-2025 mjt Moved this script from rcsb.exdb (to remove circluar dependencies)
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
@@ -174,23 +175,6 @@ class ExDbWorkflow(object):
                     numProc=numProc
                 )
                 okS = ok
-            # elif op == "upd_ref_seq_comp_models":
-            #     databaseName = "pdbx_comp_model_core"
-            #     collectionName = "pdbx_comp_model_core_polymer_entity"
-            #     polymerType = "Protein"
-            #     ok = self.doReferenceSequenceUpdate(
-            #         databaseName,
-            #         collectionName,
-            #         polymerType,
-            #         fetchLimit=documentLimit,
-            #         useSequenceCache=useSequenceCache,
-            #         testMode=testMode,
-            #         minMatchPrimaryPercent=minMatchPrimaryPercent,
-            #         minMissing=minMissing,
-            #         refChunkSize=refChunkSize,
-            #     )
-            #     okS = ok
-        #
         logger.info("Completed operation %r with status %r\n", op, ok and okS)
         return ok and okS
 

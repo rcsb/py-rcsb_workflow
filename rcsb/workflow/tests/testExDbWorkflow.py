@@ -5,7 +5,7 @@
 # Version: 0.001
 #
 # Updates:
-
+#  31-Jan-2025 mjt Moved this script from rcsb.exdb (to remove circluar dependencies)
 #
 ##
 """
@@ -59,21 +59,6 @@ class ExDbWorkflowTests(unittest.TestCase):
             "restoreUseStash": False,
         }
         self.__loadCommonD = {"readBackCheck": True, "numProc": 2, "chunkSize": 5, "refChunkSize": 5, "loadType": "full", "useFilteredLists": True}
-        #
-        # These are test source files for chemical component/BIRD indices
-        # ccUrlTarget = os.path.join(self.__dataPath, "components-abbrev.cif")
-        # birdUrlTarget = os.path.join(self.__dataPath, "prdcc-abbrev.cif")
-        # ccFileNamePrefix = "cc-abbrev"
-        # self.__chemEtlD = {
-        #     "fetchLimit": 4,
-        #     "numProc": 1,
-        #     "chunkSize": 20,
-        #     "loadType": "full",
-        #     "ccUrlTarget": ccUrlTarget,
-        #     "birdUrlTarget": birdUrlTarget,
-        #     "ccFileNamePrefix": ccFileNamePrefix,
-        # }
-        #
         self.__startTime = time.time()
         logger.debug("Starting %s at %s", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()))
 
@@ -96,18 +81,6 @@ class ExDbWorkflowTests(unittest.TestCase):
         except Exception as e:
             logger.exception("Failing with %s", str(e))
             self.fail()
-
-        # Above needs to run first in order for below to work; will need to investigate why
-        # logger.info("Now running ExDbWorkflow for computed-models")
-        # try:
-        #     opL = ["upd_ref_seq_comp_models"]
-        #     rlWf = ExDbWorkflow(**self.__commonD)
-        #     for op in opL:
-        #         ok = rlWf.load(op, **self.__loadCommonD)
-        #         self.assertTrue(ok)
-        # except Exception as e:
-        #     logger.exception("Failing with %s", str(e))
-        #     self.fail()
 
     @unittest.skip("Troubleshooting test")
     def testExDbLoaderWorkflowsWithCacheCheck(self):
