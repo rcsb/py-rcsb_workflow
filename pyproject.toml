@@ -69,8 +69,8 @@ dependencies = [
 ]
 
 [project.scripts]
+exdb_wf_cli = "rcsb.workflow.cli.ExDbExec:main"
 imgs_exec_cli = "rcsb.workflow.cli.ImgExec:main"
-exdb_wf_cli = "rcsb.exdb.cli.ExDbExec:main"
 
 #########################################################################################
 #                            [dependency-groups]
@@ -104,11 +104,11 @@ url = "https://pypi.anaconda.org/OpenEye/simple"
 # TODO: src/ layout -- use src/weekly_update
 packages = ["weekly_update"]
 
-#???
-# [tool.hatch.build.target.sdist.force-include]
-# "src/cli.py" = "src/project_name/cli.py"
-# "src/ImgExec.py" = "src/rcsb/workflow/cli/ImgExec.py"
-# "src/ExDbExec" = "src/rcsb/exdb/cli/ExDbExec.py"
+[tool.hatch.build.target.sdist]
+force-include = [
+    "rcsb/workflow/cli/ExDbExec.py",
+    "rcsb/workflow/cli/ImgExec.py",
+]
 
 #########################################################################################
 #                            [tool.ruff]
