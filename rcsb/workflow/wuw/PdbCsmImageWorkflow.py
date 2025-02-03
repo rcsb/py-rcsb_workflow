@@ -97,7 +97,7 @@ class PdbCsmImageWorkflow:
                     raise
 
                 # check result
-                outJpgFile = os.path.join(outPath, fileId + checkFileAppend)
+                outJpgFile = os.path.join(outPath, name + checkFileAppend)
                 outFileObj = Path(outJpgFile)
                 if not (outFileObj.is_file() and outFileObj.stat().st_size > 0):
                     raise ValueError(f"No image file: {outJpgFile}")

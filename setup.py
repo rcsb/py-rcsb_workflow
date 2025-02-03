@@ -49,7 +49,7 @@ setup(
         "Programming Language :: Python :: 3.10",
     ],
     # entry_points={"console_scripts": ["cactvs_annotate_mol=rcsb.workflow.cactvsAnnotateMol:main"]},
-    entry_points={"console_scripts": ["exdb_wf_cli=rcsb.exdb.cli.ExDbExec:main", "imgs_exec_cli=rcsb.workflow.cli.ImgExec:main"]},
+    entry_points={"console_scripts": ["exdb_wf_cli=rcsb.workflow.cli.ExDbExec:main", "imgs_exec_cli=rcsb.workflow.cli.ImgExec:main"]},
     #  The following is somewhat flakey --
     # dependency_links=[],
     install_requires=packagesRequired[1:],
