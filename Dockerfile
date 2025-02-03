@@ -32,10 +32,7 @@ RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "setuptools>=40.8.0" "whe
 # Install the latest version of THIS packages
 RUN pip install --no-cache-dir "rcsb.exdb>=1.26"
 
-# UV replaces pip
-# ENV UV_NO_CACHE=1 
-# COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+# # Install the local code
 # WORKDIR /app  
 # COPY . /app/
-# RUN uv sync --frozen --no-dev 
-# ENV PATH="/app/.venv/bin:$PATH"
+# RUN pip install .
