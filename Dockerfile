@@ -29,10 +29,7 @@ RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "setuptools>=40.8.0" "whe
     && pip install --no-cache-dir --user -r /app/requirements.txt \
     && pip install --no-cache-dir "pymongo>=4.10.1"
 
-# Install the latest version of THIS packages
-RUN pip install --no-cache-dir "rcsb.exdb>=1.26"
-
-# # Install the local code
-# WORKDIR /app  
-# COPY . /app/
-# RUN pip install .
+# Install the local code
+WORKDIR /app  
+COPY . /app/
+RUN pip install .
