@@ -5,7 +5,7 @@
 # Version: 0.001
 #
 # Updates:
-#
+#  04-Feb-2025 mjt Copied this file over from rcsb.exdb
 ##
 """
 Fixture for loading the chemical reference and pdbx_core collections in a loca mongo instance.
@@ -197,18 +197,6 @@ class PdbxLoaderFixture(unittest.TestCase):
         logger.info("Maximum resident memory size %.4f %s", rusageMax / 10 ** 6, unitS)
         endTime = time.time()
         logger.info("Completed %s at %s (%.4f seconds)", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()), endTime - self.__startTime)
-
-    # def __modelFixture(self):
-    #     fU = FileUtil()
-    #     modelSourcePath = os.path.join(self.__mockTopPath, "AF")
-    #     for iPath in glob.iglob(os.path.join(modelSourcePath, "*.cif.gz")):
-    #         fn = os.path.basename(iPath)
-    #         uId = fn.split("-")[1]
-    #         h3 = uId[-2:]
-    #         h2 = uId[-4:-2]
-    #         h1 = uId[-6:-4]
-    #         oPath = os.path.join(self.__cachePath, "computed-models", h1, h2, h3, fn)
-    #         fU.put(iPath, oPath)
 
     def testPdbxLoader(self):
         #
