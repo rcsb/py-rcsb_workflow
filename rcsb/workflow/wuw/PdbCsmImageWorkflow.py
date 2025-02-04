@@ -42,6 +42,8 @@ class PdbCsmImageWorkflow:
         pdbBaseDir = kwargs.get("pdbBaseDir")
         csmBaseDir = kwargs.get("csmBaseDir")
         jpgsOutDir = kwargs.get("jpgsOutDir")
+        contentTypeDir = kwargs.get("contentTypeDir")
+        useIdSubdir = kwargs.get("useIdSubdir")
 
         logger.info("using id file %s", idListFile)
 
@@ -56,12 +58,14 @@ class PdbCsmImageWorkflow:
             raise TypeError("idList not a list or is empty.")
 
         for line in idList:
+            name = line.lower()
+            if useIdSubdir:
+                name = os.path.join(name[1:3], name)
 
-            fileId, bcifFileName, sdm = line.split()
-            contentTypeDir = "pdb" if sdm == "experimental" else "csm"
-            logger.info("Running %s %s %s", fileId, bcifFileName, sdm)
+            bcifFileName = name + ".bcif"
+            logger.info("Running %s %s %s", name, bcifFileName, contentTypeDir)
 
-            if sdm == "experimental":
+            if contentTypeDir == "pdb":
                 bcifFilePath = os.path.join(pdbBaseDir, bcifFileName)
             else:
                 bcifFilePath = os.path.join(csmBaseDir, bcifFileName)
@@ -93,7 +97,7 @@ class PdbCsmImageWorkflow:
                     raise
 
                 # check result
-                outJpgFile = os.path.join(outPath, fileId + checkFileAppend)
+                outJpgFile = os.path.join(outPath, name + checkFileAppend)
                 outFileObj = Path(outJpgFile)
                 if not (outFileObj.is_file() and outFileObj.stat().st_size > 0):
                     raise ValueError(f"No image file: {outJpgFile}")
