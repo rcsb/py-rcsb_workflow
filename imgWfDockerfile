@@ -6,7 +6,7 @@ WORKDIR /opt/modules
 
 RUN apt update -y && apt upgrade -y
 
-RUN npm i molstar
+# RUN npm i molstar
 RUN npm i molrender
 RUN apt -yqq install libgl1-mesa-dev xvfb
 
