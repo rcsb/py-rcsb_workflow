@@ -32,11 +32,11 @@ RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "setuptools>=40.8.0" "whe
 # Install node and molrender.js
 RUN mkdir -p /opt/modules/node_modules
 WORKDIR /opt/modules/node_modules
-RUN apt-get update && apt-get install -y nodejs npm
+RUN apt-get update && apt-get upgrade -y && apt-get install -y nodejs>=18.19.0 npm>=9.2.0
 RUN npm i molrender
-RUN apt -yqq install libgl1-mesa-dev xvfb
+RUN apt-get -yqq install libgl1-mesa-dev xvfb
 
 # Install the local code
-WORKDIR /app  
+WORKDIR /app
 COPY . /app/
 RUN pip install --no-cache-dir .
