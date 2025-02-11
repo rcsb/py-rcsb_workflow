@@ -6,11 +6,6 @@ on:
   workflow_dispatch:
   #
   # Should be run on a cron schedule every Thursday night, prior to the weekly workflow.
-  #
-  # Does not need to run on a repo-specific event (e.g., "push" or PR), since the latest
-  # versions of all other rcsb.* packages are downloaded anyway (so, not dependent on any
-  # single package in particular).
-  #
   schedule:
     # Time is based on UTC timezone
     #  ┌───────────── minute (0 - 59)
@@ -21,6 +16,18 @@ on:
     #  │ │ │ │ │
     #  * * * * *
     - cron: "0 0 * * FRI"  # 0 UTC Friday
+  #
+  # Also run for new PRs and PR updates
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+  #
+  # And run when pushed to master
+  push:
+    branches:
+      - master
 
 jobs:
   run-workflow:

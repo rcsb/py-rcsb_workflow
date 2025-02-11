@@ -42,3 +42,4 @@
                     Update Azure pipelines to run on latest macOS and ubuntu version
 28-Jan-2025 - V0.48 Adding images workflow functionality including cli utility
 29-Jan-2025 - V0.49 Adding ExDB(workflow, exec, and tests) and Dockerfile to stop circular imports from rcsb.exdb
+11-Feb-2025 - V0.50 Update Dockerfile and requirements
