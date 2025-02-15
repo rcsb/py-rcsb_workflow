@@ -1,0 +1,307 @@
+import multiprocessing
+import os
+import glob
+import datetime
+import requests
+import pickle
+import sys
+from typing import List
+from rcsb.workflow.bcif.workflow_functions import WorkflowUtilities, ContentTypeEnum
+from rcsb.workflow.bcif.bcif_functions import bcifconvert
+from mmcif.api.DictionaryApi import DictionaryApi
+from mmcif.io.IoAdapterPy import IoAdapterPy as IoAdapter
+
+
+def status_start_(list_file_base: str, status_start_file: str) -> bool:
+    start_file = os.path.join(list_file_base, status_start_file)
+    dirs = os.path.dirname(start_file)
+    if not os.path.exists(dirs):
+        os.makedirs(dirs, mode=0o777)
+    with open(start_file, "w") as w:
+        w.write("Binary cif run started at %s." % str(datetime.datetime.now()))
+    return True
+
+
+def branching_(r: int) -> str:
+    routes = ["local", "sfapi", "k8s"]
+    route = routes[r]
+    if route == "sfapi":
+        return "sfapi_tasks"
+    elif route == "k8s":
+        return "k8s_tasks"
+    else:
+        return "local_branch"
+
+
+def make_dirs_(workflow_utility: WorkflowUtilities) -> bool:
+    """ mounted paths must be already made """
+    if not os.path.exists(workflow_utility.updateBase):
+        os.makedirs(workflow_utility.updateBase)
+    for dir in workflow_utility.contentTypeDir.values():
+        path = os.path.join(workflow_utility.updateBase, dir)
+        if not os.path.exists(path):
+            os.mkdir(path)
+    return True
+
+def get_pdb_list_(workflow_utility: WorkflowUtilities, load_type: str, list_file_base: str, pdb_list_filename: str, result: bool) -> bool:
+    outfile = os.path.join(list_file_base, pdb_list_filename)
+    if os.path.exists(outfile):
+        return True
+    # list[str]
+    # 'pdb_id partial_path content_type'
+    pdb_list = workflow_utility.get_pdb_list(load_type)
+    # returned value has .bcif extension, convert to .cif
+    pdb_list = [tokens.replace('.bcif', '.cif') for tokens in pdb_list]
+    with open(outfile, "wb") as w:
+        pickle.dump(pdb_list, w)
+    return True
+
+def get_csm_list_(workflow_utility: WorkflowUtilities, load_type: str, list_file_base: str, csm_list_filename: str, result: bool) -> bool:
+    outfile = os.path.join(list_file_base, csm_list_filename)
+    if os.path.exists(outfile):
+        return True
+    # list[str]
+    # 'pdb_id partial_path content_type'
+    csm_list = workflow_utility.get_comp_list(load_type)
+    if not csm_list:
+        return False
+    # returned value has .bcif extension, convert to .cif
+    csm_list = [tokens.replace('.bcif', '.cif') for tokens in csm_list]
+    with open(outfile, "wb") as w:
+        pickle.dump(csm_list, w)
+    return True
+
+def make_task_list_from_remote_(local_data_path: str, list_file_base: str, pdb_list_filename: str, csm_list_filename: str,
+                                input_list_filename: str, nfiles: int, workflow_utility: WorkflowUtilities, result: bool) -> bool:
+    # read pdb list
+    pdb_list = None
+    with open(os.path.join(list_file_base, pdb_list_filename), "rb") as r:
+        pdb_list = pickle.load(r)
+    if not pdb_list:
+        print("error reading pdb list")
+        return False
+    # read csm list
+    csm_list = None
+    csm_list_path = os.path.join(list_file_base, csm_list_filename)
+    if os.path.exists(csm_list_path):
+        with open(csm_list_path, "rb") as r:
+            csm_list = pickle.load(r)
+    if not csm_list:
+        print("error reading csm list")
+    else:
+        # join lists
+        pdb_list.extend(csm_list)
+    # trim list if testing
+    numtasks = len(pdb_list)
+    print("found %d cif files" % numtasks)
+    if numtasks == 0:
+        return False
+    if nfiles > 0 and nfiles < numtasks:
+        numtasks = nfiles
+        pdb_list = pdb_list[0:numtasks]
+        print("reading only %d files" % numtasks)
+    # save input list
+    outfile = os.path.join(list_file_base, input_list_filename)
+    with open(outfile, "wb") as w:
+        pickle.dump(pdb_list, w)
+    return True
+
+def make_task_list_from_local_(local_data_path: str, list_file_base: str, input_list_filename: str, result: bool) -> bool:
+    """
+    requires cif files in source folder with no subdirs
+    writes to target folder with no subdirs
+    """
+    # traverse local folder
+    tasklist = glob.glob(os.path.join(local_data_path, "*.cif.gz"))
+    numtasks = len(tasklist)
+    if numtasks == 0:
+        tasklist = glob.glob(os.path.join(local_data_path, "*.cif"))
+        numtasks = len(tasklist)
+    print("found %d cif files" % numtasks)
+    with open(os.path.join(list_file_base, input_list_filename), "wb") as w:
+        pickle.dump(tasklist, w)
+    return True
+
+def split_tasks_(list_file_base: str, input_list_filename: str, input_list_2d: str, nfiles: int, subtasks:int, result: bool) -> List[int]:
+    # read task list
+    tasklist = None
+    with open(os.path.join(list_file_base, input_list_filename), "rb") as r:
+        tasklist = pickle.load(r)
+    if not tasklist:
+        print("error reading task list")
+        return None
+    numtasks = len(tasklist)
+    print("found %d cif files" % numtasks)
+    if numtasks == 0:
+        return []
+    if nfiles > 0 and nfiles < numtasks:
+        numtasks = nfiles
+        print("reading only %d files" % numtasks)
+    # divide into subtasks
+    if (subtasks is None) or not str(subtasks).isdigit():
+        subtasks = 1
+    subtasks = int(subtasks)
+    if subtasks == 0:
+        subtasks = multiprocessing.cpu_count()
+        print("machine has %d processors" % subtasks)
+    else:
+        print("dividing across %d subtasks" % subtasks)
+    step = numtasks // subtasks
+    if step < 1:
+        step = 1
+    steps = numtasks // step
+    print("split tasks has %d files and %d steps with step %d" % (numtasks, steps, step))
+    tasklist = [str(task) for task in tasklist]
+    # -> list[list[str]]
+    tasks = [tasklist[index*step:step + index*step] if index < steps - 1 else tasklist[index*step:numtasks] for
+                index in range(0, steps)]
+    # save full tasks file
+    print("get local tasks saving %d tasks to %s" % (len(tasks), input_list_2d))
+    with open(os.path.join(list_file_base, input_list_2d), "wb") as w:
+        pickle.dump(tasks, w)
+    # return list of task indices
+    tasks = list(range(0, len(tasks)))
+    print("returning %d tasks" % len(tasks))
+    return tasks
+
+def local_task_map_(index: int, list_file_base: str, input_list_2d: str, local_data_path: str, update_base: str,
+                    local_inputs_or_remote: str, python_molstar_java: str, batch_size:int, 
+                    pdbx_dict: str, ma_dict: str, rcsb_dict: str,
+                    workflow_utility: WorkflowUtilities, molstar_cmd:str=None) -> bool:
+    # read sublist
+    infiles = None
+    with open(os.path.join(list_file_base, input_list_2d), "rb") as r:
+        allfiles = pickle.load(r)
+        infiles = allfiles[index]
+    if not infiles:
+        print("error - no infiles")
+        return False
+    print("task map has %d infiles" % len(infiles))
+
+    # form dictionary object
+    da = None
+    if python_molstar_java == "python":
+        paths = [pdbx_dict, ma_dict, rcsb_dict]
+        try:
+            adapter = IoAdapter(raiseExceptions=True)
+            containers = []
+            for path in paths:
+                containers += adapter.readFile(inputFilePath=path)
+            da = DictionaryApi(containerList=containers, consolidate=True)
+        except Exception as e:
+            print("error - failed to create dictionary api")
+
+    def single_task(line, local_inputs_or_remote, update_base, local_data_path, workflow_utility, python_molstar_java, da, molstar_cmd):
+        """
+        download to cif_file_path
+        form output path bcif_file_path
+        should have option to output zip file?
+        """
+        if local_inputs_or_remote == "local":
+            cif_file_path = line
+            pdb_file_name = os.path.basename(cif_file_path)
+            bcif_file_path = os.path.join(update_base,
+                                            pdb_file_name.replace(".cif.gz", ".bcif").replace(".cif", ".bcif"))
+            print("converting %s to %s" % (cif_file_path, bcif_file_path))
+        else:
+            tokens = line.split(' ')
+            pdb_id = tokens[0]
+            divided_path = tokens[1]
+            enum_type = tokens[2]
+            pdb_filename = os.path.basename(divided_path)
+            cif_file_path = os.path.join(local_data_path, pdb_filename)
+            content_type = workflow_utility.contentTypeDir[enum_type]
+            bcif_file_path = os.path.join(update_base, content_type, divided_path.replace(".cif.gz", ".bcif").replace(".cif", ".bcif"))
+            url = workflow_utility.get_download_url(divided_path, enum_type)
+            try:
+                r = requests.get(url, timeout=300, stream=True)
+                if r and r.status_code < 400:
+                    dirs = os.path.dirname(cif_file_path)
+                    if not os.path.exists(dirs):
+                        os.makedirs(dirs)
+                    with open(cif_file_path, "ab") as w:
+                        for chunk in r.raw.stream(1024, decode_content=False):
+                            if chunk:
+                                w.write(chunk)
+                else:
+                    raise requests.exceptions.RequestException("error - request failed for %s" % url)
+            except Exception as e:
+                print(str(e))
+                if os.path.exists(cif_file_path):
+                    os.unlink(cif_file_path)
+                return
+        if os.path.exists(bcif_file_path):
+            print("file %s already exists" % bcif_file_path)
+            if local_inputs_or_remote == "remote":
+                os.unlink(cif_file_path)
+            return
+        # make nested directories
+        dirs = os.path.dirname(bcif_file_path)
+        if not os.path.exists(dirs):
+            os.makedirs(dirs, mode=0o777)
+        # convert to bcif
+        try:
+            result = bcifconvert(cif_file_path, bcif_file_path, python_molstar_java, da, molstar_cmd)
+            if not result:
+                raise Exception("failed to convert %s" % cif_file_path)
+        except Exception as e:
+            print(str(e))
+        # remove input file
+        finally:
+            if local_inputs_or_remote == "remote":
+                os.unlink(cif_file_path)
+
+    # traverse sublist and send each input file to converter
+    if (batch_size is None) or not str(batch_size).isdigit():
+        batch_size = 1
+    batch_size = int(batch_size)
+    if batch_size == 0:
+        batch_size = multiprocessing.cpu_count()
+    procs = []
+    for line in infiles:
+        args = (line, local_inputs_or_remote, update_base, local_data_path, workflow_utility, python_molstar_java, da, molstar_cmd)
+        if batch_size == 1:
+            # process one file at a time
+            single_task(*args)
+        else:
+            # process in batches
+            p = multiprocessing.Process(target=single_task, args=args)
+            procs.append(p)
+            if len(procs) >= batch_size:
+                for p in procs:
+                    p.start()
+                for p in procs:
+                    p.join()
+                procs.clear()
+    if batch_size > 1:
+        for p in procs:
+            p.start()
+        for p in procs:
+            p.join()
+        procs.clear()
+
+    return True
+
+
+def tasks_done_(local_task_maps: list) -> bool:
+    print("task maps completed")
+    return True
+
+
+def k8s_branch_() -> bool:
+    print("using k8s tasks")
+    return True
+
+
+def status_complete_(list_file_base: str, status_complete_file: str) -> bool:
+    """
+    must occur after end_task
+    """
+    complete_file = os.path.join(list_file_base, status_complete_file)
+    dirs = os.path.dirname(complete_file)
+    if not os.path.exists(dirs):
+        os.makedirs(dirs, mode=0o777)
+    with open(complete_file, "w") as w:
+        w.write("Binary cif run completed successfully at %s." % str(datetime.datetime.now()))
+    return True
+
