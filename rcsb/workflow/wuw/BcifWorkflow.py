@@ -7,6 +7,7 @@ from rcsb.workflow.bcif.bcif_functions import *
 class BcifWorkflow:
 
   def __init__(self, args):
+
     self.nfiles = int(args.nfiles)
     self.lang = args.lang
     self.coast = args.coast
@@ -59,7 +60,7 @@ class BcifWorkflow:
     gettasks = split_tasks_(self.list_file_base, self.input_list_filename, self.input_list_2d, self.nfiles, self.subtasks, result4)
 
     index = 0
-    local_task_map_(index, self.list_file_base, self.input_list_2d, self.input_path, self.output_path, self.local_inputs_or_remote, self.lang, self.batch_size, self.pdbx_dict, self.ma_dict, self.rcsb_dict, workflow_utility, self.molstar_cmd)
+    local_task_map_(index, self.list_file_base, self.input_list_2d, self.input_path, self.output_path, self.local_inputs_or_remote, self.lang, self.batch_size, self.pdbx_dict, self.ma_dict, self.rcsb_dict, self.molstar_cmd, workflow_utility)
 
     tasks_done_([])
 

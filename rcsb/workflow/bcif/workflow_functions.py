@@ -62,12 +62,13 @@ class WorkflowUtilities:
             # 'incremental' for weekly
             print("running incremental workflow")
             for pdb_id, cif_timestamp in pdb_ids_timestamps.items():
-                pdb_path = pdb_id[1:3] + '/' + pdb_id + '.bcif.gz'
+                pdb_path = pdb_id[1:3] + '/' + pdb_id + '.bcif'
+                zip_path = pdb_id[1:3] + '/' + pdb_id + '.bcif.gz'
                 # /mnt/models/update-store/pdb/1o08/1o08.bcif.gz
                 # changed to
                 # /mnt/vdb1/out/pdb/1o08/1o08.bcif.gz
-                bcif_file = os.path.join(base_dir, pdb_path.replace(".gz", ""))
-                zip_file = os.path.join(base_dir, pdb_path)
+                bcif_file = os.path.join(base_dir, pdb_path)
+                zip_file = os.path.join(base_dir, zip_path)
                 if os.path.exists(bcif_file):
                     t1 = os.path.getmtime(bcif_file)
                     t2 = cif_timestamp.timestamp()
@@ -77,9 +78,9 @@ class WorkflowUtilities:
                     t1 = os.path.getmtime(zip_file)
                     t2 = cif_timestamp.timestamp()
                     if t1 < t2:
-                        pdb_list.append('%s %s %s' % (pdb_id, pdb_path, content_type))
+                        pdb_list.append('%s %s %s' % (pdb_id, zip_path, content_type))
                 else:
-                    pdb_list.append('%s %s %s' % (pdb_id, pdb_path, content_type))
+                    pdb_list.append('%s %s %s' % (pdb_id, zip_path, content_type))
         return pdb_list
 
     def get_all_current_pdb_ids_with_timestamps(self) -> Tuple[dict, str]:
@@ -132,21 +133,28 @@ class WorkflowUtilities:
         base_dir = os.path.join(self.updateBase, self.contentTypeDir[content_type])
         if load_type == "full":
             for model_id, metadata in model_ids_metadata.items():
-                model_path = metadata['modelPath'].replace('.cif.gz', '.bcif.gz')
+                model_path = metadata['modelPath'].replace('.cif.gz', '.bcif.gz').replace('.cif', '.bcif')
                 model_list.append('%s %s %s' % (model_id, model_path, content_type))
         else:
             # 'incremental' for weekly
             for model_id, metadata in model_ids_metadata.items():
-                model_path = metadata['modelPath'].replace('.cif.gz', '.bcif.gz')
+                model_path = metadata['modelPath'].replace('.cif.gz', '.bcif').replace('.cif', '.bcif')
+                zip_path = metadata['modelPath'].replace('.cif.gz', '.bcif.gz').replace('.cif', '.bcif.gz')
                 # /mnt/models/update-store/csm/1o08/1o08.bcif.gz
                 # changed to
                 # /mnt/vdb1/out/csm/1o08/1o08.bcif.gz
                 bcif_file = os.path.join(base_dir, model_path)
+                zip_file = os.path.join(base_dir, zip_path)
                 if os.path.exists(bcif_file):
                     t1 = os.path.getmtime(bcif_file)
                     t2 = metadata['datetime'].timestamp()
                     if t1 < t2:
                         model_list.append('%s %s %s' % (model_id, model_path, content_type))
+                elif os.path.exists(zip_file):
+                    t1 = os.path.getmtime(zip_file)
+                    t2 = metadata['datetime'].timestamp()
+                    if t1 < t2:
+                        model_list.append('%s %s %s' % (model_id, zip_path, content_type))
                 else:
                     model_list.append('%s %s %s' % (model_id, model_path, content_type))
         return model_list

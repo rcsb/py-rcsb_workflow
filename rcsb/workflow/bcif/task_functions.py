@@ -166,8 +166,8 @@ def split_tasks_(list_file_base: str, input_list_filename: str, input_list_2d: s
 
 def local_task_map_(index: int, list_file_base: str, input_list_2d: str, local_data_path: str, update_base: str,
                     local_inputs_or_remote: str, python_molstar_java: str, batch_size:int, 
-                    pdbx_dict: str, ma_dict: str, rcsb_dict: str,
-                    workflow_utility: WorkflowUtilities, molstar_cmd:str=None) -> bool:
+                    pdbx_dict: str, ma_dict: str, rcsb_dict: str, molstar_cmd: str, 
+                    workflow_utility: WorkflowUtilities) -> bool:
     # read sublist
     infiles = None
     with open(os.path.join(list_file_base, input_list_2d), "rb") as r:
