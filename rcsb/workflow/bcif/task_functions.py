@@ -36,7 +36,7 @@ def branching_(r: int) -> str:
 def make_dirs_(workflow_utility: WorkflowUtilities) -> bool:
     """ mounted paths must be already made """
     if not os.path.exists(workflow_utility.updateBase):
-        os.makedirs(workflow_utility.updateBase)
+        os.makedirs(workflow_utility.updateBase, mode=0o777)
     for dir in workflow_utility.contentTypeDir.values():
         path = os.path.join(workflow_utility.updateBase, dir)
         if not os.path.exists(path):
@@ -51,7 +51,7 @@ def get_pdb_list_(workflow_utility: WorkflowUtilities, load_type: str, list_file
     # 'pdb_id partial_path content_type'
     pdb_list = workflow_utility.get_pdb_list(load_type)
     # returned value has .bcif extension, convert to .cif
-    pdb_list = [tokens.replace('.bcif', '.cif') for tokens in pdb_list]
+    # pdb_list = [tokens.replace('.bcif', '.cif') for tokens in pdb_list]
     with open(outfile, "wb") as w:
         pickle.dump(pdb_list, w)
     return True
@@ -66,7 +66,7 @@ def get_csm_list_(workflow_utility: WorkflowUtilities, load_type: str, list_file
     if not csm_list:
         return False
     # returned value has .bcif extension, convert to .cif
-    csm_list = [tokens.replace('.bcif', '.cif') for tokens in csm_list]
+    # csm_list = [tokens.replace('.bcif', '.cif') for tokens in csm_list]
     with open(outfile, "wb") as w:
         pickle.dump(csm_list, w)
     return True
@@ -199,6 +199,13 @@ def local_task_map_(index: int, list_file_base: str, input_list_2d: str, local_d
         """
         if local_inputs_or_remote == "local":
             cif_file_path = line
+            if not os.path.exists(cif_file_path):
+                cif_file_path = cif_file_path.replace(".gz", "")
+                if not os.path.exists(cif_file_path):
+                    cif_file_path = "%s.gz" % cif_file_path
+                    if not os.path.exists(cif_file_path):
+                        print("error - could not find %s" % cif_file_path)
+                        return
             pdb_file_name = os.path.basename(cif_file_path)
             bcif_file_path = os.path.join(update_base,
                                             pdb_file_name.replace(".cif.gz", ".bcif").replace(".cif", ".bcif"))
@@ -218,7 +225,7 @@ def local_task_map_(index: int, list_file_base: str, input_list_2d: str, local_d
                 if r and r.status_code < 400:
                     dirs = os.path.dirname(cif_file_path)
                     if not os.path.exists(dirs):
-                        os.makedirs(dirs)
+                        os.makedirs(dirs, mode=0o777)
                     with open(cif_file_path, "ab") as w:
                         for chunk in r.raw.stream(1024, decode_content=False):
                             if chunk:

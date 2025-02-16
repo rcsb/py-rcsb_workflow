@@ -56,31 +56,36 @@ class WorkflowUtilities:
         if load_type == "full":
             print("running full workflow")
             for pdb_id in pdb_ids_timestamps.keys():
-                pdb_path = pdb_id[1:3] + '/' + pdb_id + '.bcif.gz'
+                pdb_path = pdb_id[1:3] + '/' + pdb_id + '.cif.gz'
                 pdb_list.append('%s %s %s' % (pdb_id, pdb_path, content_type))
         else:
             # 'incremental' for weekly
             print("running incremental workflow")
             for pdb_id, cif_timestamp in pdb_ids_timestamps.items():
-                pdb_path = pdb_id[1:3] + '/' + pdb_id + '.bcif'
-                zip_path = pdb_id[1:3] + '/' + pdb_id + '.bcif.gz'
+                cif_path = pdb_id[1:3] + '/' + pdb_id + '.cif'
+                zip_cif_path = pdb_id[1:3] + '/' + pdb_id + '.cif.gz'
+                bcif_path = pdb_id[1:3] + '/' + pdb_id + '.bcif'
+                zip_bcif_path = pdb_id[1:3] + '/' + pdb_id + '.bcif.gz'
                 # /mnt/models/update-store/pdb/1o08/1o08.bcif.gz
                 # changed to
                 # /mnt/vdb1/out/pdb/1o08/1o08.bcif.gz
-                bcif_file = os.path.join(base_dir, pdb_path)
-                zip_file = os.path.join(base_dir, zip_path)
+                bcif_file = os.path.join(base_dir, bcif_path)
+                zip_bcif_file = os.path.join(base_dir, zip_bcif_path)
+                # test pre-existence and modification time
+                # allow option to output either .bcif or .bcif.gz files (determined by default at time of file write)
+                # return .cif.gz file paths for download rather than bcif output file
                 if os.path.exists(bcif_file):
                     t1 = os.path.getmtime(bcif_file)
                     t2 = cif_timestamp.timestamp()
                     if t1 < t2:
-                        pdb_list.append('%s %s %s' % (pdb_id, pdb_path, content_type))
-                elif os.path.exists(zip_file):
-                    t1 = os.path.getmtime(zip_file)
+                        pdb_list.append('%s %s %s' % (pdb_id, zip_cif_path, content_type))
+                elif os.path.exists(zip_bcif_file):
+                    t1 = os.path.getmtime(zip_bcif_file)
                     t2 = cif_timestamp.timestamp()
                     if t1 < t2:
-                        pdb_list.append('%s %s %s' % (pdb_id, zip_path, content_type))
+                        pdb_list.append('%s %s %s' % (pdb_id, zip_cif_path, content_type))
                 else:
-                    pdb_list.append('%s %s %s' % (pdb_id, zip_path, content_type))
+                    pdb_list.append('%s %s %s' % (pdb_id, zip_cif_path, content_type))
         return pdb_list
 
     def get_all_current_pdb_ids_with_timestamps(self) -> Tuple[dict, str]:
@@ -133,28 +138,32 @@ class WorkflowUtilities:
         base_dir = os.path.join(self.updateBase, self.contentTypeDir[content_type])
         if load_type == "full":
             for model_id, metadata in model_ids_metadata.items():
-                model_path = metadata['modelPath'].replace('.cif.gz', '.bcif.gz').replace('.cif', '.bcif')
+                model_path = metadata['modelPath']
                 model_list.append('%s %s %s' % (model_id, model_path, content_type))
         else:
             # 'incremental' for weekly
             for model_id, metadata in model_ids_metadata.items():
-                model_path = metadata['modelPath'].replace('.cif.gz', '.bcif').replace('.cif', '.bcif')
-                zip_path = metadata['modelPath'].replace('.cif.gz', '.bcif.gz').replace('.cif', '.bcif.gz')
+                model_path = metadata['modelPath']
+                bcif_model_path = metadata['modelPath'].replace('.cif.gz', '.bcif').replace('.cif', '.bcif')
+                bcif_zip_path = metadata['modelPath'].replace('.cif.gz', '.bcif.gz').replace('.cif', '.bcif.gz')
                 # /mnt/models/update-store/csm/1o08/1o08.bcif.gz
                 # changed to
                 # /mnt/vdb1/out/csm/1o08/1o08.bcif.gz
-                bcif_file = os.path.join(base_dir, model_path)
-                zip_file = os.path.join(base_dir, zip_path)
+                bcif_file = os.path.join(base_dir, bcif_model_path)
+                bcif_zip_file = os.path.join(base_dir, bcif_zip_path)
+                # check pre-existence and modification time
+                # enable output of either .bcif or .bcif.gz files (determined by default at time of file write)
+                # return cif model path for download rather than output bcif filepath
                 if os.path.exists(bcif_file):
                     t1 = os.path.getmtime(bcif_file)
                     t2 = metadata['datetime'].timestamp()
                     if t1 < t2:
                         model_list.append('%s %s %s' % (model_id, model_path, content_type))
-                elif os.path.exists(zip_file):
-                    t1 = os.path.getmtime(zip_file)
+                elif os.path.exists(bcif_zip_file):
+                    t1 = os.path.getmtime(bcif_zip_file)
                     t2 = metadata['datetime'].timestamp()
                     if t1 < t2:
-                        model_list.append('%s %s %s' % (model_id, zip_path, content_type))
+                        model_list.append('%s %s %s' % (model_id, model_path, content_type))
                 else:
                     model_list.append('%s %s %s' % (model_id, model_path, content_type))
         return model_list
