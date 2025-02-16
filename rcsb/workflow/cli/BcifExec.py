@@ -2,6 +2,7 @@ import os
 import sys
 import argparse
 import logging
+import time
 from rcsb.workflow.wuw.BcifWorkflow import *
 
 logging.basicConfig(level=logging.INFO)
@@ -52,8 +53,11 @@ def main():
         raise Exception(str(e))
 
 if __name__ == "__main__":
+    t = time.time()
     try:
         main()
     except Exception as e:
         logging.exception(str(e))
+    t2 = time.time() - t
+    logging.info("completed in %.2f s" % t2)
 
