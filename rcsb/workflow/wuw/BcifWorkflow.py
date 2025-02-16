@@ -15,7 +15,7 @@ class BcifWorkflow:
     self.output_path = args.output_path
 
     self.subtasks = int(args.subtasks)
-    self.batch_size = int(args.batch_size)
+    self.batches = int(args.batches)
     self.local_inputs_or_remote = args.local_inputs_or_remote
     self.load_type = args.load_type
     self.interpolation = bool(args.interpolation)
@@ -72,7 +72,7 @@ class BcifWorkflow:
         raise RuntimeError('split tasks failed')
 
     index = 0
-    if not local_task_map_(index, self.list_file_base, self.input_list_2d, self.input_path, self.output_path, self.local_inputs_or_remote, self.lang, self.batch_size, self.pdbx_dict, self.ma_dict, self.rcsb_dict, self.molstar_cmd, workflow_utility):
+    if not local_task_map_(index, self.list_file_base, self.input_list_2d, self.input_path, self.output_path, self.local_inputs_or_remote, self.lang, self.batches, self.pdbx_dict, self.ma_dict, self.rcsb_dict, self.molstar_cmd, workflow_utility):
         raise RuntimeError('local task map failed')
 
     if not tasks_done_([]):

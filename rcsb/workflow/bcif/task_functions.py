@@ -1,5 +1,6 @@
 import multiprocessing
 import os
+import shutil
 import glob
 import datetime
 import requests
@@ -42,7 +43,7 @@ def make_dirs_(workflow_utility: WorkflowUtilities) -> bool:
     for dir in workflow_utility.contentTypeDir.values():
         path = os.path.join(workflow_utility.updateBase, dir)
         if not os.path.exists(path):
-            os.mkdir(path)
+            os.mkdir(path, mode=0o777)
     return True
 
 def get_pdb_list_(workflow_utility: WorkflowUtilities, load_type: str, list_file_base: str, pdb_list_filename: str, result: bool) -> bool:
@@ -74,7 +75,7 @@ def get_csm_list_(workflow_utility: WorkflowUtilities, load_type: str, list_file
     return True
 
 def make_task_list_from_remote_(local_data_path: str, list_file_base: str, pdb_list_filename: str, csm_list_filename: str,
-                                input_list_filename: str, nfiles: int, workflow_utility: WorkflowUtilities, result: bool) -> bool:
+                                input_list_filename: str, maxfiles: int, workflow_utility: WorkflowUtilities, result: bool) -> bool:
     # read pdb list
     pdb_list = None
     with open(os.path.join(list_file_base, pdb_list_filename), "rb") as r:
@@ -94,14 +95,14 @@ def make_task_list_from_remote_(local_data_path: str, list_file_base: str, pdb_l
         # join lists
         pdb_list.extend(csm_list)
     # trim list if testing
-    numtasks = len(pdb_list)
-    logging.info("found %d cif files" % numtasks)
-    if numtasks == 0:
+    nfiles = len(pdb_list)
+    logging.info("found %d cif files" % nfiles)
+    if nfiles == 0:
         return False
-    if nfiles > 0 and nfiles < numtasks:
-        numtasks = nfiles
-        pdb_list = pdb_list[0:numtasks]
-        logging.info("reading only %d files" % numtasks)
+    if maxfiles > 0 and maxfiles < nfiles:
+        nfiles = maxfiles
+        pdb_list = pdb_list[0:nfiles]
+        logging.info("reading only %d files" % nfiles)
     # save input list
     outfile = os.path.join(list_file_base, input_list_filename)
     with open(outfile, "wb") as w:
@@ -115,16 +116,16 @@ def make_task_list_from_local_(local_data_path: str, list_file_base: str, input_
     """
     # traverse local folder
     tasklist = glob.glob(os.path.join(local_data_path, "*.cif.gz"))
-    numtasks = len(tasklist)
-    if numtasks == 0:
+    nfiles = len(tasklist)
+    if nfiles == 0:
         tasklist = glob.glob(os.path.join(local_data_path, "*.cif"))
-        numtasks = len(tasklist)
-    logging.info("found %d cif files" % numtasks)
+        nfiles = len(tasklist)
+    logging.info("found %d cif files" % nfiles)
     with open(os.path.join(list_file_base, input_list_filename), "wb") as w:
         pickle.dump(tasklist, w)
     return True
 
-def split_tasks_(list_file_base: str, input_list_filename: str, input_list_2d: str, nfiles: int, subtasks:int, result: bool) -> List[int]:
+def split_tasks_(list_file_base: str, input_list_filename: str, input_list_2d: str, maxfiles: int, subtasks:int, result: bool) -> List[int]:
     # read task list
     tasklist = None
     with open(os.path.join(list_file_base, input_list_filename), "rb") as r:
@@ -132,13 +133,14 @@ def split_tasks_(list_file_base: str, input_list_filename: str, input_list_2d: s
     if not tasklist:
         logging.exception("error reading task list")
         return None
-    numtasks = len(tasklist)
-    logging.info("found %d cif files" % numtasks)
-    if numtasks == 0:
+    # trim list
+    nfiles = len(tasklist)
+    logging.info("found %d cif files" % nfiles)
+    if nfiles == 0:
         return []
-    if nfiles > 0 and nfiles < numtasks:
-        numtasks = nfiles
-        logging.info("reading only %d files" % numtasks)
+    if maxfiles > 0 and maxfiles < nfiles:
+        nfiles = maxfiles
+        logging.info("reading only %d files" % nfiles)
     # divide into subtasks
     if (subtasks is None) or not str(subtasks).isdigit():
         subtasks = 1
@@ -148,14 +150,14 @@ def split_tasks_(list_file_base: str, input_list_filename: str, input_list_2d: s
         logging.info("machine has %d processors" % subtasks)
     else:
         logging.info("dividing across %d subtasks" % subtasks)
-    step = numtasks // subtasks
+    step = nfiles // subtasks
     if step < 1:
         step = 1
-    steps = numtasks // step
-    logging.info("split tasks has %d files and %d steps with step %d" % (numtasks, steps, step))
+    steps = nfiles // step
+    logging.info("split tasks has %d files and %d steps with step %d" % (nfiles, steps, step))
     tasklist = [str(task) for task in tasklist]
     # -> list[list[str]]
-    tasks = [tasklist[index*step:step + index*step] if index < steps - 1 else tasklist[index*step:numtasks] for
+    tasks = [tasklist[index*step:step + index*step] if index < steps - 1 else tasklist[index*step:nfiles] for
                 index in range(0, steps)]
     # save full tasks file
     logging.info("get local tasks saving %d tasks to %s" % (len(tasks), input_list_2d))
@@ -167,7 +169,7 @@ def split_tasks_(list_file_base: str, input_list_filename: str, input_list_2d: s
     return tasks
 
 def local_task_map_(index: int, list_file_base: str, input_list_2d: str, local_data_path: str, update_base: str,
-                    local_inputs_or_remote: str, python_molstar_java: str, batch_size:int, 
+                    local_inputs_or_remote: str, python_molstar_java: str, batches: int, 
                     pdbx_dict: str, ma_dict: str, rcsb_dict: str, molstar_cmd: str, 
                     workflow_utility: WorkflowUtilities) -> bool:
     # read sublist
@@ -192,6 +194,10 @@ def local_task_map_(index: int, list_file_base: str, input_list_2d: str, local_d
             da = DictionaryApi(containerList=containers, consolidate=True)
         except Exception as e:
             logging.exception("error - failed to create dictionary api")
+
+    def batch_task(tasks, local_inputs_or_remote, update_base, local_data_path, workflow_utility, python_molstar_java, da, molstar_cmd):
+        for task in tasks:
+            single_task(task, local_inputs_or_remote, update_base, local_data_path, workflow_utility, python_molstar_java, da, molstar_cmd)
 
     def single_task(line, local_inputs_or_remote, update_base, local_data_path, workflow_utility, python_molstar_java, da, molstar_cmd):
         """
@@ -228,10 +234,13 @@ def local_task_map_(index: int, list_file_base: str, input_list_2d: str, local_d
                     dirs = os.path.dirname(cif_file_path)
                     if not os.path.exists(dirs):
                         os.makedirs(dirs, mode=0o777)
+                        shutil.chown(dirs, 'root', 'root')
                     with open(cif_file_path, "ab") as w:
                         for chunk in r.raw.stream(1024, decode_content=False):
                             if chunk:
                                 w.write(chunk)
+                    shutil.chown(cif_file_path, 'root', 'root')
+                    os.chmod(cif_file_path, 0o777)
                 else:
                     raise requests.exceptions.RequestException("error - request failed for %s" % url)
             except Exception as e:
@@ -248,11 +257,15 @@ def local_task_map_(index: int, list_file_base: str, input_list_2d: str, local_d
         dirs = os.path.dirname(bcif_file_path)
         if not os.path.exists(dirs):
             os.makedirs(dirs, mode=0o777)
+            shutil.chown(dirs, 'root', 'root')
+            os.chmod(dirs, 0o777)
         # convert to bcif
         try:
             result = bcifconvert(cif_file_path, bcif_file_path, python_molstar_java, da, molstar_cmd)
             if not result:
                 raise Exception("failed to convert %s" % cif_file_path)
+            shutil.chown(bcif_file_path, 'root', 'root')
+            os.chmod(bcif_file_path, 0o777)
         except Exception as e:
             logging.exception(str(e))
         # remove input file
@@ -261,28 +274,33 @@ def local_task_map_(index: int, list_file_base: str, input_list_2d: str, local_d
                 os.unlink(cif_file_path)
 
     # traverse sublist and send each input file to converter
-    if (batch_size is None) or not str(batch_size).isdigit():
-        batch_size = 1
-    batch_size = int(batch_size)
-    if batch_size == 0:
-        batch_size = multiprocessing.cpu_count()
+    if (batches is None) or not str(batches).isdigit():
+        batches = 1
+    batches = int(batches)
+    if batches == 0:
+        batches = multiprocessing.cpu_count()
     procs = []
-    for line in infiles:
-        args = (line, local_inputs_or_remote, update_base, local_data_path, workflow_utility, python_molstar_java, da, molstar_cmd)
-        if batch_size == 1:
-            # process one file at a time
+    if batches == 1:
+        # process one file at a time
+        for line in infiles:
+            args = (line, local_inputs_or_remote, update_base, local_data_path, workflow_utility, python_molstar_java, da, molstar_cmd)
             single_task(*args)
-        else:
-            # process in batches
-            p = multiprocessing.Process(target=single_task, args=args)
+    else:
+        # process in batches
+        nfiles = len(infiles)
+        step = nfiles // batches
+        if step < 1:
+            step = 1
+        steps = nfiles // step
+        logging.info("local task map has %d files and %d steps with step %d" % (nfiles, steps, step))
+        tasklist = [str(task) for task in infiles]
+        # -> list[list[str]]
+        tasks = [infiles[index*step:step + index*step] if index < steps - 1 else infiles[index*step:nfiles] for
+                index in range(0, steps)]
+        for task in tasks:
+            args = (task, local_inputs_or_remote, update_base, local_data_path, workflow_utility, python_molstar_java, da, molstar_cmd)
+            p = multiprocessing.Process(target=batch_task, args=args)
             procs.append(p)
-            if len(procs) >= batch_size:
-                for p in procs:
-                    p.start()
-                for p in procs:
-                    p.join()
-                procs.clear()
-    if batch_size > 1:
         for p in procs:
             p.start()
         for p in procs:

@@ -19,7 +19,7 @@ def main():
     parser.add_argument("--output_path", default="/mnt/vdb1/out", required=True)
     # not required (rely on defaults)
     parser.add_argument("--subtasks", default=1, required=False)
-    parser.add_argument("--batch_size", default=0, required=False)
+    parser.add_argument("--batches", default=0, required=False)
     parser.add_argument("--local_inputs_or_remote", default="remote", choices=["local", "remote"], required=False)
     parser.add_argument("--load_type", default="incremental", choices=["full", "incremental"], required=False)
     parser.add_argument("--interpolation", action="store_true", default=True, required=False)
