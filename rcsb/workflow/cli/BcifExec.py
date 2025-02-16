@@ -42,7 +42,14 @@ def main():
 
     args = parser.parse_args()
 
-    (BcifWorkflow(args))()
+    try:
+        (BcifWorkflow(args))()
+    except RuntimeError as r:
+        raise Exception(str(r))
+    except ValueError as v:
+        raise Exception(str(v))
+    except Exception as e:
+        raise Exception(str(e))
 
 if __name__ == "__main__":
     try:

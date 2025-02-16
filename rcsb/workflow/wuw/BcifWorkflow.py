@@ -38,7 +38,8 @@ class BcifWorkflow:
 
   def __call__(self):
 
-    status_start_(self.list_file_base, self.status_start_file)
+    if not status_start_(self.list_file_base, self.status_start_file):
+        raise RuntimeError('status start failed')
 
     workflow_utility = WorkflowUtilities(coast=self.coast, interpolation=self.interpolation, out=self.output_path, 
                        prereleaseFtpFileBasePath=self.prereleaseFtpFileBasePath,
@@ -48,21 +49,35 @@ class BcifWorkflow:
                        structureFilePath=self.structureFilePath)
 
     result1 = make_dirs_(workflow_utility)
+    if not result1:
+        raise RuntimeError('make dirs failed')
 
     if self.local_inputs_or_remote == "remote":
        result2 = get_pdb_list_(workflow_utility, self.load_type, self.list_file_base, self.pdb_list_filename, result1)
+       if not result2:
+           raise RuntimeError('get pdb list failed')
        result3 = get_csm_list_(workflow_utility, self.load_type, self.list_file_base, self.csm_list_filename, result2)
+       if not result3:
+           raise RuntimeError('get csm list failed')
        result4 = make_task_list_from_remote_(self.input_path, self.list_file_base, self.pdb_list_filename, self.csm_list_filename,
                                              self.input_list_filename, self.nfiles, workflow_utility, result3)
+       if not result4:
+           raise RuntimeError('make task list from remote failed')
     else:
        result4 = make_task_list_from_local_(self.input_path, self.list_file_base, self.input_list_filename, result1)
+       if not result4:
+           raise RuntimeError('make task list from local failed')
 
-    gettasks = split_tasks_(self.list_file_base, self.input_list_filename, self.input_list_2d, self.nfiles, self.subtasks, result4)
+    if not split_tasks_(self.list_file_base, self.input_list_filename, self.input_list_2d, self.nfiles, self.subtasks, result4):
+        raise RuntimeError('split tasks failed')
 
     index = 0
-    local_task_map_(index, self.list_file_base, self.input_list_2d, self.input_path, self.output_path, self.local_inputs_or_remote, self.lang, self.batch_size, self.pdbx_dict, self.ma_dict, self.rcsb_dict, self.molstar_cmd, workflow_utility)
+    if not local_task_map_(index, self.list_file_base, self.input_list_2d, self.input_path, self.output_path, self.local_inputs_or_remote, self.lang, self.batch_size, self.pdbx_dict, self.ma_dict, self.rcsb_dict, self.molstar_cmd, workflow_utility):
+        raise RuntimeError('local task map failed')
 
-    tasks_done_([])
+    if not tasks_done_([]):
+        raise RuntimeError('tasks done failed')
 
-    status_complete_(self.list_file_base, self.status_complete_file)
+    if not status_complete_(self.list_file_base, self.status_complete_file):
+        raise RuntimeError('status complete failed')
 
