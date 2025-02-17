@@ -11,16 +11,14 @@ class BcifWorkflow:
     self.nfiles = int(args.nfiles)
     self.lang = args.lang
     self.coast = args.coast
-    self.compress = args.compress
-    self.input_path = args.input_path
     self.output_path = args.output_path
     self.temp_path = args.temp_path
 
+    self.input_path = args.input_path
     self.subtasks = int(args.subtasks)
     self.batch_size = int(args.batch_size)
     self.local_inputs_or_remote = args.local_inputs_or_remote
     self.load_type = args.load_type
-    self.interpolation = bool(args.interpolation)
     self.list_file_base = args.list_file_base
     self.pdb_list_filename = args.pdb_list_filename
     self.csm_list_filename = args.csm_list_filename
@@ -39,6 +37,9 @@ class BcifWorkflow:
     self.csmFileRepoBasePath = args.csmFileRepoBasePath
     self.csmHoldingsUrl = args.csmHoldingsUrl
     self.structureFilePath = args.structureFilePath
+
+    self.compress = args.compress
+    self.interpolation = bool(args.interpolation)
 
   def __call__(self):
 
@@ -79,10 +80,10 @@ class BcifWorkflow:
     if not local_task_map_(index, self.list_file_base, self.input_list_2d, self.temp_path, self.output_path, self.compress, self.local_inputs_or_remote, self.lang, self.batch_size, self.pdbx_dict, self.ma_dict, self.rcsb_dict, self.molstar_cmd, workflow_utility):
         raise RuntimeError('local task map failed')
 
-    if not validate_output(self.list_file_base, self.input_list_filename, self.output_path, self.compress, self.missing_file_base, self.missing_filename, workflow_utility):
+    if not validate_output_(self.list_file_base, self.input_list_filename, self.output_path, self.compress, self.missing_file_base, self.missing_filename, workflow_utility):
         raise RuntimeError('validate output failed')
 
-    if not remove_temp_files(self.temp_path):
+    if not remove_temp_files_(self.temp_path):
         raise RuntimeError('remove temp files failed')
 
     if not tasks_done_([]):

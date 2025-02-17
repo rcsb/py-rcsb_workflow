@@ -305,7 +305,7 @@ def local_task_map_(index: int, list_file_base: str, input_list_2d: str, temp_pa
     return True
 
 
-def validate_output(list_file_base:str, input_list_filename:str, update_base:str, compress:bool, missing_file_base:str, missing_filename:str, wu:WorkflowUtilities) -> bool:
+def validate_output_(list_file_base:str, input_list_filename:str, update_base:str, compress:bool, missing_file_base:str, missing_filename:str, wu:WorkflowUtilities) -> bool:
     input_list_file = os.path.join(list_file_base, input_list_filename)
     if not os.path.exists(input_list_file):
         return False
@@ -331,7 +331,7 @@ def validate_output(list_file_base:str, input_list_filename:str, update_base:str
     return True
 
 
-def remove_temp_files(temp_path:str) -> bool:
+def remove_temp_files_(temp_path:str) -> bool:
     if not os.path.exists(temp_path):
         return False
     try:
