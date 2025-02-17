@@ -11,11 +11,13 @@ class BcifWorkflow:
     self.nfiles = int(args.nfiles)
     self.lang = args.lang
     self.coast = args.coast
+    self.compress = args.compress
     self.input_path = args.input_path
     self.output_path = args.output_path
+    self.temp_path = args.temp_path
 
     self.subtasks = int(args.subtasks)
-    self.batches = int(args.batches)
+    self.batch_size = int(args.batch_size)
     self.local_inputs_or_remote = args.local_inputs_or_remote
     self.load_type = args.load_type
     self.interpolation = bool(args.interpolation)
@@ -26,6 +28,8 @@ class BcifWorkflow:
     self.input_list_2d = args.input_list_2d
     self.status_start_file = args.status_start_file
     self.status_complete_file = args.status_complete_file
+    self.missing_file_base = args.missing_file_base
+    self.missing_filename = args.missing_filename
     self.molstar_cmd = args.molstar_cmd
     self.pdbx_dict = args.pdbx_dict
     self.ma_dict = args.ma_dict
@@ -59,7 +63,7 @@ class BcifWorkflow:
        result3 = get_csm_list_(workflow_utility, self.load_type, self.list_file_base, self.csm_list_filename, result2)
        if not result3:
            raise RuntimeError('get csm list failed')
-       result4 = make_task_list_from_remote_(self.input_path, self.list_file_base, self.pdb_list_filename, self.csm_list_filename,
+       result4 = make_task_list_from_remote_(self.list_file_base, self.pdb_list_filename, self.csm_list_filename,
                                              self.input_list_filename, self.nfiles, workflow_utility, result3)
        if not result4:
            raise RuntimeError('make task list from remote failed')
@@ -72,8 +76,14 @@ class BcifWorkflow:
         raise RuntimeError('split tasks failed')
 
     index = 0
-    if not local_task_map_(index, self.list_file_base, self.input_list_2d, self.input_path, self.output_path, self.local_inputs_or_remote, self.lang, self.batches, self.pdbx_dict, self.ma_dict, self.rcsb_dict, self.molstar_cmd, workflow_utility):
+    if not local_task_map_(index, self.list_file_base, self.input_list_2d, self.temp_path, self.output_path, self.compress, self.local_inputs_or_remote, self.lang, self.batch_size, self.pdbx_dict, self.ma_dict, self.rcsb_dict, self.molstar_cmd, workflow_utility):
         raise RuntimeError('local task map failed')
+
+    if not validate_output(self.list_file_base, self.input_list_filename, self.output_path, self.compress, self.missing_file_base, self.missing_filename, workflow_utility):
+        raise RuntimeError('validate output failed')
+
+    if not remove_temp_files(self.temp_path):
+        raise RuntimeError('remove temp files failed')
 
     if not tasks_done_([]):
         raise RuntimeError('tasks done failed')

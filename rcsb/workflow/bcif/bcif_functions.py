@@ -6,7 +6,7 @@ from mmcif.api.DictionaryApi import DictionaryApi
 
 logging.basicConfig(level=logging.INFO)
 
-def bcifconvert(infile:str, outfile:str, python_molstar_java:str, da:DictionaryApi, molstar_cmd:str=None) -> bool:
+def bcifconvert(infile:str, outfile:str, workpath:str, python_molstar_java:str, da:DictionaryApi, molstar_cmd:str=None) -> bool:
    options = ["python", "molstar"] # java not implemented
    if python_molstar_java not in options:
       logging.critical("error - language %s not yet supported" % python_molstar_java)
@@ -14,7 +14,7 @@ def bcifconvert(infile:str, outfile:str, python_molstar_java:str, da:DictionaryA
    if python_molstar_java == "molstar":
       return molstar_convert(infile, outfile, molstar_cmd)
    elif python_molstar_java == "python":
-      return py_convert(infile, outfile, da)
+      return py_convert(infile, outfile, workpath, da)
 
 def molstar_convert(infile:str, outfile:str, molstar_cmd:str) -> bool:
    args = ["node", molstar_cmd, "-i", infile, "-ob", outfile]
@@ -26,12 +26,12 @@ def molstar_convert(infile:str, outfile:str, molstar_cmd:str) -> bool:
       if p.returncode != 0:
          raise ValueError("error %d" % p.returncode)
    except ValueError:
-      logging.exception("Problems generating %s from %s" % (outfile, infile))
+      logging.exception("failed to generate %s from %s" % (outfile, infile))
       return False
    return True
 
-def py_convert(infile: str, outfile: str, da: DictionaryApi) -> bool:
-   mu = MarshalUtil()
+def py_convert(infile: str, outfile: str, workpath: str, da: DictionaryApi) -> bool:
+   mu = MarshalUtil(workPath=workpath)
    data = mu.doImport(infile, fmt="mmcif")
    try:
       result = mu.doExport(outfile, data, fmt="bcif", dictionaryApi=da)
