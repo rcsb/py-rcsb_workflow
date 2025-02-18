@@ -4,12 +4,12 @@ import logging
 from rcsb.utils.io.MarshalUtil import MarshalUtil
 from mmcif.api.DictionaryApi import DictionaryApi
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def bcifconvert(infile:str, outfile:str, workpath:str, python_molstar_java:str, da:DictionaryApi, molstar_cmd:str=None) -> bool:
    options = ["python", "molstar"] # java not implemented
    if python_molstar_java not in options:
-      logging.critical("error - language %s not yet supported" % python_molstar_java)
+      logger.critical("error - language %s not yet supported" % python_molstar_java)
       return False
    if python_molstar_java == "molstar":
       return molstar_convert(infile, outfile, molstar_cmd)
@@ -21,12 +21,12 @@ def molstar_convert(infile:str, outfile:str, molstar_cmd:str) -> bool:
    try:
       p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=None, env=None)
       stdout, stderr = p.communicate()
-      logging.info("stdout %s" % stdout.decode("utf-8"))
-      logging.info("stderr %s" % stderr.decode("utf-8"))
+      logger.info("stdout %s" % stdout.decode("utf-8"))
+      logger.info("stderr %s" % stderr.decode("utf-8"))
       if p.returncode != 0:
          raise ValueError("error %d" % p.returncode)
    except ValueError:
-      logging.exception("failed to generate %s from %s" % (outfile, infile))
+      logger.exception("failed to generate %s from %s" % (outfile, infile))
       return False
    return True
 
@@ -38,7 +38,7 @@ def py_convert(infile: str, outfile: str, workpath: str, da: DictionaryApi) -> b
       if not result:
          raise Exception()
    except Exception as e:
-      logging.exception("error during bcif conversion")
+      logger.exception("error during bcif conversion")
       return False
    return True 
 

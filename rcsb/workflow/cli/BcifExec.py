@@ -5,7 +5,7 @@ import logging
 import time
 from rcsb.workflow.wuw.BcifWorkflow import *
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def main():
 
@@ -30,14 +30,14 @@ def main():
     parser.add_argument("--input_list_2d", default="inputs2d.pkl", required=False)
     parser.add_argument("--status_start_file", default="status.start", required=False)
     parser.add_argument("--status_complete_file", default="status.complete", required=False)
-    parser.add_argument("--missing_file_base", default="/tmp", required=False)
+    parser.add_argument("--missing_file_base", default="/home/ubuntu", required=False)
     parser.add_argument("--missing_filename", default="missing.txt", required=False)
     parser.add_argument("--molstar_cmd", default="lib/commonjs/servers/model/preprocess", required=False)
     parser.add_argument("--pdbx_dict", default="https://raw.githubusercontent.com/wwpdb-dictionaries/mmcif_pdbx/master/dist/mmcif_pdbx_v5_next.dic", required=False)
     parser.add_argument("--ma_dict", default="https://raw.githubusercontent.com/ihmwg/ModelCIF/master/dist/mmcif_ma_ext.dic", required=False)
     parser.add_argument("--rcsb_dict", default="https://raw.githubusercontent.com/rcsb/py-rcsb_exdb_assets/master/dictionary_files/dist/rcsb_mmcif_ext.dic", required=False)
     # no args
-    parser.add_argument("--no_compress", action="store_true", default=False, required=False)
+    parser.add_argument("--compress", action="store_true", default=False, required=False)
     parser.add_argument("--no_interpolation", action="store_true", default=False, required=False)
     # from sandbox_config.py/MasterConfig
     parser.add_argument("--prereleaseFtpFileBasePath", default="http://prereleaseftp-external-%s.rcsb.org/pdb", required=False)
@@ -47,17 +47,14 @@ def main():
     parser.add_argument("--structureFilePath", default="data/structures/divided/mmCIF/", required=False)
 
     args = parser.parse_args()
-    args.compress = True
     args.interpolation = True
-    if args.no_compress:
-        args.compress = False
     if args.no_interpolation:
         args.interpolation = False
 
     try:
         (BcifWorkflow(args))()
         missing_file = os.path.join(args.missing_file_base, args.missing_filename)
-        logging.info("missing files, if any, were written to %s" % missing_file)
+        logger.info("missing files, if any, were written to %s" % missing_file)
     except RuntimeError as r:
         raise Exception(str(r))
     except ValueError as v:
@@ -70,7 +67,7 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        logging.exception(str(e))
+        logger.exception(str(e))
     t2 = time.time() - t
-    logging.info("completed in %.2f s" % t2)
+    logger.info("completed in %.2f s" % t2)
 

@@ -10,7 +10,7 @@ import os
 import logging
 from typing import Tuple, List, Dict
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 """
@@ -49,7 +49,7 @@ class WorkflowUtilities:
 
     def get_pdb_list(self, load_type: str) -> list:
         pdb_ids_timestamps, url = self.get_all_current_pdb_ids_with_timestamps()
-        logging.info("read timestamps from %s" % url)
+        logger.info("read timestamps from %s" % url)
         pdb_list = []
         content_type = ContentTypeEnum.EXPERIMENTAL.value
         # /mnt/models/update-store/pdb
@@ -57,13 +57,13 @@ class WorkflowUtilities:
         # /mnt/vdb1/out/pdb
         base_dir = os.path.join(self.updateBase, self.contentTypeDir[content_type])
         if load_type == "full":
-            logging.info("running full workflow")
+            logger.info("running full workflow")
             for pdb_id in pdb_ids_timestamps.keys():
                 pdb_path = pdb_id[1:3] + '/' + pdb_id + '.cif.gz'
                 pdb_list.append('%s %s %s' % (pdb_id, pdb_path, content_type))
         else:
             # 'incremental' for weekly
-            logging.info("running incremental workflow")
+            logger.info("running incremental workflow")
             for pdb_id, cif_timestamp in pdb_ids_timestamps.items():
                 cif_path = pdb_id[1:3] + '/' + pdb_id + '.cif'
                 zip_cif_path = pdb_id[1:3] + '/' + pdb_id + '.cif.gz'

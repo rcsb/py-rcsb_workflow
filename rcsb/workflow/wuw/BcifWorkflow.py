@@ -53,27 +53,25 @@ class BcifWorkflow:
                        csmHoldingsUrl=self.csmHoldingsUrl,
                        structureFilePath=self.structureFilePath)
 
-    result1 = make_dirs_(workflow_utility)
-    if not result1:
+    if not make_dirs_(workflow_utility):
         raise RuntimeError('make dirs failed')
 
     if self.local_inputs_or_remote == "remote":
-       result2 = get_pdb_list_(workflow_utility, self.load_type, self.list_file_base, self.pdb_list_filename, result1)
-       if not result2:
+
+       if not get_pdb_list_(workflow_utility, self.load_type, self.list_file_base, self.pdb_list_filename):
            raise RuntimeError('get pdb list failed')
-       result3 = get_csm_list_(workflow_utility, self.load_type, self.list_file_base, self.csm_list_filename, result2)
-       if not result3:
+
+       if not get_csm_list_(workflow_utility, self.load_type, self.list_file_base, self.csm_list_filename):
            raise RuntimeError('get csm list failed')
-       result4 = make_task_list_from_remote_(self.list_file_base, self.pdb_list_filename, self.csm_list_filename,
-                                             self.input_list_filename, self.nfiles, workflow_utility, result3)
-       if not result4:
+
+       if not make_task_list_from_remote_(self.list_file_base, self.pdb_list_filename, self.csm_list_filename,
+                                             self.input_list_filename, self.nfiles, workflow_utility):
            raise RuntimeError('make task list from remote failed')
-    else:
-       result4 = make_task_list_from_local_(self.input_path, self.list_file_base, self.input_list_filename, result1)
-       if not result4:
+
+    elif not make_task_list_from_local_(self.input_path, self.list_file_base, self.input_list_filename):
            raise RuntimeError('make task list from local failed')
 
-    if not split_tasks_(self.list_file_base, self.input_list_filename, self.input_list_2d, self.nfiles, self.subtasks, result4):
+    if not split_tasks_(self.list_file_base, self.input_list_filename, self.input_list_2d, self.nfiles, self.subtasks):
         raise RuntimeError('split tasks failed')
 
     index = 0
@@ -83,10 +81,10 @@ class BcifWorkflow:
     if not validate_output_(self.list_file_base, self.input_list_filename, self.output_path, self.compress, self.missing_file_base, self.missing_filename, workflow_utility):
         raise RuntimeError('validate output failed')
 
-    if not remove_temp_files_(self.temp_path):
+    if not remove_temp_files_(self.temp_path, self.list_file_base):
         raise RuntimeError('remove temp files failed')
 
-    if not tasks_done_([]):
+    if not tasks_done_():
         raise RuntimeError('tasks done failed')
 
     if not status_complete_(self.list_file_base, self.status_complete_file):
