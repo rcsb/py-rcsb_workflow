@@ -1,44 +1,18 @@
-import subprocess
-import os
 import logging
-from rcsb.utils.io.MarshalUtil import MarshalUtil
 from mmcif.api.DictionaryApi import DictionaryApi
+from rcsb.utils.io.MarshalUtil import MarshalUtil
 
 logger = logging.getLogger(__name__)
 
-def bcifconvert(infile:str, outfile:str, workpath:str, python_molstar_java:str, da:DictionaryApi, molstar_cmd:str=None) -> bool:
-   options = ["python", "molstar"] # java not implemented
-   if python_molstar_java not in options:
-      logger.critical("error - language %s not yet supported" % python_molstar_java)
-      return False
-   if python_molstar_java == "molstar":
-      return molstar_convert(infile, outfile, molstar_cmd)
-   elif python_molstar_java == "python":
-      return py_convert(infile, outfile, workpath, da)
 
-def molstar_convert(infile:str, outfile:str, molstar_cmd:str) -> bool:
-   args = ["node", molstar_cmd, "-i", infile, "-ob", outfile]
-   try:
-      p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=None, env=None)
-      stdout, stderr = p.communicate()
-      logger.info("stdout %s" % stdout.decode("utf-8"))
-      logger.info("stderr %s" % stderr.decode("utf-8"))
-      if p.returncode != 0:
-         raise ValueError("error %d" % p.returncode)
-   except ValueError:
-      logger.exception("failed to generate %s from %s" % (outfile, infile))
-      return False
-   return True
-
-def py_convert(infile: str, outfile: str, workpath: str, da: DictionaryApi) -> bool:
-   mu = MarshalUtil(workPath=workpath)
-   data = mu.doImport(infile, fmt="mmcif")
-   try:
-      result = mu.doExport(outfile, data, fmt="bcif", dictionaryApi=da)
-      if not result:
-         raise Exception()
-   except Exception as e:
-      logger.exception("error during bcif conversion")
-      return False
-   return True 
-
+def bcifconvert(infile: str, outfile: str, workpath: str, da: DictionaryApi) -> bool:
+    mu = MarshalUtil(workPath=workpath)
+    data = mu.doImport(infile, fmt="mmcif")
+    try:
+        result = mu.doExport(outfile, data, fmt="bcif", dictionaryApi=da)
+        if not result:
+            raise Exception()
+    except Exception as e:
+        logger.exception("error during bcif conversion: %s", str(e))
+        return False
+    return True
