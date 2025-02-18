@@ -32,7 +32,7 @@ jobs:
         tox: "format_pep8",
         python: "3.10",
         os: "linux",
-        fixtures: "mysql,mongodb,mmseqs2",
+        fixtures: "mongodb,mmseqs2",
       }
   - template: azure-template-tox-job.yml
     parameters:
@@ -40,7 +40,7 @@ jobs:
         tox: "lint_pylint",
         python: "3.10",
         os: "linux",
-        fixtures: "mysql,mongodb,mmseqs2",
+        fixtures: "mongodb,mmseqs2",
       }
   - template: azure-template-tox-job.yml
     parameters:
@@ -48,7 +48,7 @@ jobs:
         tox: "test_coverage",
         python: "3.10",
         os: "linux",
-        fixtures: "mysql,mongodb,mmseqs2",
+        fixtures: "mongodb,mmseqs2",
       }
     #
   - template: azure-template-tox-job.yml
@@ -57,12 +57,12 @@ jobs:
         tox: "py310",
         python: "3.10",
         os: "linux",
-        fixtures: "mysql,mongodb,mmseqs2",
+        fixtures: "mongodb,mmseqs2",
       }
   #
   #- template: azure-template-tox-job.yml
   #  parameters:
-  #    { tox: "py310", python: "3.10", os: "macos", fixtures: "mysql,mongodb" }
+  #    { tox: "py310", python: "3.10", os: "macos", fixtures: "mongodb" }
   #
   - template: azure-template-publish-job.yml
     parameters: { tox: "py310", python: "3.10", os: "linux" }
