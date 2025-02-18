@@ -34,9 +34,12 @@ or simply run:
   tox
 ```
 
-Installation is via the program [pip](https://pypi.python.org/pypi/pip).  To run tests
-from the source tree, the package must be installed in editable mode (i.e. -e):
-
+Installation is via the program [pip](https://pypi.python.org/pypi/pip).
 ```bash
-pip install -e .
+pip install rcsb.workflow --extra-index-url https://pypi.anaconda.org/OpenEye/simple
+```
+
+To run tests from the source tree, the package must be installed in editable mode (i.e. -e):
+```bash
+pip install -e . --extra-index-url https://pypi.anaconda.org/OpenEye/simple
 ```

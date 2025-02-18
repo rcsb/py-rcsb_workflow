@@ -29,7 +29,17 @@ RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "setuptools>=40.8.0" "whe
     && pip install --no-cache-dir --user -r /app/requirements.txt \
     && pip install --no-cache-dir "pymongo>=4.10.1"
 
+# Install node and molrender.js
+RUN mkdir -p /opt/modules/node_modules
+WORKDIR /opt/modules/node_modules
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install --no-install-recommends -y nodejs=18.* npm=9.* \
+    && npm i molrender \
+    && apt-get -yqq install --no-install-recommends libgl1-mesa-dev=* xvfb=* \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install the local code
-WORKDIR /app  
+WORKDIR /app
 COPY . /app/
-RUN pip install .
+RUN pip install --no-cache-dir .
