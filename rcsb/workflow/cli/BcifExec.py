@@ -18,47 +18,47 @@ def main():
         "--coast", default="west", choices=["east", "west"], required=True
     )
     # paths
-    parser.add_argument("--output_path", default="/mnt/vdb1/out", required=True)
-    parser.add_argument("--temp_path", default="/tmp", required=True)
+    parser.add_argument("--outputPath", default="/mnt/vdb1/out", required=True)
+    parser.add_argument("--tempPath", default="/tmp", required=True)
     # not required (rely on defaults)
-    parser.add_argument("--input_path", default="/mnt/vdb1/in", required=False)
+    parser.add_argument("--inputPath", default="/mnt/vdb1/in", required=False)
     parser.add_argument("--subtasks", default=1, required=False)
-    parser.add_argument("--batch_size", default=0, required=False)
+    parser.add_argument("--batch", default=0, required=False)
     parser.add_argument(
-        "--local_inputs_or_remote",
+        "--localInputsOrRemote",
         default="remote",
         choices=["local", "remote"],
         required=False,
     )
     parser.add_argument(
-        "--load_type",
+        "--loadType",
         default="incremental",
         choices=["full", "incremental"],
         required=False,
     )
-    parser.add_argument("--list_file_base", default="/tmp", required=False)
-    parser.add_argument("--pdb_list_filename", default="pdb_list.pkl", required=False)
-    parser.add_argument("--csm_list_filename", default="csm_list.pkl", required=False)
-    parser.add_argument("--input_list_filename", default="inputs.pkl", required=False)
-    parser.add_argument("--input_list_2d", default="inputs2d.pkl", required=False)
-    parser.add_argument("--status_start_file", default="status.start", required=False)
+    parser.add_argument("--listFileBase", default="/tmp", required=False)
+    parser.add_argument("--pdbListFileName", default="pdb_list.pkl", required=False)
+    parser.add_argument("--csmListFileName", default="csm_list.pkl", required=False)
+    parser.add_argument("--inputListFileName", default="inputs.pkl", required=False)
+    parser.add_argument("--inputList2d", default="inputs2d.pkl", required=False)
+    parser.add_argument("--statusStartFile", default="status.start", required=False)
     parser.add_argument(
-        "--status_complete_file", default="status.complete", required=False
+        "--statusCompleteFile", default="status.complete", required=False
     )
-    parser.add_argument("--missing_file_base", default="/home/ubuntu", required=False)
-    parser.add_argument("--missing_filename", default="missing.txt", required=False)
+    parser.add_argument("--missingFileBase", default="/home/ubuntu", required=False)
+    parser.add_argument("--missingFileName", default="missing.txt", required=False)
     parser.add_argument(
-        "--pdbx_dict",
+        "--pdbxDict",
         default="https://raw.githubusercontent.com/wwpdb-dictionaries/mmcif_pdbx/master/dist/mmcif_pdbx_v5_next.dic",
         required=False,
     )
     parser.add_argument(
-        "--ma_dict",
+        "--maDict",
         default="https://raw.githubusercontent.com/ihmwg/ModelCIF/master/dist/mmcif_ma_ext.dic",
         required=False,
     )
     parser.add_argument(
-        "--rcsb_dict",
+        "--rcsbDict",
         default="https://raw.githubusercontent.com/rcsb/py-rcsb_exdb_assets/master/dictionary_files/dist/rcsb_mmcif_ext.dic",
         required=False,
     )
@@ -67,7 +67,7 @@ def main():
         "--compress", action="store_true", default=False, required=False
     )
     parser.add_argument(
-        "--no_interpolation", action="store_true", default=False, required=False
+        "--noInterpolation", action="store_true", default=False, required=False
     )
     # from sandbox_config.py/MasterConfig
     parser.add_argument(
@@ -96,13 +96,13 @@ def main():
 
     args = parser.parse_args()
     args.interpolation = True
-    if args.no_interpolation:
+    if args.noInterpolation:
         args.interpolation = False
 
     try:
         (BcifWorkflow(args))()
-        missing_file = os.path.join(args.missing_file_base, args.missing_filename)
-        logger.info("missing files, if any, were written to %s", missing_file)
+        missingFile = os.path.join(args.missingFileBase, args.missingFileName)
+        logger.info("missing files, if any, were written to %s", missingFile)
     except RuntimeError as r:
         raise Exception(str(r))
     except ValueError as v:
