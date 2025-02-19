@@ -44,3 +44,4 @@
 29-Jan-2025 - V0.49 Adding ExDB(workflow, exec, and tests) and Dockerfile to stop circular imports from rcsb.exdb
 13-Feb-2025 - V0.50 Update Dockerfile and requirements;
                     Remove IMGT from feature building after service became unavailable February 2025
+19-Feb-2025 - V0.51 Bring back IMGT

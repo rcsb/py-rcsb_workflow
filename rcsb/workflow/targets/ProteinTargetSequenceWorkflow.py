@@ -19,6 +19,7 @@
 #  27-Aug-2024 dwp Update usage of CARDTargetOntologyProvider
 #  10-Dec-2024 dwp Add support for 'max-seqs' flag in mmseqs search
 #  13-Feb-2025 dwp Remove IMGT from feature building after service became unavailable February 2025
+#  19-Feb-2025 dwp Bring back IMGT
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
@@ -340,7 +341,7 @@ class ProteinTargetSequenceWorkflow(object):
         Returns:
             bool: True for success or False otherwise
         """
-        resourceNameList = resourceNameList if resourceNameList else ["sabdab", "card"]  # IMGT unavailable 2/7/2025 (DWP)
+        resourceNameList = resourceNameList if resourceNameList else ["sabdab", "card", "imgt"]
         retOk = True
         for resourceName in resourceNameList:
             startTime = time.time()

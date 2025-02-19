@@ -5,6 +5,7 @@
 #
 # Updates:
 #  13-Feb-2025 dwp Remove IMGT from feature building after service became unavailable February 2025
+#  19-Feb-2025 dwp Bring back IMGT
 #
 ##
 """
@@ -189,7 +190,7 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - build features from search results"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.buildFeatureData(referenceResourceName="pdbprent", resourceNameList=["sabdab", "card"], useTaxonomy=False, backup=False)  # IMGT unavailable 2/7/2025 (DWP)
+            ok = ptsW.buildFeatureData(referenceResourceName="pdbprent", resourceNameList=["sabdab", "card", "imgt"], useTaxonomy=False, backup=False)
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
