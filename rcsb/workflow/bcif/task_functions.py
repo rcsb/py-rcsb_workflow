@@ -1,3 +1,18 @@
+##
+# File:    task_functions.py
+# Author:  James Smith
+# Date:    21-Feb-2025
+##
+
+"""
+Workflow task descriptors that should be compliant with both the airflow scheduler and the command line interface.
+"""
+
+__docformat__ = "google en"
+__author__ = "James Smith"
+__email__ = "james.smith@rcsb.org"
+__license__ = "Apache 2.0"
+
 import multiprocessing
 import os
 import shutil
@@ -9,8 +24,8 @@ from typing import List
 import requests
 from mmcif.api.DictionaryApi import DictionaryApi
 from mmcif.io.IoAdapterPy import IoAdapterPy as IoAdapter
-from rcsb.workflow.bcif.workflow_functions import WorkflowUtilities
-from rcsb.workflow.bcif.bcif_functions import bcifconvert
+from rcsb.workflow.bcif.bcif_workflow_utilities import BcifWorkflowUtilities
+from rcsb.utils.io.MarshalUtil import MarshalUtil
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +40,7 @@ def statusStart(listFileBase: str, statusStartFile: str) -> bool:
     return True
 
 
-def makeDirs(workflowUtility: WorkflowUtilities) -> bool:
+def makeDirs(workflowUtility: BcifWorkflowUtilities) -> bool:
     """mounted paths must be already made"""
     if not os.path.exists(workflowUtility.updateBase):
         os.makedirs(workflowUtility.updateBase, mode=0o777)
@@ -37,7 +52,7 @@ def makeDirs(workflowUtility: WorkflowUtilities) -> bool:
 
 
 def getPdbList(
-    workflowUtility: WorkflowUtilities,
+    workflowUtility: BcifWorkflowUtilities,
     loadType: str,
     listFileBase: str,
     pdbListFileName: str,
@@ -55,7 +70,7 @@ def getPdbList(
 
 
 def getCsmList(
-    workflowUtility: WorkflowUtilities,
+    workflowUtility: BcifWorkflowUtilities,
     loadType: str,
     listFileBase: str,
     csmListFileName: str,
@@ -80,7 +95,7 @@ def makeTaskListFromRemote(
     csmListFileName: str,
     inputListFileName: str,
     maxfiles: int,
-    workflowUtility: WorkflowUtilities,
+    workflowUtility: BcifWorkflowUtilities,
     result=None,
 ) -> bool:
     # read pdb list
@@ -213,7 +228,7 @@ def localTaskMap(
     pdbxDict: str = None,
     maDict: str = None,
     rcsbDict: str = None,
-    workflowUtility: WorkflowUtilities = None
+    workflowUtility: BcifWorkflowUtilities = None
 ) -> bool:
     # read sublist
     infiles = None
@@ -226,14 +241,14 @@ def localTaskMap(
     logger.info("task map has %d infiles", len(infiles))
 
     # form dictionary object
-    da = None
+    dictionaryApi = None
     paths = [pdbxDict, maDict, rcsbDict]
     try:
         adapter = IoAdapter(raiseExceptions=True)
         containers = []
         for path in paths:
             containers += adapter.readFile(inputFilePath=path)
-        da = DictionaryApi(containerList=containers, consolidate=True)
+        dictionaryApi = DictionaryApi(containerList=containers, consolidate=True)
     except Exception as e:
         logger.exception("failed to create dictionary api: %s", str(e))
 
@@ -254,7 +269,7 @@ def localTaskMap(
                 compress,
                 tempPath,
                 workflowUtility,
-                da,
+                dictionaryApi,
             )
             singleTask(*args)
     else:
@@ -269,7 +284,7 @@ def localTaskMap(
                 compress,
                 tempPath,
                 workflowUtility,
-                da,
+                dictionaryApi,
             )
             p = multiprocessing.Process(target=batchTask, args=args)
             procs.append(p)
@@ -289,7 +304,7 @@ def batchTask(
     compress,
     tempPath,
     workflowUtility,
-    da,
+    dictionaryApi,
 ):
     for task in tasks:
         singleTask(
@@ -299,7 +314,7 @@ def batchTask(
             compress,
             tempPath,
             workflowUtility,
-            da,
+            dictionaryApi,
         )
 
 
@@ -310,7 +325,7 @@ def singleTask(
     compress,
     tempPath,
     workflowUtility,
-    da,
+    dictionaryApi,
 ):
     """
     download to cifFilePath
@@ -383,7 +398,7 @@ def singleTask(
         os.chmod(dirs, 0o777)
     # convert to bcif
     try:
-        result = bcifconvert(cifFilePath, bcifFilePath, tempPath, da)
+        result = bcifconvert(cifFilePath, bcifFilePath, tempPath, dictionaryApi)
         if not result:
             raise Exception("failed to convert %s" % cifFilePath)
         shutil.chown(bcifFilePath, "root", "root")
@@ -404,7 +419,7 @@ def validateOutput(
     compress: bool = None,
     missingFileBase: str = None,
     missingFileName: str = None,
-    workflowUtility: WorkflowUtilities = None,
+    workflowUtility: BcifWorkflowUtilities = None,
     result=None
 ) -> bool:
     inputListFile = os.path.join(listFileBase, inputListFileName)
@@ -471,4 +486,19 @@ def statusComplete(listFileBase: str, statusCompleteFile: str) -> bool:
             "Binary cif run completed successfully at %s."
             % str(datetime.datetime.now())
         )
+    return True
+
+
+def bcifconvert(
+    infile: str, outfile: str, workpath: str, dictionaryApi: DictionaryApi
+) -> bool:
+    mu = MarshalUtil(workPath=workpath)
+    data = mu.doImport(infile, fmt="mmcif")
+    try:
+        result = mu.doExport(outfile, data, fmt="bcif", dictionaryApi=dictionaryApi)
+        if not result:
+            raise Exception()
+    except Exception as e:
+        logger.exception("error during bcif conversion: %s", str(e))
+        return False
     return True

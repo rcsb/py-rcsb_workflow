@@ -1,3 +1,18 @@
+##
+# File:    BcifExec.py
+# Author:  James Smith
+# Date:    21-Feb-2025
+##
+
+"""
+Entry point for bcif command line interface.
+"""
+
+__docformat__ = "google en"
+__author__ = "James Smith"
+__email__ = "james.smith@rcsb.org"
+__license__ = "Apache 2.0"
+
 import os
 import argparse
 import logging
@@ -14,9 +29,6 @@ def main():
     )
     # settings
     parser.add_argument("--nfiles", default=0, required=True)
-    parser.add_argument(
-        "--coast", default="west", choices=["east", "west"], required=True
-    )
     # paths
     parser.add_argument("--outputPath", default="/mnt/vdb1/out", required=True)
     parser.add_argument("--tempPath", default="/tmp", required=True)
@@ -66,13 +78,10 @@ def main():
     parser.add_argument(
         "--compress", action="store_true", default=False, required=False
     )
-    parser.add_argument(
-        "--noInterpolation", action="store_true", default=False, required=False
-    )
     # from sandbox_config.py/MasterConfig
     parser.add_argument(
         "--prereleaseFtpFileBasePath",
-        default="http://prereleaseftp-external-%s.rcsb.org/pdb",
+        default="http://prereleaseftp-external-east.rcsb.org/pdb",
         required=False,
     )
     parser.add_argument(
@@ -82,7 +91,7 @@ def main():
     )
     parser.add_argument(
         "--csmFileRepoBasePath",
-        default="http://computed-models-external-%s.rcsb.org/staging",
+        default="http://computed-models-external-east.rcsb.org/staging",
         required=False,
     )
     parser.add_argument(
@@ -95,9 +104,6 @@ def main():
     )
 
     args = parser.parse_args()
-    args.interpolation = True
-    if args.noInterpolation:
-        args.interpolation = False
 
     try:
         (BcifWorkflow(args))()

@@ -1,3 +1,18 @@
+##
+# File:    BcifWorkflow.py
+# Author:  James Smith
+# Date:    21-Feb-2025
+##
+
+"""
+Workflow middleware at intersection of command line interface and task functions.
+"""
+
+__docformat__ = "google en"
+__author__ = "James Smith"
+__email__ = "james.smith@rcsb.org"
+__license__ = "Apache 2.0"
+
 from rcsb.workflow.bcif.task_functions import (
     statusStart,
     makeDirs,
@@ -12,7 +27,7 @@ from rcsb.workflow.bcif.task_functions import (
     tasksDone,
     statusComplete,
 )
-from rcsb.workflow.bcif.workflow_functions import WorkflowUtilities
+from rcsb.workflow.bcif.bcif_workflow_utilities import BcifWorkflowUtilities
 
 
 class BcifWorkflow:
@@ -20,7 +35,6 @@ class BcifWorkflow:
     def __init__(self, args):
 
         self.nfiles = int(args.nfiles)
-        self.coast = args.coast
         self.outputPath = args.outputPath
         self.tempPath = args.tempPath
         self.inputPath = args.inputPath
@@ -46,20 +60,18 @@ class BcifWorkflow:
         self.csmHoldingsUrl = args.csmHoldingsUrl
         self.structureFilePath = args.structureFilePath
         self.compress = bool(args.compress)
-        self.interpolation = bool(args.interpolation)
 
     def logException(self, msg):
-        raise RuntimeError("%s reporting %s" % (self.coast, msg))
+        raise RuntimeError("bcif workflow reporting %s" % msg)
 
     def __call__(self):
 
         if not statusStart(self.listFileBase, self.statusStartFile):
             self.logException("status start failed")
 
-        workflowUtility = WorkflowUtilities(
-            coast=self.coast,
-            interpolation=self.interpolation,
-            out=self.outputPath,
+        workflowUtility = BcifWorkflowUtilities(
+            updateBase=self.outputPath,
+            tempPath=self.tempPath,
             prereleaseFtpFileBasePath=self.prereleaseFtpFileBasePath,
             pdbIdsTimestampFilePath=self.pdbIdsTimestampFilePath,
             csmFileRepoBasePath=self.csmFileRepoBasePath,
