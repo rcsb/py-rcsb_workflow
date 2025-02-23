@@ -26,6 +26,7 @@ from mmcif.api.DictionaryApi import DictionaryApi
 from mmcif.io.IoAdapterPy import IoAdapterPy as IoAdapter
 from rcsb.workflow.bcif.bcif_workflow_utilities import BcifWorkflowUtilities
 from rcsb.utils.io.MarshalUtil import MarshalUtil
+from rcsb.db.wf.RepoLoadWorkflow import RepoLoadWorkflow
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ def statusStart(listFileBase: str, statusStartFile: str) -> bool:
     dirs = os.path.dirname(startFile)
     if not os.path.exists(dirs):
         os.makedirs(dirs, mode=0o777)
-    with open(startFile, "w") as w:
+    with open(startFile, "w", encoding='utf-8') as w:
         w.write("Binary cif run started at %s." % str(datetime.datetime.now()))
     return True
 
@@ -56,7 +57,6 @@ def getPdbList(
     loadType: str,
     listFileBase: str,
     pdbListFileName: str,
-    result=None,
 ) -> bool:
     outfile = os.path.join(listFileBase, pdbListFileName)
     if os.path.exists(outfile):
@@ -74,7 +74,6 @@ def getCsmList(
     loadType: str,
     listFileBase: str,
     csmListFileName: str,
-    result=None,
 ) -> bool:
     outfile = os.path.join(listFileBase, csmListFileName)
     if os.path.exists(outfile):
@@ -96,7 +95,6 @@ def makeTaskListFromRemote(
     inputListFileName: str,
     maxfiles: int,
     workflowUtility: BcifWorkflowUtilities,
-    result=None,
 ) -> bool:
     # read pdb list
     pdbList = None
@@ -133,7 +131,7 @@ def makeTaskListFromRemote(
 
 
 def makeTaskListFromLocal(
-    localDataPath: str, listFileBase: str, inputListFileName: str, result=None
+    localDataPath: str, listFileBase: str, inputListFileName: str, 
 ) -> bool:
     """
     requires cif files in source folder with no subdirs
@@ -157,7 +155,6 @@ def splitTasks(
     inputList2d: str,
     maxfiles: int,
     subtasks: int,
-    result=None,
 ) -> List[int]:
     # read task list
     tasklist = None
@@ -218,17 +215,17 @@ def splitList(nfiles: int, subtasks: int, tasklist: List[str]) -> List[List[str]
 def localTaskMap(
     index: int,
     *,
-    listFileBase: str = None,
-    inputList2d: str = None,
-    tempPath: str = None,
-    updateBase: str = None,
-    compress: bool = False,
-    localInputsOrRemote: str = None,
-    batch: int = 1,
-    pdbxDict: str = None,
-    maDict: str = None,
-    rcsbDict: str = None,
-    workflowUtility: BcifWorkflowUtilities = None
+    listFileBase: str,
+    inputList2d: str,
+    tempPath: str,
+    updateBase: str,
+    compress: bool,
+    localInputsOrRemote: str,
+    batch: int,
+    pdbxDict: str,
+    maDict: str,
+    rcsbDict: str,
+    workflowUtility: BcifWorkflowUtilities
 ) -> bool:
     # read sublist
     infiles = None
@@ -386,10 +383,17 @@ def singleTask(
                 os.unlink(cifFilePath)
             return
     if os.path.exists(bcifFilePath):
-        logger.info("file %s already exists", bcifFilePath)
-        if localInputsOrRemote == "remote":
-            os.unlink(cifFilePath)
-        return
+        if localInputsOrRemote == "local":
+            # assume local experiment - make no assumptions about file removal
+            return
+        else:
+            # earlier timestamp ... overwrite
+            try:
+                os.unlink(bcifFilePath)
+                if os.path.exists(bcifFilePath):
+                    raise Exception("file %s not removed" % bcifFilePath)
+            except Exception as e:
+                logger.exception(str(e))
     # make nested directories
     dirs = os.path.dirname(bcifFilePath)
     if not os.path.exists(dirs):
@@ -398,7 +402,7 @@ def singleTask(
         os.chmod(dirs, 0o777)
     # convert to bcif
     try:
-        result = bcifconvert(cifFilePath, bcifFilePath, tempPath, dictionaryApi)
+        result = convert(cifFilePath, bcifFilePath, tempPath, dictionaryApi)
         if not result:
             raise Exception("failed to convert %s" % cifFilePath)
         shutil.chown(bcifFilePath, "root", "root")
@@ -413,14 +417,13 @@ def singleTask(
 
 def validateOutput(
     *,
-    listFileBase: str = None,
-    inputListFileName: str = None,
-    updateBase: str = None,
-    compress: bool = None,
-    missingFileBase: str = None,
-    missingFileName: str = None,
-    workflowUtility: BcifWorkflowUtilities = None,
-    result=None
+    listFileBase: str,
+    inputListFileName: str,
+    updateBase: str,
+    compress: bool,
+    missingFileBase: str,
+    missingFileName: str,
+    workflowUtility: BcifWorkflowUtilities
 ) -> bool:
     inputListFile = os.path.join(listFileBase, inputListFileName)
     if not os.path.exists(inputListFile):
@@ -440,13 +443,13 @@ def validateOutput(
                 missing.append(out)
     if len(missing) > 0:
         missingFile = os.path.join(missingFileBase, missingFileName)
-        with open(missingFile, "w") as w:
+        with open(missingFile, "w", encoding='utf-8') as w:
             for line in missing:
                 w.write(line)
     return True
 
 
-def removeTempFiles(tempPath: str, listFileBase: str, result=None) -> bool:
+def removeTempFiles(tempPath: str, listFileBase: str) -> bool:
     if not os.path.exists(tempPath):
         return False
     try:
@@ -463,7 +466,7 @@ def removeTempFiles(tempPath: str, listFileBase: str, result=None) -> bool:
     return True
 
 
-def tasksDone(result=None) -> bool:
+def tasksDone() -> bool:
     logger.info("task maps completed")
     return True
 
@@ -481,7 +484,7 @@ def statusComplete(listFileBase: str, statusCompleteFile: str) -> bool:
     dirs = os.path.dirname(completeFile)
     if not os.path.exists(dirs):
         os.makedirs(dirs, mode=0o777)
-    with open(completeFile, "w") as w:
+    with open(completeFile, "w", encoding='utf-8') as w:
         w.write(
             "Binary cif run completed successfully at %s."
             % str(datetime.datetime.now())
@@ -489,7 +492,7 @@ def statusComplete(listFileBase: str, statusCompleteFile: str) -> bool:
     return True
 
 
-def bcifconvert(
+def convert(
     infile: str, outfile: str, workpath: str, dictionaryApi: DictionaryApi
 ) -> bool:
     mu = MarshalUtil(workPath=workpath)
@@ -502,3 +505,19 @@ def bcifconvert(
         logger.exception("error during bcif conversion: %s", str(e))
         return False
     return True
+
+
+def deconvert(
+    infile: str, outfile: str, workpath: str, dictionaryApi: DictionaryApi
+) -> bool:
+    mu = MarshalUtil(workPath=workpath)
+    data = mu.doImport(infile, fmt="bcif")
+    try:
+        result = mu.doExport(outfile, data, fmt="mmcif", dictionaryApi=dictionaryApi)
+        if not result:
+            raise Exception()
+    except Exception as e:
+        logger.exception("error during bcif conversion: %s", str(e))
+        return False
+    return True
+
