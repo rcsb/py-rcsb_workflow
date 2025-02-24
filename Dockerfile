@@ -36,7 +36,7 @@ RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install --no-install-recommends -y nodejs=18.* npm=9.* \
     && npm i molrender \
-    && apt-get -yqq install --no-install-recommends libgl1-mesa-dev=* xvfb=* \
+    && apt-get -yqq install --no-install-recommends libgl1-mesa-dev=* xvfb=* xauth=* \
     && rm -rf /var/lib/apt/lists/*
 
 # Install the local code
