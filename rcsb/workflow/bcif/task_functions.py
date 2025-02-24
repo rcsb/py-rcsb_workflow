@@ -24,7 +24,6 @@ from typing import List
 import requests
 from mmcif.api.DictionaryApi import DictionaryApi
 from mmcif.io.IoAdapterPy import IoAdapterPy as IoAdapter
-from rcsb.workflow.bcif.bcif_workflow_utilities import BcifWorkflowUtilities
 from rcsb.utils.io.MarshalUtil import MarshalUtil
 from rcsb.db.wf.RepoLoadWorkflow import RepoLoadWorkflow
 
@@ -41,94 +40,61 @@ def statusStart(listFileBase: str, statusStartFile: str) -> bool:
     return True
 
 
-def makeDirs(workflowUtility: BcifWorkflowUtilities) -> bool:
+def makeDirs(updateBase: str) -> bool:
     """mounted paths must be already made"""
-    if not os.path.exists(workflowUtility.updateBase):
-        os.makedirs(workflowUtility.updateBase, mode=0o777)
-    for contentType in workflowUtility.contentTypeDir.values():
-        path = os.path.join(workflowUtility.updateBase, contentType)
+    if not os.path.exists(updateBase):
+        os.makedirs(updateBase, mode=0o777)
+    for contentType in ["pdb", "csm"]:
+        path = os.path.join(updateBase, contentType)
         if not os.path.exists(path):
             os.mkdir(path, mode=0o777)
     return True
 
 
-def getPdbList(
-    workflowUtility: BcifWorkflowUtilities,
-    loadType: str,
-    listFileBase: str,
-    pdbListFileName: str,
-) -> bool:
-    outfile = os.path.join(listFileBase, pdbListFileName)
-    if os.path.exists(outfile):
+def splitRemoteTaskLists(pdbHoldingsFilePath:str, csmHoldingsFilePath:str, loadFileListDir:str, tempFilePath:str, targetFileDir:str, incrementalUpdate:bool, compress:bool, numSublistFiles:int)->bool:
+    holdingsFilePath = pdbHoldingsFilePath
+    databaseName = "pdbx_core"
+    result1 = splitRemoteTaskList(loadFileListDir, tempFilePath, holdingsFilePath, targetFileDir, databaseName, incrementalUpdate, compress, numSublistFiles)
+    #holdingsFilePath = csmHoldingsFilePath
+    #databaseName = "pdbx_comp_model_core"
+    #result2 = splitRemoteTaskList(loadFileListDir, tempFilePath, holdingsFilePath, targetFileDir, databaseName, incrementalUpdate, compress, numSublistFiles)
+    if result1: # and result2:
         return True
-    # list[str]
-    # 'pdb_id partial_path contentType'
-    pdbList = workflowUtility.getPdbList(loadType)
-    with open(outfile, "wb") as w:
-        pickle.dump(pdbList, w)
-    return True
+    return False
 
 
-def getCsmList(
-    workflowUtility: BcifWorkflowUtilities,
-    loadType: str,
-    listFileBase: str,
-    csmListFileName: str,
+def splitRemoteTaskList(
+    loadFileListDir: str,
+    tempFilePath: str,
+    holdingsFilePath: str, 
+    targetFileDir: str,
+    databaseName: str,
+    incrementalUpdate: bool, 
+    compress: bool,
+    numSublistFiles: int
 ) -> bool:
-    outfile = os.path.join(listFileBase, csmListFileName)
-    if os.path.exists(outfile):
-        return True
-    # list[str]
-    # 'pdb_id partial_path contentType'
-    csmList = workflowUtility.getCompList(loadType)
-    if not csmList:
-        return False
-    with open(outfile, "wb") as w:
-        pickle.dump(csmList, w)
-    return True
-
-
-def makeTaskListFromRemote(
-    listFileBase: str,
-    pdbListFileName: str,
-    csmListFileName: str,
-    inputListFileName: str,
-    maxfiles: int,
-    workflowUtility: BcifWorkflowUtilities,
-) -> bool:
-    # read pdb list
-    pdbList = None
-    with open(os.path.join(listFileBase, pdbListFileName), "rb") as r:
-        pdbList = pickle.load(r)
-    if not pdbList:
-        logger.error("error reading pdb list")
-        return False
-    # read csm list
-    csmList = None
-    csmListPath = os.path.join(listFileBase, csmListFileName)
-    if os.path.exists(csmListPath):
-        with open(csmListPath, "rb") as r:
-            csmList = pickle.load(r)
-    if not csmList:
-        logger.error("error reading csm list")
-    else:
-        # join lists
-        pdbList.extend(csmList)
-    # trim list if testing
-    nfiles = len(pdbList)
-    logger.info("found %d cif files", nfiles)
-    if nfiles == 0:
-        return False
-    if 0 < maxfiles < nfiles:
-        nfiles = maxfiles
-        pdbList = pdbList[0:nfiles]
-        logger.info("reading only %d files", nfiles)
-    # save input list
-    outfile = os.path.join(listFileBase, inputListFileName)
-    with open(outfile, "wb") as w:
-        pickle.dump(pdbList, w)
-    return True
-
+    rlw = RepoLoadWorkflow(cachePath=tempFilePath, configPath="NA")
+    op = "pdbx_id_list_splitter"
+    loadFileListPrefix = databaseName + "_ids"
+    if numSublistFiles == 0:
+        numSublistFiles = multiprocessing.cpu_count()
+    targetFileSuffix = ".bcif"
+    if compress:
+        targetFileSuffix += ".gz"
+    configPath = "NA"
+    kwargs = {
+        "databaseName": databaseName,
+        "holdingsFilePath": holdingsFilePath,
+        "loadFileListDir": loadFileListDir,
+        "loadFileListPrefix": loadFileListPrefix,
+        "numSublistFiles": numSublistFiles,
+        "incrementalUpdate": incrementalUpdate,
+        "targetFileDir": targetFileDir,
+        "targetFileSuffix": targetFileSuffix,
+        }
+    result = rlw.splitIdList(op, **kwargs)
+    return result
+    
 
 def makeTaskListFromLocal(
     localDataPath: str, listFileBase: str, inputListFileName: str, 
@@ -138,6 +104,7 @@ def makeTaskListFromLocal(
     writes to target folder with no subdirs
     """
     # traverse local folder
+    """
     tasklist = glob.glob(os.path.join(localDataPath, "*.cif.gz"))
     nfiles = len(tasklist)
     if nfiles == 0:
@@ -146,49 +113,97 @@ def makeTaskListFromLocal(
     logger.info("found %d cif files", nfiles)
     with open(os.path.join(listFileBase, inputListFileName), "wb") as w:
         pickle.dump(tasklist, w)
+    """
     return True
 
 
-def splitTasks(
+def localTaskMap(
+    index: int,
+    *,
+    prereleaseFtpFileBasePath: str,
+    structureFilePath: str,
     listFileBase: str,
-    inputListFileName: str,
-    inputList2d: str,
-    maxfiles: int,
-    subtasks: int,
-) -> List[int]:
-    # read task list
-    tasklist = None
-    with open(os.path.join(listFileBase, inputListFileName), "rb") as r:
-        tasklist = pickle.load(r)
-    if not tasklist:
-        logger.error("error reading task list")
-        return None
-    # trim list
-    nfiles = len(tasklist)
-    logger.info("found %d cif files", nfiles)
-    if nfiles == 0:
-        return []
-    if 0 < maxfiles < nfiles:
-        nfiles = maxfiles
-        logger.info("reading only %d files", nfiles)
-    # divide into subtasks
-    if (subtasks is None) or not str(subtasks).isdigit():
-        subtasks = 1
-    subtasks = int(subtasks)
-    if subtasks == 0:
-        subtasks = multiprocessing.cpu_count()
-        logger.info("machine has %d processors", subtasks)
+    tempPath: str,
+    updateBase: str,
+    compress: bool,
+    localInputsOrRemote: str,
+    batch: int,
+    maxFiles: int,
+    pdbxDict: str,
+    maDict: str,
+    rcsbDict: str,
+) -> bool:
+    # read sublist
+    infilename = "pdbx_core_ids-%d.txt" % (index + 1)
+    infilepath = os.path.join(listFileBase, infilename)
+    infiles = []
+    for line in open(infilepath, "r", encoding='utf-8'):
+        infiles.append(line.strip()) 
+        if (maxFiles > 0) and (len(infiles) >= maxFiles):
+            break
+    if len(infiles) < 1:
+        logger.error("error - no infiles")
+        return False
+    logger.info("task map has %d infiles", len(infiles))
+
+    # form dictionary object
+    dictionaryApi = None
+    paths = [pdbxDict, maDict, rcsbDict]
+    try:
+        adapter = IoAdapter(raiseExceptions=True)
+        containers = []
+        for path in paths:
+            containers += adapter.readFile(inputFilePath=path)
+        dictionaryApi = DictionaryApi(containerList=containers, consolidate=True)
+    except Exception as e:
+        logger.exception("failed to create dictionary api: %s", str(e))
+
+    # traverse sublist and send each input file to converter
+    if (batch is None) or not str(batch).isdigit():
+        batch = 1
+    batch = int(batch)
+    if batch == 0:
+        batch = multiprocessing.cpu_count()
+    logger.info("distributing %d files across %d sublists", len(infiles), batch)
+    procs = []
+    if batch == 1:
+        # process one file at a time
+        for line in infiles:
+            args = (
+                line,
+                localInputsOrRemote,
+                prereleaseFtpFileBasePath,
+                structureFilePath,
+                updateBase,
+                compress,
+                tempPath,
+                dictionaryApi,
+            )
+            singleTask(*args)
     else:
-        logger.info("dividing across %d subtasks", subtasks)
-    tasks = splitList(nfiles, subtasks, tasklist)
-    # save full tasks file
-    logger.info("get local tasks saving %d tasks to %s", len(tasks), inputList2d)
-    with open(os.path.join(listFileBase, inputList2d), "wb") as w:
-        pickle.dump(tasks, w)
-    # return list of task indices
-    tasks = list(range(0, len(tasks)))
-    logger.info("returning %d tasks", len(tasks))
-    return tasks
+        # process with file batching
+        nfiles = len(infiles)
+        tasks = splitList(nfiles, batch, infiles)
+        for task in tasks:
+            args = (
+                task,
+                localInputsOrRemote,
+                prereleaseFtpFileBasePath,
+                structureFilePath,
+                updateBase,
+                compress,
+                tempPath,
+                dictionaryApi,
+            )
+            p = multiprocessing.Process(target=batchTask, args=args)
+            procs.append(p)
+        for p in procs:
+            p.start()
+        for p in procs:
+            p.join()
+        procs.clear()
+
+    return True
 
 
 def splitList(nfiles: int, subtasks: int, tasklist: List[str]) -> List[List[str]]:
@@ -212,154 +227,56 @@ def splitList(nfiles: int, subtasks: int, tasklist: List[str]) -> List[List[str]
     return tasks
 
 
-def localTaskMap(
-    index: int,
-    *,
-    listFileBase: str,
-    inputList2d: str,
-    tempPath: str,
-    updateBase: str,
-    compress: bool,
-    localInputsOrRemote: str,
-    batch: int,
-    pdbxDict: str,
-    maDict: str,
-    rcsbDict: str,
-    workflowUtility: BcifWorkflowUtilities
-) -> bool:
-    # read sublist
-    infiles = None
-    with open(os.path.join(listFileBase, inputList2d), "rb") as r:
-        allfiles = pickle.load(r)
-        infiles = allfiles[index]
-    if not infiles:
-        logger.error("error - no infiles")
-        return False
-    logger.info("task map has %d infiles", len(infiles))
-
-    # form dictionary object
-    dictionaryApi = None
-    paths = [pdbxDict, maDict, rcsbDict]
-    try:
-        adapter = IoAdapter(raiseExceptions=True)
-        containers = []
-        for path in paths:
-            containers += adapter.readFile(inputFilePath=path)
-        dictionaryApi = DictionaryApi(containerList=containers, consolidate=True)
-    except Exception as e:
-        logger.exception("failed to create dictionary api: %s", str(e))
-
-    # traverse sublist and send each input file to converter
-    if (batch is None) or not str(batch).isdigit():
-        batch = 1
-    batch = int(batch)
-    if batch == 0:
-        batch = multiprocessing.cpu_count()
-    procs = []
-    if batch == 1:
-        # process one file at a time
-        for line in infiles:
-            args = (
-                line,
-                localInputsOrRemote,
-                updateBase,
-                compress,
-                tempPath,
-                workflowUtility,
-                dictionaryApi,
-            )
-            singleTask(*args)
-    else:
-        # process with file batching
-        nfiles = len(infiles)
-        tasks = splitList(nfiles, batch, infiles)
-        for task in tasks:
-            args = (
-                task,
-                localInputsOrRemote,
-                updateBase,
-                compress,
-                tempPath,
-                workflowUtility,
-                dictionaryApi,
-            )
-            p = multiprocessing.Process(target=batchTask, args=args)
-            procs.append(p)
-        for p in procs:
-            p.start()
-        for p in procs:
-            p.join()
-        procs.clear()
-
-    return True
-
-
 def batchTask(
     tasks,
     localInputsOrRemote,
+    prereleaseFtpFileBasePath,
+    structureFilePath,
     updateBase,
     compress,
     tempPath,
-    workflowUtility,
     dictionaryApi,
 ):
     for task in tasks:
         singleTask(
             task,
             localInputsOrRemote,
+            prereleaseFtpFileBasePath,
+            structureFilePath,
             updateBase,
             compress,
             tempPath,
-            workflowUtility,
             dictionaryApi,
         )
 
 
 def singleTask(
-    line,
+    pdbId,
     localInputsOrRemote,
+    prereleaseFtpFileBasePath,
+    structureFilePath,
     updateBase,
     compress,
     tempPath,
-    workflowUtility,
     dictionaryApi,
 ):
     """
     download to cifFilePath
     form output path bcifFilePath
     """
+    pdbId = pdbId.lower()
     if localInputsOrRemote == "local":
-        cifFilePath = line
-        if (
-            not os.path.exists(cifFilePath)
-            and not os.path.exists(cifFilePath.replace(".gz", ""))
-            and not os.path.exists("%s.gz" % cifFilePath)
-        ):
-            logger.error("error - could not find %s", cifFilePath)
-            return
-        pdbFileName = os.path.basename(cifFilePath)
-        bcifFilePath = os.path.join(
-            updateBase,
-            pdbFileName.replace(".cif.gz", ".bcif").replace(".cif", ".bcif"),
-        )
-        if compress:
-            bcifFilePath = "%s.gz" % bcifFilePath
-        logger.info("converting %s to %s", cifFilePath, bcifFilePath)
+        pass
     else:
-        tokens = line.split(" ")
-        dividedPath = tokens[1]
-        enumType = tokens[2]
-        pdbFileName = os.path.basename(dividedPath)
-        cifFilePath = os.path.join(tempPath, pdbFileName)
-        contentType = workflowUtility.contentTypeDir[enumType]
-        bcifFilePath = os.path.join(
-            updateBase,
-            contentType,
-            dividedPath.replace(".cif.gz", ".bcif").replace(".cif", ".bcif"),
-        )
+        # paths not yet made for csms
+        contentType = "pdb"
+        remoteFileName = "%s.cif.gz" % pdbId
+        url = os.path.join(prereleaseFtpFileBasePath, structureFilePath, pdbId[1:3], remoteFileName)
+        cifFilePath = os.path.join(tempPath, remoteFileName)
+        bcifFileName = "%s.bcif" % pdbId
         if compress:
-            bcifFilePath = "%s.gz" % bcifFilePath
-        url = workflowUtility.getDownloadUrl(dividedPath, enumType)
+            bcifFileName += ".gz"
+        bcifFilePath = os.path.join(updateBase, contentType, pdbId[1:3], bcifFileName)
         try:
             r = requests.get(url, timeout=300, stream=True)
             if r and r.status_code < 400:
@@ -418,25 +335,27 @@ def singleTask(
 def validateOutput(
     *,
     listFileBase: str,
-    inputListFileName: str,
     updateBase: str,
     compress: bool,
     missingFileBase: str,
     missingFileName: str,
-    workflowUtility: BcifWorkflowUtilities
+    maxFiles: int
 ) -> bool:
-    inputListFile = os.path.join(listFileBase, inputListFileName)
-    if not os.path.exists(inputListFile):
-        return False
     missing = []
-    with open(inputListFile, "rb") as r:
-        data = pickle.load(r)
-        for line in data:
-            dividedPath = line.split()[1]
-            contentType = workflowUtility.contentTypeDir[line.split()[2]]
-            basename = os.path.join(updateBase, contentType)
-            filepath = os.path.join(basename, dividedPath)
-            out = filepath.replace(".cif.gz", ".bcif").replace(".cif", ".bcif")
+    for path in glob.glob(os.path.join(listFileBase, "*core_ids*.txt")):
+        count = 0
+        for line in open(path, "r", encoding='utf-8'):
+            count += 1
+            if count > maxFiles:
+                break
+            pdbId = line.strip().lower()
+            contentType = "pdb"
+            dividedPath = pdbId[1:3]
+            # comp models not yet implemented
+            if path.find("comp_model") >= 0:
+                contentType = "csm"
+                dividedPath = "???"
+            out = os.path.join(updateBase, contentType, dividedPath, "%s.bcif" % pdbId)
             if compress:
                 out = "%s.gz" % out
             if not os.path.exists(out):
