@@ -24,19 +24,46 @@ logger = logging.getLogger(__name__)
 
 def main():
 
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawTextHelpFormatter
-    )
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     # settings
-    parser.add_argument("--nfiles", default=0, required=True, help="set 0 for all files")
+    parser.add_argument(
+        "--nfiles", default=0, required=True, help="set 0 for all files"
+    )
     # paths
-    parser.add_argument("--outputPath", default="/mnt/vdb1/out", required=True, help="output directory for bcif files")
-    parser.add_argument("--tempPath", default="/tmp", required=True, help="files are wiped on cleanup")
+    parser.add_argument(
+        "--outputPath",
+        default="/mnt/vdb1/out",
+        required=True,
+        help="output directory for bcif files",
+    )
+    parser.add_argument(
+        "--tempPath", default="/tmp", required=True, help="files are wiped on cleanup"
+    )
     # not required (rely on defaults)
-    parser.add_argument("--inputPath", default="/mnt/vdb1/in", required=False, help="local workflow only")
-    parser.add_argument("--listFileBase", default="/tmp", required=False, help="input lists, may be same as temp path")
-    parser.add_argument("--subtasks", default=1, required=False, help="sublists for pdb list and csm list, if 0 will equal number of cpus")
-    parser.add_argument("--batch", default=0, required=False, help="subdivisions of sublists with same rules as subtasks")
+    parser.add_argument(
+        "--inputPath",
+        default="/mnt/vdb1/in",
+        required=False,
+        help="local workflow only",
+    )
+    parser.add_argument(
+        "--listFileBase",
+        default="/tmp",
+        required=False,
+        help="input lists, may be same as temp path",
+    )
+    parser.add_argument(
+        "--subtasks",
+        default=1,
+        required=False,
+        help="sublists for pdb list and csm list, if 0 will equal number of cpus",
+    )
+    parser.add_argument(
+        "--batch",
+        default=0,
+        required=False,
+        help="subdivisions of sublists with same rules as subtasks",
+    )
     parser.add_argument(
         "--localInputsOrRemote",
         default="remote",
@@ -72,7 +99,11 @@ def main():
     )
     # no args
     parser.add_argument(
-        "--compress", action="store_true", default=False, required=False, help="additional gzip compression"
+        "--compress",
+        action="store_true",
+        default=False,
+        required=False,
+        help="additional gzip compression",
     )
     # from sandbox_config.py/MasterConfig
     parser.add_argument(

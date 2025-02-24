@@ -18,7 +18,6 @@ import os
 import shutil
 import glob
 import datetime
-import pickle
 import logging
 from typing import List
 import requests
@@ -35,7 +34,7 @@ def statusStart(listFileBase: str, statusStartFile: str) -> bool:
     dirs = os.path.dirname(startFile)
     if not os.path.exists(dirs):
         os.makedirs(dirs, mode=0o777)
-    with open(startFile, "w", encoding='utf-8') as w:
+    with open(startFile, "w", encoding="utf-8") as w:
         w.write("Binary cif run started at %s." % str(datetime.datetime.now()))
     return True
 
@@ -51,14 +50,32 @@ def makeDirs(updateBase: str) -> bool:
     return True
 
 
-def splitRemoteTaskLists(pdbHoldingsFilePath:str, csmHoldingsFilePath:str, loadFileListDir:str, tempFilePath:str, targetFileDir:str, incrementalUpdate:bool, compress:bool, numSublistFiles:int)->bool:
+def splitRemoteTaskLists(
+    pdbHoldingsFilePath: str,
+    csmHoldingsFilePath: str,
+    loadFileListDir: str,
+    tempFilePath: str,
+    targetFileDir: str,
+    incrementalUpdate: bool,
+    compress: bool,
+    numSublistFiles: int,
+) -> bool:
     holdingsFilePath = pdbHoldingsFilePath
     databaseName = "pdbx_core"
-    result1 = splitRemoteTaskList(loadFileListDir, tempFilePath, holdingsFilePath, targetFileDir, databaseName, incrementalUpdate, compress, numSublistFiles)
-    #holdingsFilePath = csmHoldingsFilePath
-    #databaseName = "pdbx_comp_model_core"
-    #result2 = splitRemoteTaskList(loadFileListDir, tempFilePath, holdingsFilePath, targetFileDir, databaseName, incrementalUpdate, compress, numSublistFiles)
-    if result1: # and result2:
+    result1 = splitRemoteTaskList(
+        loadFileListDir,
+        tempFilePath,
+        holdingsFilePath,
+        targetFileDir,
+        databaseName,
+        incrementalUpdate,
+        compress,
+        numSublistFiles,
+    )
+    # holdingsFilePath = csmHoldingsFilePath
+    # databaseName = "pdbx_comp_model_core"
+    # result2 = splitRemoteTaskList(loadFileListDir, tempFilePath, holdingsFilePath, targetFileDir, databaseName, incrementalUpdate, compress, numSublistFiles)
+    if result1:  # and result2:
         return True
     return False
 
@@ -66,12 +83,12 @@ def splitRemoteTaskLists(pdbHoldingsFilePath:str, csmHoldingsFilePath:str, loadF
 def splitRemoteTaskList(
     loadFileListDir: str,
     tempFilePath: str,
-    holdingsFilePath: str, 
+    holdingsFilePath: str,
     targetFileDir: str,
     databaseName: str,
-    incrementalUpdate: bool, 
+    incrementalUpdate: bool,
     compress: bool,
-    numSublistFiles: int
+    numSublistFiles: int,
 ) -> bool:
     rlw = RepoLoadWorkflow(cachePath=tempFilePath, configPath="NA")
     op = "pdbx_id_list_splitter"
@@ -81,7 +98,6 @@ def splitRemoteTaskList(
     targetFileSuffix = ".bcif"
     if compress:
         targetFileSuffix += ".gz"
-    configPath = "NA"
     kwargs = {
         "databaseName": databaseName,
         "holdingsFilePath": holdingsFilePath,
@@ -91,13 +107,13 @@ def splitRemoteTaskList(
         "incrementalUpdate": incrementalUpdate,
         "targetFileDir": targetFileDir,
         "targetFileSuffix": targetFileSuffix,
-        }
+    }
     result = rlw.splitIdList(op, **kwargs)
     return result
-    
+
 
 def makeTaskListFromLocal(
-    localDataPath: str, listFileBase: str, inputListFileName: str, 
+    localDataPath: str,
 ) -> bool:
     """
     requires cif files in source folder with no subdirs
@@ -111,8 +127,6 @@ def makeTaskListFromLocal(
         tasklist = glob.glob(os.path.join(localDataPath, "*.cif"))
         nfiles = len(tasklist)
     logger.info("found %d cif files", nfiles)
-    with open(os.path.join(listFileBase, inputListFileName), "wb") as w:
-        pickle.dump(tasklist, w)
     """
     return True
 
@@ -137,9 +151,9 @@ def localTaskMap(
     infilename = "pdbx_core_ids-%d.txt" % (index + 1)
     infilepath = os.path.join(listFileBase, infilename)
     infiles = []
-    for line in open(infilepath, "r", encoding='utf-8'):
-        infiles.append(line.strip()) 
-        if (maxFiles > 0) and (len(infiles) >= maxFiles):
+    for line in open(infilepath, "r", encoding="utf-8"):
+        infiles.append(line.strip())
+        if 0 < maxFiles <= len(infiles):
             break
     if len(infiles) < 1:
         logger.error("error - no infiles")
@@ -195,8 +209,7 @@ def localTaskMap(
                 tempPath,
                 dictionaryApi,
             )
-            p = multiprocessing.Process(target=batchTask, args=args)
-            procs.append(p)
+            procs.append(multiprocessing.Process(target=batchTask, args=args))
         for p in procs:
             p.start()
         for p in procs:
@@ -271,7 +284,9 @@ def singleTask(
         # paths not yet made for csms
         contentType = "pdb"
         remoteFileName = "%s.cif.gz" % pdbId
-        url = os.path.join(prereleaseFtpFileBasePath, structureFilePath, pdbId[1:3], remoteFileName)
+        url = os.path.join(
+            prereleaseFtpFileBasePath, structureFilePath, pdbId[1:3], remoteFileName
+        )
         cifFilePath = os.path.join(tempPath, remoteFileName)
         bcifFileName = "%s.bcif" % pdbId
         if compress:
@@ -303,14 +318,13 @@ def singleTask(
         if localInputsOrRemote == "local":
             # assume local experiment - make no assumptions about file removal
             return
-        else:
-            # earlier timestamp ... overwrite
-            try:
-                os.unlink(bcifFilePath)
-                if os.path.exists(bcifFilePath):
-                    raise Exception("file %s not removed" % bcifFilePath)
-            except Exception as e:
-                logger.exception(str(e))
+        # earlier timestamp ... overwrite
+        try:
+            os.unlink(bcifFilePath)
+            if os.path.exists(bcifFilePath):
+                raise Exception("file %s not removed" % bcifFilePath)
+        except Exception as e:
+            logger.exception(str(e))
     # make nested directories
     dirs = os.path.dirname(bcifFilePath)
     if not os.path.exists(dirs):
@@ -339,12 +353,12 @@ def validateOutput(
     compress: bool,
     missingFileBase: str,
     missingFileName: str,
-    maxFiles: int
+    maxFiles: int,
 ) -> bool:
     missing = []
     for path in glob.glob(os.path.join(listFileBase, "*core_ids*.txt")):
         count = 0
-        for line in open(path, "r", encoding='utf-8'):
+        for line in open(path, "r", encoding="utf-8"):
             count += 1
             if count > maxFiles:
                 break
@@ -362,7 +376,7 @@ def validateOutput(
                 missing.append(out)
     if len(missing) > 0:
         missingFile = os.path.join(missingFileBase, missingFileName)
-        with open(missingFile, "w", encoding='utf-8') as w:
+        with open(missingFile, "w", encoding="utf-8") as w:
             for line in missing:
                 w.write(line)
     return True
@@ -403,7 +417,7 @@ def statusComplete(listFileBase: str, statusCompleteFile: str) -> bool:
     dirs = os.path.dirname(completeFile)
     if not os.path.exists(dirs):
         os.makedirs(dirs, mode=0o777)
-    with open(completeFile, "w", encoding='utf-8') as w:
+    with open(completeFile, "w", encoding="utf-8") as w:
         w.write(
             "Binary cif run completed successfully at %s."
             % str(datetime.datetime.now())
@@ -439,4 +453,3 @@ def deconvert(
         logger.exception("error during bcif conversion: %s", str(e))
         return False
     return True
-

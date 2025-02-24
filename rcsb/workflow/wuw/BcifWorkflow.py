@@ -67,15 +67,26 @@ class BcifWorkflow:
 
         if self.localInputsOrRemote == "remote":
 
-            pdbHoldingsFilePath = os.path.join(self.prereleaseFtpFileBasePath, self.pdbIdsTimestampFilePath)
-            csmHoldingsFilePath = os.path.join(self.csmFileRepoBasePath, self.csmHoldingsUrl)
+            pdbHoldingsFilePath = os.path.join(
+                self.prereleaseFtpFileBasePath, self.pdbIdsTimestampFilePath
+            )
+            csmHoldingsFilePath = os.path.join(
+                self.csmFileRepoBasePath, self.csmHoldingsUrl
+            )
             incrementalUpdate = self.loadType == "incremental"
-            if not splitRemoteTaskLists(pdbHoldingsFilePath, csmHoldingsFilePath, self.listFileBase, self.tempPath, self.outputPath, incrementalUpdate, self.compress, self.subtasks):
+            if not splitRemoteTaskLists(
+                pdbHoldingsFilePath,
+                csmHoldingsFilePath,
+                self.listFileBase,
+                self.tempPath,
+                self.outputPath,
+                incrementalUpdate,
+                self.compress,
+                self.subtasks,
+            ):
                 self.logException("make task list from remote failed")
 
-        elif not makeTaskListFromLocal(
-            self.inputPath, self.listFileBase, self.inputListFileName
-        ):
+        elif not makeTaskListFromLocal(self.inputPath):
             self.logException("make task list from local failed")
 
         index = 0
@@ -102,7 +113,7 @@ class BcifWorkflow:
             "compress": self.compress,
             "missingFileBase": self.missingFileBase,
             "missingFileName": self.missingFileName,
-            "maxFiles": self.nfiles
+            "maxFiles": self.nfiles,
         }
         if not validateOutput(**params):
             self.logException("validate output failed")
