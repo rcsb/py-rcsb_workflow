@@ -22,6 +22,7 @@ from rcsb.workflow.bcif.task_functions import (
     localTaskMap,
     validateOutput,
     removeTempFiles,
+    removeRetractedEntries,
     tasksDone,
     statusComplete,
 )
@@ -44,6 +45,7 @@ class BcifWorkflow:
         self.statusCompleteFile = args.statusCompleteFile
         self.missingFileBase = args.missingFileBase
         self.missingFileName = args.missingFileName
+        self.removedFileName = args.removedFileName
         self.pdbxDict = args.pdbxDict
         self.maDict = args.maDict
         self.rcsbDict = args.rcsbDict
@@ -73,10 +75,12 @@ class BcifWorkflow:
             csmHoldingsFilePath = os.path.join(
                 self.csmFileRepoBasePath, self.csmHoldingsUrl
             )
+            csmModelsPath = os.path.join(self.csmFileRepoBasePath, self.structureFilePath)
             incrementalUpdate = self.loadType == "incremental"
             if not splitRemoteTaskLists(
                 pdbHoldingsFilePath,
                 csmHoldingsFilePath,
+                csmModelsPath,
                 self.listFileBase,
                 self.tempPath,
                 self.outputPath,
@@ -92,6 +96,7 @@ class BcifWorkflow:
         index = 0
         params = {
             "prereleaseFtpFileBasePath": self.prereleaseFtpFileBasePath,
+            "csmFileRepoBasePath": self.csmFileRepoBasePath,
             "structureFilePath": self.structureFilePath,
             "listFileBase": self.listFileBase,
             "tempPath": self.tempPath,
@@ -117,6 +122,17 @@ class BcifWorkflow:
         }
         if not validateOutput(**params):
             self.logException("validate output failed")
+
+        params = {
+            "listFileBase": self.listFileBase,
+            "updateBase": self.outputPath,
+            "compress": self.compress,
+            "missingFileBase": self.missingFileBase,
+            "removedFileName": self.removedFileName,
+            "maxFiles": self.nfiles,
+        }
+        if not removeRetractedEntries(**params):
+            self.logException("remove retracted entries failed")
 
         if not removeTempFiles(self.tempPath, self.listFileBase):
             self.logException("remove temp files failed")

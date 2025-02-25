@@ -5,7 +5,7 @@
 ##
 
 """
-Workflow task descriptors that should be compliant with both the airflow scheduler and the command line interface.
+Workflow task descriptors that the airflow scheduler will invoke from the command line interface.
 """
 
 __docformat__ = "google en"
@@ -17,10 +17,12 @@ import multiprocessing
 import os
 import shutil
 import glob
+import pathlib
 import datetime
 import logging
 from typing import List
 import requests
+import json
 from mmcif.api.DictionaryApi import DictionaryApi
 from mmcif.io.IoAdapterPy import IoAdapterPy as IoAdapter
 from rcsb.utils.io.MarshalUtil import MarshalUtil
@@ -53,6 +55,7 @@ def makeDirs(updateBase: str) -> bool:
 def splitRemoteTaskLists(
     pdbHoldingsFilePath: str,
     csmHoldingsFilePath: str,
+    csmModelsPath: str,
     loadFileListDir: str,
     tempFilePath: str,
     targetFileDir: str,
@@ -72,10 +75,12 @@ def splitRemoteTaskLists(
         compress,
         numSublistFiles,
     )
-    # holdingsFilePath = csmHoldingsFilePath
-    # databaseName = "pdbx_comp_model_core"
-    # result2 = splitRemoteTaskList(loadFileListDir, tempFilePath, holdingsFilePath, targetFileDir, databaseName, incrementalUpdate, compress, numSublistFiles)
-    if result1:  # and result2:
+    holdingsFilePath = csmHoldingsFilePath
+    databaseName = "pdbx_comp_model_core"
+    #result2 = splitRemoteTaskList(loadFileListDir, tempFilePath, holdingsFilePath, targetFileDir, databaseName, incrementalUpdate, compress, numSublistFiles)
+    # does not split
+    result2 = getCompList(holdingsFilePath, targetFileDir, tempFilePath, loadFileListDir, "incremental")
+    if result1 and result2:
         return True
     return False
 
@@ -90,7 +95,7 @@ def splitRemoteTaskList(
     compress: bool,
     numSublistFiles: int,
 ) -> bool:
-    rlw = RepoLoadWorkflow(cachePath=tempFilePath, configPath="NA")
+    rlw = RepoLoadWorkflow(cachePath=tempFilePath)
     op = "pdbx_id_list_splitter"
     loadFileListPrefix = databaseName + "_ids"
     if numSublistFiles == 0:
@@ -110,6 +115,77 @@ def splitRemoteTaskList(
     }
     result = rlw.splitIdList(op, **kwargs)
     return result
+
+
+def getCompList(holdingsFilePath, updateBase, tempFilePath, loadFileListDir, loadType) -> list:
+        modelIdsMetadata = getAllCurrentModelIdsWithMetadata(holdingsFilePath, tempFilePath)
+        if not modelIdsMetadata:
+            return False
+        modelList = []
+        contentType = "csm" 
+        baseDir = os.path.join(updateBase, contentType)
+        if loadType == "full":
+            for modelId, metadata in modelIdsMetadata.items():
+                modelPath = metadata["modelPath"]
+                modelList.append("%s" % modelId)
+        else:
+            # 'incremental' for weekly
+            for modelId, metadata in modelIdsMetadata.items():
+                modelPath = metadata["modelPath"]
+                bcifModelPath = (
+                    modelPath
+                    .replace(".cif.gz", ".bcif")
+                    .replace(".cif", ".bcif")
+                )
+                bcifZipPath = (
+                    modelPath
+                    .replace(".cif.gz", ".bcif.gz")
+                    .replace(".cif", ".bcif.gz")
+                )
+                bcifFile = os.path.join(baseDir, bcifModelPath)
+                bcifZipFile = os.path.join(baseDir, bcifZipPath)
+                # check pre-existence and modification time
+                # enable output of either .bcif or .bcif.gz files (determined by default at time of file write)
+                # return cif model path for download rather than output bcif filepath
+                if os.path.exists(bcifFile):
+                    t1 = os.path.getmtime(bcifFile)
+                    t2 = metadata["datetime"].timestamp()
+                    if t1 < t2:
+                        modelList.append("%s" % modelId)
+                elif os.path.exists(bcifZipFile):
+                    t1 = os.path.getmtime(bcifZipFile)
+                    t2 = metadata["datetime"].timestamp()
+                    if t1 < t2:
+                        modelList.append("%s" % modelId)
+                else:
+                    modelList.append("%s" % modelId)
+        # should split into multiple out files
+        outfile = "pdbx_comp_model_core_ids-1.txt"
+        with open(os.path.join(loadFileListDir, outfile), "w", encoding='utf-8') as w:
+            for model in modelList:
+                w.write(model)
+                w.write('\n')
+        return True
+
+
+def getAllCurrentModelIdsWithMetadata(holdingsFilePath, tempPath) -> dict:
+        try:
+            dic = {}
+            mu = MarshalUtil(workPath=tempPath)
+            data = mu.doImport(holdingsFilePath, fmt="json")
+            for modelId in data:
+                item = data[modelId]
+                item["modelPath"] = item[
+                    "modelPath"
+                ]
+                item["datetime"] = datetime.datetime.strptime(
+                    item["lastModifiedDate"], "%Y-%m-%dT%H:%M:%S%z"
+                )
+                dic[modelId] = item
+            return dic
+        except Exception as e:
+            logger.exception(str(e))
+            return None
 
 
 def makeTaskListFromLocal(
@@ -135,6 +211,7 @@ def localTaskMap(
     index: int,
     *,
     prereleaseFtpFileBasePath: str,
+    csmFileRepoBasePath: str,
     structureFilePath: str,
     listFileBase: str,
     tempPath: str,
@@ -148,17 +225,32 @@ def localTaskMap(
     rcsbDict: str,
 ) -> bool:
     # read sublist
-    infilename = "pdbx_core_ids-%d.txt" % (index + 1)
-    infilepath = os.path.join(listFileBase, infilename)
-    infiles = []
-    for line in open(infilepath, "r", encoding="utf-8"):
-        infiles.append(line.strip())
-        if 0 < maxFiles <= len(infiles):
-            break
-    if len(infiles) < 1:
-        logger.error("error - no infiles")
-        return False
-    logger.info("task map has %d infiles", len(infiles))
+    expfilename = "pdbx_core_ids-%d.txt" % (index + 1)
+    expfilepath = os.path.join(listFileBase, expfilename)
+    compfilename = "pdbx_comp_model_core_ids-%d.txt" % (index + 1)
+    compfilepath = os.path.join(listFileBase, compfilename)
+    expfiles = []
+    compfiles = []
+    if not os.path.exists(expfilepath) and not os.path.exists(compfilepath):
+        raise FileNotFoundError("no input files")
+    if os.path.exists(expfilepath):
+        for line in open(expfilepath, "r", encoding="utf-8"):
+            expfiles.append(line.strip())
+            if 0 < maxFiles <= len(expfiles):
+                break
+        if len(expfiles) < 1:
+            logger.error("error - no exp files")
+            return False
+        logger.info("task map has %d exp files", len(expfiles))
+    if os.path.exists(compfilepath):
+        for line in open(compfilepath, "r", encoding="utf-8"):
+            compfiles.append(line.strip())
+            if 0 < maxFiles <= len(compfiles):
+                break
+        if len(compfiles) < 1:
+            logger.error("error - no comp files")
+            return False
+        logger.info("task map has %d comp files", len(compfiles))
 
     # form dictionary object
     dictionaryApi = None
@@ -178,43 +270,52 @@ def localTaskMap(
     batch = int(batch)
     if batch == 0:
         batch = multiprocessing.cpu_count()
-    logger.info("distributing %d files across %d sublists", len(infiles), batch)
+    logger.info("distributing %d exp files across %d sublists", len(expfiles), batch)
+    logger.info("distributing %d comp files across %d sublists", len(compfiles), batch)
     procs = []
     if batch == 1:
         # process one file at a time
-        for line in infiles:
-            args = (
+        for files, contentType, remotePath in zip([expfiles, compfiles], ["pdb", "csm"], [prereleaseFtpFileBasePath, csmFileRepoBasePath]):
+            if len(files) == 0:
+                continue
+            for line in files:
+                args = (
                 line,
                 localInputsOrRemote,
-                prereleaseFtpFileBasePath,
+                remotePath,
                 structureFilePath,
                 updateBase,
                 compress,
                 tempPath,
                 dictionaryApi,
-            )
-            singleTask(*args)
+                contentType
+                )
+                singleTask(*args)
     else:
         # process with file batching
-        nfiles = len(infiles)
-        tasks = splitList(nfiles, batch, infiles)
-        for task in tasks:
-            args = (
+        for files, contentType, remotePath in zip([expfiles, compfiles], ["pdb", "csm"], [prereleaseFtpFileBasePath, csmFileRepoBasePath]):
+            nfiles = len(files)
+            if nfiles == 0:
+                continue
+            tasks = splitList(nfiles, batch, files)
+            for task in tasks:
+                args = (
                 task,
                 localInputsOrRemote,
-                prereleaseFtpFileBasePath,
+                remotePath,
                 structureFilePath,
                 updateBase,
                 compress,
                 tempPath,
                 dictionaryApi,
-            )
-            procs.append(multiprocessing.Process(target=batchTask, args=args))
-        for p in procs:
-            p.start()
-        for p in procs:
-            p.join()
-        procs.clear()
+                contentType
+                )
+                procs.append(multiprocessing.Process(target=batchTask, args=args))
+            for p in procs:
+                p.start()
+            for p in procs:
+                p.join()
+            procs.clear()
 
     return True
 
@@ -243,55 +344,65 @@ def splitList(nfiles: int, subtasks: int, tasklist: List[str]) -> List[List[str]
 def batchTask(
     tasks,
     localInputsOrRemote,
-    prereleaseFtpFileBasePath,
+    remotePath,
     structureFilePath,
     updateBase,
     compress,
     tempPath,
     dictionaryApi,
+    contentType
 ):
     for task in tasks:
         singleTask(
             task,
             localInputsOrRemote,
-            prereleaseFtpFileBasePath,
+            remotePath,
             structureFilePath,
             updateBase,
             compress,
             tempPath,
             dictionaryApi,
+            contentType
         )
 
 
 def singleTask(
     pdbId,
     localInputsOrRemote,
-    prereleaseFtpFileBasePath,
+    remotePath,
     structureFilePath,
     updateBase,
     compress,
     tempPath,
     dictionaryApi,
+    contentType
 ):
     """
     download to cifFilePath
     form output path bcifFilePath
     """
-    pdbId = pdbId.lower()
     if localInputsOrRemote == "local":
         pass
     else:
-        # paths not yet made for csms
-        contentType = "pdb"
-        remoteFileName = "%s.cif.gz" % pdbId
-        url = os.path.join(
-            prereleaseFtpFileBasePath, structureFilePath, pdbId[1:3], remoteFileName
-        )
-        cifFilePath = os.path.join(tempPath, remoteFileName)
-        bcifFileName = "%s.bcif" % pdbId
-        if compress:
-            bcifFileName += ".gz"
-        bcifFilePath = os.path.join(updateBase, contentType, pdbId[1:3], bcifFileName)
+        if contentType == "pdb":
+            pdbId = pdbId.lower()
+            remoteFileName = "%s.cif.gz" % pdbId
+            url = os.path.join(
+                remotePath, structureFilePath, pdbId[1:3], remoteFileName
+            )
+            cifFilePath = os.path.join(tempPath, remoteFileName)
+            bcifFileName = "%s.bcif" % pdbId
+            if compress:
+                bcifFileName += ".gz"
+            bcifFilePath = os.path.join(updateBase, contentType, pdbId[1:3], bcifFileName)
+        elif contentType == "csm":
+            remoteFileName = "%s.cif.gz" % pdbId
+            url = os.path.join(remotePath, pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2], remoteFileName) 
+            cifFilePath = os.path.join(tempPath, remoteFileName)
+            bcifFileName = "%s.bcif" % pdbId
+            if compress:
+                bcifFileName += ".gz"
+            bcifFilePath = os.path.join(updateBase, contentType, pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2], bcifFileName)
         try:
             r = requests.get(url, timeout=300, stream=True)
             if r and r.status_code < 400:
@@ -365,10 +476,9 @@ def validateOutput(
             pdbId = line.strip().lower()
             contentType = "pdb"
             dividedPath = pdbId[1:3]
-            # comp models not yet implemented
             if path.find("comp_model") >= 0:
                 contentType = "csm"
-                dividedPath = "???"
+                dividedPath = os.path.join(pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2])
             out = os.path.join(updateBase, contentType, dividedPath, "%s.bcif" % pdbId)
             if compress:
                 out = "%s.gz" % out
@@ -379,6 +489,43 @@ def validateOutput(
         with open(missingFile, "w", encoding="utf-8") as w:
             for line in missing:
                 w.write(line)
+                w.write('\n')
+    return True
+
+
+def removeRetractedEntries(
+    *,
+    listFileBase: str,
+    updateBase: str,
+    compress: bool,
+    missingFileBase: str,
+    removedFileName: str,
+    maxFiles: int,
+) -> bool:
+    removed = []
+    for outpath in pathlib.Path(updateBase).rglob("*.bcif*"):
+      pdbId = os.path.basename(str(outpath)).replace(".bcif.gz", "").replace(".bcif", "")
+      found = False
+      for path in glob.glob(os.path.join(listFileBase, "*core_ids*.txt")):
+        for line in open(path, "r", encoding="utf-8"):
+            if line.strip() == pdbId or line.strip().lower() == pdbId:
+                found = True
+                break
+        if found:
+            break
+      if not found:
+                # obsoleted
+                try:
+                    removed.append(str(outpath))
+                    os.unlink(outpath)
+                except Exception as e:
+                    logger.exception("could not remove obsoleted file %s", outpath)
+    if len(removed) > 0:
+        removedFile = os.path.join(missingFileBase, removedFileName)
+        with open(removedFile, "w", encoding="utf-8") as w:
+            for line in removed:
+                w.write(line)
+                w.write('\n')
     return True
 
 

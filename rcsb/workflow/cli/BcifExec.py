@@ -82,6 +82,7 @@ def main():
     )
     parser.add_argument("--missingFileBase", default="/home/ubuntu", required=False)
     parser.add_argument("--missingFileName", default="missing.txt", required=False)
+    parser.add_argument("--removedFileName", default="removed.txt", required=False, help="saved to missingFileBase")
     parser.add_argument(
         "--pdbxDict",
         default="https://raw.githubusercontent.com/wwpdb-dictionaries/mmcif_pdbx/master/dist/mmcif_pdbx_v5_next.dic",
@@ -135,7 +136,9 @@ def main():
     try:
         (BcifWorkflow(args))()
         missingFile = os.path.join(args.missingFileBase, args.missingFileName)
+        removedFile = os.path.join(args.missingFileBase, args.removedFileName)
         logger.info("missing files, if any, were written to %s", missingFile)
+        logger.info("removed obsoleted entries, if any, were written to %s", removedFile)
     except RuntimeError as e:
         raise Exception(str(e)) from e
     except ValueError as e:
