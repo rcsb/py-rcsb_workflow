@@ -14,6 +14,7 @@ __email__ = "james.smith@rcsb.org"
 __license__ = "Apache 2.0"
 
 import os
+import multiprocessing
 from rcsb.workflow.bcif.task_functions import (
     statusStart,
     makeDirs,
@@ -75,12 +76,10 @@ class BcifWorkflow:
             csmHoldingsFilePath = os.path.join(
                 self.csmFileRepoBasePath, self.csmHoldingsUrl
             )
-            csmModelsPath = os.path.join(self.csmFileRepoBasePath, self.structureFilePath)
             incrementalUpdate = self.loadType == "incremental"
             if not splitRemoteTaskLists(
                 pdbHoldingsFilePath,
                 csmHoldingsFilePath,
-                csmModelsPath,
                 self.listFileBase,
                 self.tempPath,
                 self.outputPath,
@@ -93,24 +92,32 @@ class BcifWorkflow:
         elif not makeTaskListFromLocal(self.inputPath):
             self.logException("make task list from local failed")
 
-        index = 0
-        params = {
-            "prereleaseFtpFileBasePath": self.prereleaseFtpFileBasePath,
-            "csmFileRepoBasePath": self.csmFileRepoBasePath,
-            "structureFilePath": self.structureFilePath,
-            "listFileBase": self.listFileBase,
-            "tempPath": self.tempPath,
-            "updateBase": self.outputPath,
-            "compress": self.compress,
-            "localInputsOrRemote": self.localInputsOrRemote,
-            "batch": self.batch,
-            "maxFiles": self.nfiles,
-            "pdbxDict": self.pdbxDict,
-            "maDict": self.maDict,
-            "rcsbDict": self.rcsbDict,
-        }
-        if not localTaskMap(index, **params):
-            self.logException("local task map failed")
+        tasks = self.subtasks
+        if tasks == 0:
+            tasks = multiprocessing.cpu_count()
+        procs = []
+        for index in range(0, tasks):
+            params = (
+                index,
+                self.prereleaseFtpFileBasePath,
+                self.csmFileRepoBasePath,
+                self.structureFilePath,
+                self.listFileBase,
+                self.tempPath,
+                self.outputPath,
+                self.compress,
+                self.localInputsOrRemote,
+                self.batch,
+                self.nfiles,
+                self.pdbxDict,
+                self.maDict,
+                self.rcsbDict,
+            )
+            procs.append(multiprocessing.Process(target=localTaskMap, args=params))
+        for p in procs:
+            p.start()
+        for p in procs:
+            p.join()
 
         params = {
             "listFileBase": self.listFileBase,
@@ -126,13 +133,14 @@ class BcifWorkflow:
         params = {
             "listFileBase": self.listFileBase,
             "updateBase": self.outputPath,
-            "compress": self.compress,
             "missingFileBase": self.missingFileBase,
             "removedFileName": self.removedFileName,
-            "maxFiles": self.nfiles,
         }
+
+        """
         if not removeRetractedEntries(**params):
             self.logException("remove retracted entries failed")
+        """
 
         if not removeTempFiles(self.tempPath, self.listFileBase):
             self.logException("remove temp files failed")
