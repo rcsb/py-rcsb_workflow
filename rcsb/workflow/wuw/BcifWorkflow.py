@@ -5,7 +5,7 @@
 ##
 
 """
-Workflow middleware at intersection of command line interface and task functions.
+Run workflow for tasks requested on command line.
 """
 
 __docformat__ = "google en"
@@ -15,6 +15,7 @@ __license__ = "Apache 2.0"
 
 import os
 import multiprocessing
+import glob
 from rcsb.workflow.bcif.task_functions import (
     statusStart,
     makeDirs,
@@ -33,15 +34,26 @@ class BcifWorkflow:
 
     def __init__(self, args):
 
-        self.nfiles = int(args.nfiles)
+        self.subtasks = None
+        self.loadType = None
+        self.batch = None
+        self.minibatch = None
+        self.nfiles = None
+        if 'subtasks' in args:
+            self.subtasks = int(args.subtasks)
+        if 'loadType' in args:
+            self.loadType = args.loadType
+        if 'batch' in args:
+            self.batch = int(args.batch)
+        if 'minibatch' in args:
+            self.minibatch = int(args.minibatch)
+        if 'nfiles' in args:
+            self.nfiles = int(args.nfiles)
         self.outputPath = args.outputPath
         self.tempPath = args.tempPath
         self.inputPath = args.inputPath
         self.listFileBase = args.listFileBase
-        self.subtasks = int(args.subtasks)
-        self.batch = int(args.batch)
         self.localInputsOrRemote = args.localInputsOrRemote
-        self.loadType = args.loadType
         self.statusStartFile = args.statusStartFile
         self.statusCompleteFile = args.statusCompleteFile
         self.missingFileBase = args.missingFileBase
@@ -55,13 +67,15 @@ class BcifWorkflow:
         self.csmFileRepoBasePath = args.csmFileRepoBasePath
         self.csmHoldingsUrl = args.csmHoldingsUrl
         self.structureFilePath = args.structureFilePath
-        self.compress = bool(args.compress)
+        self.outfileSuffix = args.outfileSuffix
+        self.configPath = args.configPath
 
     def logException(self, msg):
         raise RuntimeError("bcif workflow reporting %s" % msg)
 
     def __call__(self):
 
+      if self.subtasks is not None:
         if not statusStart(self.listFileBase, self.statusStartFile):
             self.logException("status start failed")
 
@@ -84,28 +98,27 @@ class BcifWorkflow:
                 self.tempPath,
                 self.outputPath,
                 incrementalUpdate,
-                self.compress,
+                self.outfileSuffix,
                 self.subtasks,
+                self.configPath
             ):
                 self.logException("make task list from remote failed")
 
         elif not makeTaskListFromLocal(self.inputPath):
             self.logException("make task list from local failed")
 
-        tasks = self.subtasks
-        if tasks == 0:
-            tasks = multiprocessing.cpu_count()
+      elif self.batch is not None:
         procs = []
-        for index in range(0, tasks):
+        for filepath in glob.glob("%s/pdbx_*core_ids-*.txt" % self.listFileBase):
             params = (
-                index,
+                filepath,
                 self.prereleaseFtpFileBasePath,
                 self.csmFileRepoBasePath,
                 self.structureFilePath,
                 self.listFileBase,
                 self.tempPath,
                 self.outputPath,
-                self.compress,
+                self.outfileSuffix,
                 self.localInputsOrRemote,
                 self.batch,
                 self.nfiles,
@@ -122,7 +135,7 @@ class BcifWorkflow:
         params = {
             "listFileBase": self.listFileBase,
             "updateBase": self.outputPath,
-            "compress": self.compress,
+            "outfileSuffix": self.outfileSuffix,
             "missingFileBase": self.missingFileBase,
             "missingFileName": self.missingFileName,
             "maxFiles": self.nfiles,

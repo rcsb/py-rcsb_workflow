@@ -15,6 +15,7 @@ __license__ = "Apache 2.0"
 
 import os
 import argparse
+from argparse import ArgumentParser, Namespace
 import logging
 import time
 from rcsb.workflow.wuw.BcifWorkflow import BcifWorkflow
@@ -25,9 +26,35 @@ logger = logging.getLogger(__name__)
 def main():
 
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-    # settings
-    parser.add_argument(
-        "--nfiles", default=0, required=True, help="set 0 for all files"
+    subparsers = parser.add_subparsers(help="subcommand help")
+    splitParser = subparsers.add_parser("split", help="split list files")
+    splitParser.add_argument(
+        "--subtasks",
+        default=1,
+        required=False,
+        help="sublists for pdb list and csm list, if 0 will equal number of cpus",
+    )
+    splitParser.add_argument(
+        "--loadType",
+        default="incremental",
+        choices=["full", "incremental"],
+        required=False,
+    )
+    computeParser = subparsers.add_parser("compute", help="distribute computation")
+    computeParser.add_argument(
+        "--batch",
+        default=0,
+        required=False,
+        help="subdivisions of sublists with same rules as subtasks",
+    )
+    computeParser.add_argument(
+        "--minibatch",
+        default=100,
+        required=False,
+        help="max reads before clear out temp files",
+    )
+    computeParser.add_argument(
+        "--nfiles", default=0, required=True, help="set 0 for all files, set less than N for a test run, will not produce exactly n files"
     )
     # paths
     parser.add_argument(
@@ -41,6 +68,13 @@ def main():
     )
     # not required (rely on defaults)
     parser.add_argument(
+        "--outfileSuffix",
+        default=".bcif.gz",
+        required=False,
+        choices=[".bcif", ".bcif.gz"],
+        help="whether to use additional gzip compression",
+    )
+    parser.add_argument(
         "--inputPath",
         default="/mnt/vdb1/in",
         required=False,
@@ -53,27 +87,9 @@ def main():
         help="input lists, may be same as temp path",
     )
     parser.add_argument(
-        "--subtasks",
-        default=1,
-        required=False,
-        help="sublists for pdb list and csm list, if 0 will equal number of cpus",
-    )
-    parser.add_argument(
-        "--batch",
-        default=0,
-        required=False,
-        help="subdivisions of sublists with same rules as subtasks",
-    )
-    parser.add_argument(
         "--localInputsOrRemote",
         default="remote",
         choices=["local", "remote"],
-        required=False,
-    )
-    parser.add_argument(
-        "--loadType",
-        default="incremental",
-        choices=["full", "incremental"],
         required=False,
     )
     parser.add_argument("--statusStartFile", default="status.start", required=False)
@@ -103,14 +119,6 @@ def main():
         default="https://raw.githubusercontent.com/rcsb/py-rcsb_exdb_assets/master/dictionary_files/dist/rcsb_mmcif_ext.dic",
         required=False,
     )
-    # no args
-    parser.add_argument(
-        "--compress",
-        action="store_true",
-        default=False,
-        required=False,
-        help="additional gzip compression",
-    )
     # from sandbox_config.py/MasterConfig
     parser.add_argument(
         "--prereleaseFtpFileBasePath",
@@ -129,12 +137,14 @@ def main():
     )
     parser.add_argument(
         "--csmHoldingsUrl",
-        default="holdings/computed-models-holdings.json.gz",
+        default="holdings/computed-models-holdings-list.json",
         required=False,
+        help="list file rather than holdings file itself"
     )
     parser.add_argument(
         "--structureFilePath", default="data/structures/divided/mmCIF/", required=False
     )
+    parser.add_argument("--configPath", default="./rcsb/workflow/bcif/config.yml", required=False, help="required for split id list")
 
     args = parser.parse_args()
 

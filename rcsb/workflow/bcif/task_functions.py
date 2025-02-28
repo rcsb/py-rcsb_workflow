@@ -5,7 +5,7 @@
 ##
 
 """
-Workflow task descriptors that the airflow scheduler will invoke from the command line interface.
+Workflow task descriptors.
 """
 
 __docformat__ = "google en"
@@ -25,7 +25,6 @@ import requests
 from mmcif.api.DictionaryApi import DictionaryApi
 from mmcif.io.IoAdapterPy import IoAdapterPy as IoAdapter
 from rcsb.utils.io.MarshalUtil import MarshalUtil
-from rcsb.db.wf.RepoLoadWorkflow import RepoLoadWorkflow
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +57,9 @@ def splitRemoteTaskLists(
     tempFilePath: str,
     targetFileDir: str,
     incrementalUpdate: bool,
-    compress: bool,
+    outfileSuffix: str,
     numSublistFiles: int,
+    configPath: str
 ) -> bool:
     holdingsFilePath = pdbHoldingsFilePath
     databaseName = "pdbx_core"
@@ -70,21 +70,19 @@ def splitRemoteTaskLists(
         targetFileDir,
         databaseName,
         incrementalUpdate,
-        compress,
+        outfileSuffix,
         numSublistFiles,
+        configPath
     )
     holdingsFilePath = csmHoldingsFilePath
     databaseName = "pdbx_comp_model_core"
-    # result2 = splitRemoteTaskList(loadFileListDir, tempFilePath, holdingsFilePath, targetFileDir, databaseName, incrementalUpdate, compress, numSublistFiles)
-    result2 = splitCompList(
-        holdingsFilePath,
-        targetFileDir,
-        tempFilePath,
-        loadFileListDir,
-        "incremental",
-        numSublistFiles,
-    )
-    if result1 and result2:
+    result2 = splitRemoteTaskList(loadFileListDir, tempFilePath, holdingsFilePath, targetFileDir, databaseName, incrementalUpdate, outfileSuffix, numSublistFiles, configPath)
+    if not result1:
+        logger.error("exp list failed to load")
+    if not result2:
+        logger.error("comp list failed to load")
+    # enable skipping one or the other
+    if result1 or result2:
         return True
     return False
 
@@ -96,96 +94,22 @@ def splitRemoteTaskList(
     targetFileDir: str,
     databaseName: str,
     incrementalUpdate: bool,
-    compress: bool,
+    outfileSuffix: str,
     numSublistFiles: int,
+    configPath: str
 ) -> bool:
-    rlw = RepoLoadWorkflow(cachePath=tempFilePath)
     op = "pdbx_id_list_splitter"
     loadFileListPrefix = databaseName + "_ids"
     if numSublistFiles == 0:
         numSublistFiles = multiprocessing.cpu_count()
-    targetFileSuffix = ".bcif"
-    if compress:
-        targetFileSuffix += ".gz"
-    kwargs = {
-        "databaseName": databaseName,
-        "holdingsFilePath": holdingsFilePath,
-        "loadFileListDir": loadFileListDir,
-        "loadFileListPrefix": loadFileListPrefix,
-        "numSublistFiles": numSublistFiles,
-        "incrementalUpdate": incrementalUpdate,
-        "targetFileDir": targetFileDir,
-        "targetFileSuffix": targetFileSuffix,
-    }
-    result = rlw.splitIdList(op, **kwargs)
-    return result
-
-
-def splitCompList(
-    holdingsFilePath, updateBase, tempFilePath, loadFileListDir, loadType, subtasks
-) -> list:
-    modelIds = {}
-    try:
-        mu = MarshalUtil(workPath=tempFilePath)
-        data = mu.doImport(holdingsFilePath, fmt="json")
-        for modelId in data:
-            item = data[modelId]
-            item["modelPath"] = item["modelPath"]
-            item["datetime"] = datetime.datetime.strptime(
-                item["lastModifiedDate"], "%Y-%m-%dT%H:%M:%S%z"
-            )
-            modelIds[modelId] = item
-    except Exception as e:
-        logger.exception(str(e))
-        return False
-    if not modelIds:
-        return False
-    modelList = []
-    contentType = "csm"
-    baseDir = os.path.join(updateBase, contentType)
-    if loadType == "full":
-        for modelId, data in modelIds.items():
-            modelPath = data["modelPath"]
-            modelList.append("%s" % modelId)
-    else:
-        for modelId, data in modelIds.items():
-            modelPath = data["modelPath"]
-            bcifModelPath = modelPath.replace(".cif.gz", ".bcif").replace(
-                ".cif", ".bcif"
-            )
-            bcifZipPath = modelPath.replace(".cif.gz", ".bcif.gz").replace(
-                ".cif", ".bcif.gz"
-            )
-            bcifFile = os.path.join(baseDir, bcifModelPath)
-            bcifZipFile = os.path.join(baseDir, bcifZipPath)
-            # check pre-existence and modification time
-            # enable output of either .bcif or .bcif.gz files (determined by default at time of file write)
-            # return cif model path for download rather than output bcif filepath
-            if os.path.exists(bcifFile):
-                t1 = os.path.getmtime(bcifFile)
-                t2 = data["datetime"].timestamp()
-                if t1 < t2:
-                    modelList.append("%s" % modelId)
-            elif os.path.exists(bcifZipFile):
-                t1 = os.path.getmtime(bcifZipFile)
-                t2 = data["datetime"].timestamp()
-                if t1 < t2:
-                    modelList.append("%s" % modelId)
-            else:
-                modelList.append("%s" % modelId)
-    # split into multiple out files
-    if subtasks == 0:
-        subtasks = multiprocessing.cpu_count()
-    nfiles = len(modelList)
-    sublists = splitList(nfiles, subtasks, modelList)
-    for index in range(0, len(sublists)):
-        sublist = sublists[index]
-        outfile = "pdbx_comp_model_core_ids-%d.txt" % (index + 1)
-        with open(os.path.join(loadFileListDir, outfile), "w", encoding="utf-8") as w:
-            for model in sublist:
-                w.write(model)
-                w.write("\n")
-    return True
+    incremental = ""
+    if incrementalUpdate:
+        incremental = "--incremental_update"
+    cmd = f"python3 -m rcsb.db.cli.RepoLoadExec --op {op} --database {databaseName} --load_file_list_dir {loadFileListDir} --holdings_file_path {holdingsFilePath} --num_sublists {numSublistFiles} {incremental} --target_file_dir {targetFileDir} --target_file_suffix {outfileSuffix} --config_path {configPath}"
+    status = os.system(cmd)
+    if status == 0:
+        return True
+    return False
 
 
 def makeTaskListFromLocal(
@@ -208,14 +132,14 @@ def makeTaskListFromLocal(
 
 
 def localTaskMap(
-    index: int,
+    filepath: str,
     prereleaseFtpFileBasePath: str,
     csmFileRepoBasePath: str,
     structureFilePath: str,
     listFileBase: str,
     tempPath: str,
     updateBase: str,
-    compress: bool,
+    outfileSuffix: str,
     localInputsOrRemote: str,
     batch: int,
     maxFiles: int,
@@ -224,32 +148,17 @@ def localTaskMap(
     rcsbDict: str,
 ) -> bool:
     # read sublist
-    expfilename = "pdbx_core_ids-%d.txt" % (index + 1)
-    expfilepath = os.path.join(listFileBase, expfilename)
-    compfilename = "pdbx_comp_model_core_ids-%d.txt" % (index + 1)
-    compfilepath = os.path.join(listFileBase, compfilename)
-    expfiles = []
-    compfiles = []
-    if not os.path.exists(expfilepath) and not os.path.exists(compfilepath):
+    files = []
+    if not os.path.exists(filepath):
         raise FileNotFoundError("no input files")
-    if os.path.exists(expfilepath):
-        for line in open(expfilepath, "r", encoding="utf-8"):
-            expfiles.append(line.strip())
-            if 0 < maxFiles <= len(expfiles):
-                break
-        if len(expfiles) < 1:
-            logger.error("error - no exp files")
-            return False
-        logger.info("task map has %d exp files", len(expfiles))
-    if os.path.exists(compfilepath):
-        for line in open(compfilepath, "r", encoding="utf-8"):
-            compfiles.append(line.strip())
-            if 0 < maxFiles <= len(compfiles):
-                break
-        if len(compfiles) < 1:
-            logger.error("error - no comp files")
-            return False
-        logger.info("task map has %d comp files", len(compfiles))
+    for line in open(filepath, "r", encoding="utf-8"):
+        files.append(line.strip())
+        if 0 < maxFiles <= len(files):
+            break
+    if len(files) < 1:
+        logger.error("error - no files")
+        return False
+    logger.info("task map has %d files", len(files))
 
     # form dictionary object
     dictionaryApi = None
@@ -269,41 +178,33 @@ def localTaskMap(
     batch = int(batch)
     if batch == 0:
         batch = multiprocessing.cpu_count()
-    logger.info("distributing %d exp files across %d sublists", len(expfiles), batch)
-    logger.info("distributing %d comp files across %d sublists", len(compfiles), batch)
+    logger.info("distributing %d files across %d sublists", len(files), batch)
+
+    contentType = "pdb"
+    remotePath = prereleaseFtpFileBasePath
+    if filepath.find("pdbx_comp_model_") >= 0:
+        contentType = "csm"
+        remotePath = csmFileRepoBasePath
+
     procs = []
     if batch == 1:
         # process one file at a time
-        for files, contentType, remotePath in zip(
-            [expfiles, compfiles],
-            ["pdb", "csm"],
-            [prereleaseFtpFileBasePath, csmFileRepoBasePath],
-        ):
-            if len(files) == 0:
-                continue
-            for line in files:
-                args = (
+        for line in files:
+            args = (
                     line,
                     localInputsOrRemote,
                     remotePath,
                     structureFilePath,
                     updateBase,
-                    compress,
+                    outfileSuffix,
                     tempPath,
                     dictionaryApi,
                     contentType,
-                )
-                singleTask(*args)
+            )
+            singleTask(*args)
     else:
-        # process with file batching
-        for files, contentType, remotePath in zip(
-            [expfiles, compfiles],
-            ["pdb", "csm"],
-            [prereleaseFtpFileBasePath, csmFileRepoBasePath],
-        ):
+            # process with file batching
             nfiles = len(files)
-            if nfiles == 0:
-                continue
             tasks = splitList(nfiles, batch, files)
             for task in tasks:
                 args = (
@@ -312,7 +213,7 @@ def localTaskMap(
                     remotePath,
                     structureFilePath,
                     updateBase,
-                    compress,
+                    outfileSuffix,
                     tempPath,
                     dictionaryApi,
                     contentType,
@@ -354,7 +255,7 @@ def batchTask(
     remotePath,
     structureFilePath,
     updateBase,
-    compress,
+    outfileSuffix,
     tempPath,
     dictionaryApi,
     contentType,
@@ -366,7 +267,7 @@ def batchTask(
             remotePath,
             structureFilePath,
             updateBase,
-            compress,
+            outfileSuffix,
             tempPath,
             dictionaryApi,
             contentType,
@@ -379,7 +280,7 @@ def singleTask(
     remotePath,
     structureFilePath,
     updateBase,
-    compress,
+    outfileSuffix,
     tempPath,
     dictionaryApi,
     contentType,
@@ -398,9 +299,7 @@ def singleTask(
                 remotePath, structureFilePath, pdbId[1:3], remoteFileName
             )
             cifFilePath = os.path.join(tempPath, remoteFileName)
-            bcifFileName = "%s.bcif" % pdbId
-            if compress:
-                bcifFileName += ".gz"
+            bcifFileName = "%s%s" % (pdbId, outfileSuffix)
             bcifFilePath = os.path.join(
                 updateBase, contentType, pdbId[1:3], bcifFileName
             )
@@ -410,9 +309,7 @@ def singleTask(
                 remotePath, pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2], remoteFileName
             )
             cifFilePath = os.path.join(tempPath, remoteFileName)
-            bcifFileName = "%s.bcif" % pdbId
-            if compress:
-                bcifFileName += ".gz"
+            bcifFileName = "%s%s" % (pdbId, outfileSuffix)
             bcifFilePath = os.path.join(
                 updateBase,
                 contentType,
@@ -479,7 +376,7 @@ def validateOutput(
     *,
     listFileBase: str,
     updateBase: str,
-    compress: bool,
+    outfileSuffix: str,
     missingFileBase: str,
     missingFileName: str,
     maxFiles: int,
@@ -497,9 +394,7 @@ def validateOutput(
             if path.find("comp_model") >= 0:
                 contentType = "csm"
                 dividedPath = os.path.join(pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2])
-            out = os.path.join(updateBase, contentType, dividedPath, "%s.bcif" % pdbId)
-            if compress:
-                out = "%s.gz" % out
+            out = os.path.join(updateBase, contentType, dividedPath, "%s%s" % (pdbId, outfileSuffix))
             if not os.path.exists(out):
                 missing.append(out)
     if len(missing) > 0:
