@@ -41,15 +41,28 @@ def statusStart(listFileBase: str, statusStartFile: str) -> bool:
     return True
 
 
-def makeDirs(updateBase: str, outputContentType: bool) -> bool:
-    """mounted paths must be already made"""
-    if not os.path.exists(updateBase):
-        os.makedirs(updateBase, mode=0o777)
-    if outputContentType:
-        for contentType in ["pdb", "csm"]:
-            path = os.path.join(updateBase, contentType)
-            if not os.path.exists(path):
-                os.mkdir(path, mode=0o777)
+def makeDirs(
+    listFileBase: str, updateBase: str, tempPath: str, outputContentType: bool
+) -> bool:
+    try:
+        if not os.path.exists(listFileBase):
+            os.mkdir(listFileBase)
+            os.chmod(listFileBase, 0o777)
+        if not os.path.exists(updateBase):
+            os.mkdir(updateBase)
+            os.chmod(updateBase, 0o777)
+        if not os.path.exists(tempPath):
+            os.mkdir(tempPath)
+            os.chmod(tempPath, 0o777)
+        if outputContentType:
+            for contentType in ["pdb", "csm"]:
+                path = os.path.join(updateBase, contentType)
+                if not os.path.exists(path):
+                    os.mkdir(path)
+                    os.chmod(path, 0o777)
+    except Exception as e:
+        logger.error(str(e))
+        return False
     return True
 
 
@@ -339,6 +352,8 @@ def singleTask(
     if localInputsOrRemote == "local":
         return
     else:
+        # list files have upper case for all model types
+        # experimental models are stored with lower case file name and hash
         if contentType == "pdb":
             pdbId = pdbId.lower()
             remoteFileName = "%s.cif.gz" % pdbId
@@ -346,6 +361,7 @@ def singleTask(
                 remotePath, structureFilePath, pdbId[-3:-1], remoteFileName
             )
             cifFilePath = os.path.join(tempPath, remoteFileName)
+        # computed structure models are stored with upper case file name and hash
         elif contentType == "csm":
             remoteFileName = "%s.cif.gz" % pdbId
             url = os.path.join(
@@ -471,10 +487,13 @@ def validateOutput(
             if count > maxFiles:
                 break
             pdbId = line.strip()
+            # list files have upper case for all model types
+            # experimental models stored with lower case file name and hash
             if path.find("comp_model") < 0:
                 pdbId = line.strip().lower()
             contentType = "pdb"
             dividedPath = pdbId[-3:-1]
+            # csms stored with upper case file name and hash
             if path.find("comp_model") >= 0:
                 contentType = "csm"
                 dividedPath = os.path.join(pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2])
@@ -558,6 +577,13 @@ def removeRetractedEntries(
 
 def removeTempFiles(tempPath: str, listFileBase: str) -> bool:
     try:
+        # periodically
+        if tempPath and os.path.exists(tempPath) and os.path.isdir(tempPath):
+            for filename in os.listdir(tempPath):
+                path = os.path.join(tempPath, filename)
+                if os.path.isfile(path):
+                    os.unlink(path)
+        # once at application close
         if (
             listFileBase
             and os.path.exists(listFileBase)
@@ -567,16 +593,11 @@ def removeTempFiles(tempPath: str, listFileBase: str) -> bool:
                 path = os.path.join(listFileBase, filename)
                 if os.path.isfile(path):
                     os.unlink(path)
-        if tempPath and os.path.exists(tempPath) and os.path.isdir(tempPath):
-            for filename in os.listdir(tempPath):
-                path = os.path.join(tempPath, filename)
-                if os.path.isfile(path):
-                    os.unlink(path)
-        for path in glob.glob("/tmp/config-util*-cache"):
-            try:
-                shutil.rmtree(path)
-            except Exception as e:
-                logger.error(str(e))
+            for path in glob.glob("/tmp/config-util*-cache"):
+                try:
+                    shutil.rmtree(path)
+                except Exception as e:
+                    logger.error(str(e))
     except Exception as e:
         logger.warning(str(e))
     return True

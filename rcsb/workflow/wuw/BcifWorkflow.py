@@ -84,7 +84,12 @@ class BcifWorkflow:
             if not statusStart(self.listFileBase, self.statusStartFile):
                 self.logException("status start failed")
 
-            if not makeDirs(self.outputPath, self.outputContentType):
+            if not makeDirs(
+                self.listFileBase,
+                self.outputPath,
+                self.tempPath,
+                self.outputContentType,
+            ):
                 self.logException("make dirs failed")
 
             if self.localInputsOrRemote == "remote":
