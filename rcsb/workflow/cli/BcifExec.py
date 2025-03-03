@@ -13,9 +13,7 @@ __author__ = "James Smith"
 __email__ = "james.smith@rcsb.org"
 __license__ = "Apache 2.0"
 
-import os
 import argparse
-from argparse import ArgumentParser, Namespace
 import logging
 import time
 from rcsb.workflow.wuw.BcifWorkflow import BcifWorkflow
@@ -48,13 +46,16 @@ def main():
         help="subdivisions of sublists with same rules as subtasks",
     )
     computeParser.add_argument(
-        "--minibatch",
+        "--maxTempFiles",
         default=100,
         required=False,
         help="max reads before clear out temp files",
     )
     computeParser.add_argument(
-        "--nfiles", default=0, required=True, help="set 0 for all files, set less than N for a test run, will not produce exactly n files"
+        "--nfiles",
+        default=0,
+        required=True,
+        help="set 0 for all files, set less than N for a test run, will not produce exactly n files",
     )
     # paths
     parser.add_argument(
@@ -136,26 +137,40 @@ def main():
         required=False,
     )
     parser.add_argument(
-        "--csmHoldingsUrl",
+        "--compModelFileHoldingsList",
         default="holdings/computed-models-holdings-list.json",
         required=False,
-        help="list file rather than holdings file itself"
+        help="list file rather than holdings file itself",
     )
     parser.add_argument(
         "--structureFilePath", default="data/structures/divided/mmCIF/", required=False
     )
-    parser.add_argument("--configPath", default="./rcsb/workflow/bcif/config.yml", required=False, help="required for split id list")
+    parser.add_argument(
+        "--configPath",
+        default="./rcsb/workflow/bcif/config.yml",
+        required=False,
+        help="required for split id list",
+    )
+    # output folder structure, default none (save all output files in one folder)
+    parser.add_argument(
+        "--outputContentType",
+        action="store_true",
+        default=False,
+        required=False,
+        help="whether output paths should include a directory for the content type (pdb, csm)",
+    )
+    parser.add_argument(
+        "--outputHash",
+        action="store_true",
+        default=False,
+        required=False,
+        help="whether output paths should include the hash for the entry",
+    )
 
     args = parser.parse_args()
 
     try:
         (BcifWorkflow(args))()
-        missingFile = os.path.join(args.missingFileBase, args.missingFileName)
-        removedFile = os.path.join(args.missingFileBase, args.removedFileName)
-        logger.info("missing files, if any, were written to %s", missingFile)
-        logger.info(
-            "removed obsoleted entries, if any, were written to %s", removedFile
-        )
     except RuntimeError as e:
         raise Exception(str(e)) from e
     except ValueError as e:
