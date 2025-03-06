@@ -1,0 +1,4 @@
+site_info_configuration:
+    site_info_remote_configuration:
+        PDBX_COMP_MODEL_HOLDINGS_LIST_PATH: http://computed-models-external-east.rcsb.org/staging/holdings/computed-models-holdings-list.json
+        PDBX_COMP_MODEL_REPO_PATH: http://computed-models-external-east.rcsb.org/staging/data/structures/divided/mmCIF/

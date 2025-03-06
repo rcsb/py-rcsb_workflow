@@ -66,101 +66,6 @@ def makeDirs(
     return True
 
 
-def splitRemoteTaskLists(
-    pdbHoldingsFilePath: str,
-    csmHoldingsFilePath: str,
-    loadFileListDir: str,
-    targetFileDir: str,
-    incrementalUpdate: bool,
-    outfileSuffix: str,
-    numSublistFiles: int,
-    configPath: str,
-    outputContentType: bool,
-    outputHash: bool,
-) -> bool:
-    holdingsFilePath = pdbHoldingsFilePath
-    databaseName = "pdbx_core"
-    result1 = splitRemoteTaskList(
-        loadFileListDir,
-        holdingsFilePath,
-        targetFileDir,
-        databaseName,
-        incrementalUpdate,
-        outfileSuffix,
-        numSublistFiles,
-        configPath,
-        outputContentType,
-        outputHash,
-    )
-    holdingsFilePath = csmHoldingsFilePath
-    databaseName = "pdbx_comp_model_core"
-    result2 = splitRemoteTaskList(
-        loadFileListDir,
-        holdingsFilePath,
-        targetFileDir,
-        databaseName,
-        incrementalUpdate,
-        outfileSuffix,
-        numSublistFiles,
-        configPath,
-        outputContentType,
-        outputHash,
-    )
-    if not result1:
-        logger.error("exp list failed to load")
-    if not result2:
-        logger.error("comp list failed to load")
-    # enable skipping one or the other
-    if result1 or result2:
-        return True
-    return False
-
-
-def splitRemoteTaskList(
-    loadFileListDir: str,
-    holdingsFilePath: str,
-    targetFileDir: str,
-    databaseName: str,
-    incrementalUpdate: bool,
-    outfileSuffix: str,
-    numSublistFiles: int,
-    configPath: str,
-    outputContentType: bool,
-    outputHash: bool,
-) -> bool:
-    op = "pdbx_id_list_splitter"
-    loadFileListPrefix = databaseName + "_ids"
-    if numSublistFiles == 0:
-        numSublistFiles = multiprocessing.cpu_count()
-    incremental = ""
-    if incrementalUpdate:
-        incremental = "--incremental_update"
-    cmd = f"python3 -m rcsb.db.cli.RepoLoadExec --op {op} --database {databaseName} --load_file_list_dir {loadFileListDir} --holdings_file_path {holdingsFilePath} --num_sublists {numSublistFiles} {incremental} --target_file_dir {targetFileDir} --target_file_suffix {outfileSuffix} --config_path {configPath}"
-    status = os.system(cmd)
-    if status == 0:
-        return True
-    return False
-
-
-def makeTaskListFromLocal(
-    localDataPath: str, outputContentType: bool, outputHash: bool
-) -> bool:
-    """
-    requires cif files in source folder with no subdirs
-    writes to target folder with no subdirs
-    """
-    # traverse local folder
-    """
-    tasklist = glob.glob(os.path.join(localDataPath, "*.cif.gz"))
-    nfiles = len(tasklist)
-    if nfiles == 0:
-        tasklist = glob.glob(os.path.join(localDataPath, "*.cif"))
-        nfiles = len(tasklist)
-    logger.info("found %d cif files", nfiles)
-    """
-    return True
-
-
 def localTaskMap(
     filepath: str,
     prereleaseFtpFileBasePath: str,
@@ -184,10 +89,14 @@ def localTaskMap(
     files = []
     if not os.path.exists(filepath):
         raise FileNotFoundError("no input files")
-    for line in open(filepath, "r", encoding="utf-8"):
+
+    f = open(filepath, "r", encoding="utf-8")
+    for line in f:
         files.append(line.strip())
         if 0 < maxFiles <= len(files):
             break
+    f.close()
+
     if len(files) < 1:
         logger.error("error - no files")
         return False
@@ -352,7 +261,6 @@ def singleTask(
     if localInputsOrRemote == "local":
         return
     else:
-        # list files have upper case for all model types
         # experimental models are stored with lower case file name and hash
         if contentType == "pdb":
             pdbId = pdbId.lower()
@@ -482,7 +390,8 @@ def validateOutput(
     missing = []
     for path in glob.glob(os.path.join(listFileBase, "*core_ids*.txt")):
         count = 0
-        for line in open(path, "r", encoding="utf-8"):
+        f = open(path, "r", encoding="utf-8")
+        for line in f:
             count += 1
             if count > maxFiles:
                 break
@@ -516,6 +425,7 @@ def validateOutput(
                 out = os.path.join(updateBase, "%s%s" % (pdbId, outfileSuffix))
             if not os.path.exists(out):
                 missing.append(out)
+        f.close()
     if len(missing) > 0:
         missingFile = os.path.join(missingFileBase, missingFileName)
         with open(missingFile, "w", encoding="utf-8") as w:
@@ -534,8 +444,8 @@ def removeRetractedEntries(
     outputContentType: bool,
     outputHash: bool,
 ) -> bool:
-    removed = []
     t = time.time()
+    # list of upper case ids
     infiles = []
     for filepath in glob.glob(os.path.join(listFileBase, "*core_ids*.txt")):
         """uncomment to test
@@ -546,23 +456,27 @@ def removeRetractedEntries(
         with open(filepath, "r", encoding="utf-8") as r:
             infiles.extend(r.read().split("\n"))
     infiles = [file for file in infiles if file != ""]
-    infiles = set(infiles)
+    inkeys = set(infiles)
+    # {id : file path}
+    # normalize id to upper case
     outfiles = {
         os.path.basename(path)
         .replace(".bcif.gz", "")
         .replace(".bcif", "")
-        .upper(): str(path)
+        .upper() : str(path)
         for path in pathlib.Path(updateBase).rglob("*.bcif*")
     }
-    outcodes = set(outfiles.keys())
-    obsoleted = outcodes.difference(infiles)
-    removed = []
+    outkeys = set(outfiles.keys())
+    # keys from outfiles that are not in infiles
+    obsoleted = outkeys.difference(inkeys)
+    # paths for those keys
     filepaths = [outfiles[key] for key in obsoleted if key in outfiles]
+    removed = []
     for filepath in filepaths:
         try:
-            if filepath.find(updateBase) >= 0:
-                os.unlink(filepath)
-                removed.append(filepath)
+            os.unlink(filepath)
+            removed.append(filepath)
+            logger.info("removed %s", filepath)
         except Exception as e:
             logger.error(str(e))
     if len(removed) > 0:

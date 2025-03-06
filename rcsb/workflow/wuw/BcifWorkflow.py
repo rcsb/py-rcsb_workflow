@@ -20,8 +20,6 @@ import logging
 from rcsb.workflow.bcif.task_functions import (
     statusStart,
     makeDirs,
-    splitRemoteTaskLists,
-    makeTaskListFromLocal,
     localTaskMap,
     validateOutput,
     removeTempFiles,
@@ -80,7 +78,6 @@ class BcifWorkflow:
 
     def __call__(self):
 
-        if self.subtasks is not None:
             if not statusStart(self.listFileBase, self.statusStartFile):
                 self.logException("status start failed")
 
@@ -92,33 +89,6 @@ class BcifWorkflow:
             ):
                 self.logException("make dirs failed")
 
-            if self.localInputsOrRemote == "remote":
-
-                pdbHoldingsFilePath = os.path.join(
-                    self.prereleaseFtpFileBasePath, self.pdbIdsTimestampFilePath
-                )
-                csmHoldingsFilePath = os.path.join(
-                    self.csmFileRepoBasePath, self.compModelFileHoldingsList
-                )
-                incrementalUpdate = self.loadType == "incremental"
-                if not splitRemoteTaskLists(
-                    pdbHoldingsFilePath,
-                    csmHoldingsFilePath,
-                    self.listFileBase,
-                    self.outputPath,
-                    incrementalUpdate,
-                    self.outfileSuffix,
-                    self.subtasks,
-                    self.configPath,
-                    self.outputContentType,
-                    self.outputHash,
-                ):
-                    self.logException("make task list from remote failed")
-
-            elif not makeTaskListFromLocal(self.inputPath):
-                self.logException("make task list from local failed")
-
-        elif self.batch is not None:
             fileglobs = [
                 "%s/pdbx_core_ids-*.txt" % self.listFileBase,
                 "%s/pdbx_comp_model_core_ids-*.txt" % self.listFileBase,
