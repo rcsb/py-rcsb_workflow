@@ -43,3 +43,6 @@ RUN apt-get update \
 WORKDIR /app
 COPY . /app/
 RUN pip install --no-cache-dir .
+RUN pip install git+https://github.com/rcsb/py-rcsb_utils_repository.git@dev-dwp-ihm
+RUN pip install git+https://github.com/rcsb/py-rcsb_utils_dictionary.git@pdb-ihm-2
+RUN pip install git+https://github.com/rcsb/py-rcsb_db.git@dev-dwp-ihm
