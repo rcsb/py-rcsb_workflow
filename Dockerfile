@@ -34,7 +34,7 @@ RUN mkdir -p /opt/modules/node_modules
 WORKDIR /opt/modules/node_modules
 RUN apt-get update \
     && apt-get upgrade -y \
-    && apt-get install --no-install-recommends -y nodejs=18.* npm=9.* \
+    && apt-get install --no-install-recommends -y nodejs=18.* npm=9.* git=2.* \
     && npm i molrender \
     && apt-get -yqq install --no-install-recommends libgl1-mesa-dev=* xvfb=* xauth=* \
     && rm -rf /var/lib/apt/lists/*
