@@ -16,13 +16,9 @@ __license__ = "Apache 2.0"
 import multiprocessing
 import os
 import shutil
-import glob
-import pathlib
 import tempfile
-import datetime
 import logging
 from typing import List
-import time
 import requests
 from mmcif.api.DictionaryApi import DictionaryApi
 from mmcif.io.IoAdapterPy import IoAdapterPy as IoAdapter
@@ -31,51 +27,15 @@ from rcsb.utils.io.MarshalUtil import MarshalUtil
 logger = logging.getLogger(__name__)
 
 
-def statusStart(listFileBase: str, statusStartFile: str) -> bool:
-    startFile = os.path.join(listFileBase, statusStartFile)
-    dirs = os.path.dirname(startFile)
-    if not os.path.exists(dirs):
-        os.makedirs(dirs, mode=0o777)
-    with open(startFile, "w", encoding="utf-8") as w:
-        w.write("Binary cif run started at %s." % str(datetime.datetime.now()))
-    return True
-
-
-def makeDirs(
-    listFileBase: str, updateBase: str, tempPath: str, outputContentType: bool
-) -> bool:
-    try:
-        if not os.path.exists(listFileBase):
-            os.mkdir(listFileBase)
-            os.chmod(listFileBase, 0o777)
-        if not os.path.exists(updateBase):
-            os.mkdir(updateBase)
-            os.chmod(updateBase, 0o777)
-        if not os.path.exists(tempPath):
-            os.mkdir(tempPath)
-            os.chmod(tempPath, 0o777)
-        if outputContentType:
-            for contentType in ["pdb", "csm"]:
-                path = os.path.join(updateBase, contentType)
-                if not os.path.exists(path):
-                    os.mkdir(path)
-                    os.chmod(path, 0o777)
-    except Exception as e:
-        logger.error(str(e))
-        return False
-    return True
-
-
 def localTaskMap(
-    filepath: str,
+    listFileBase: str,
+    listFileName: str,
     prereleaseFtpFileBasePath: str,
     csmFileRepoBasePath: str,
     structureFilePath: str,
-    listFileBase: str,
     tempPath: str,
     updateBase: str,
     outfileSuffix: str,
-    localInputsOrRemote: str,
     batch: int,
     maxFiles: int,
     pdbxDict: str,
@@ -86,6 +46,7 @@ def localTaskMap(
     maxTempFiles: int,
 ) -> bool:
     # read sublist
+    filepath = os.path.join(listFileBase, listFileName)
     files = []
     if not os.path.exists(filepath):
         raise FileNotFoundError("no input files")
@@ -98,8 +59,7 @@ def localTaskMap(
     f.close()
 
     if len(files) < 1:
-        logger.error("error - no files")
-        return False
+        raise ValueError("no files")
 
     # form dictionary object
     dictionaryApi = None
@@ -135,7 +95,6 @@ def localTaskMap(
         for line in files:
             args = (
                 line,
-                localInputsOrRemote,
                 remotePath,
                 structureFilePath,
                 updateBase,
@@ -156,7 +115,6 @@ def localTaskMap(
         for task in tasks:
             args = (
                 task,
-                localInputsOrRemote,
                 remotePath,
                 structureFilePath,
                 updateBase,
@@ -207,7 +165,6 @@ def splitList(nfiles: int, subtasks: int, tasklist: List[str]) -> List[List[str]
 
 def batchTask(
     tasks,
-    localInputsOrRemote,
     remotePath,
     structureFilePath,
     updateBase,
@@ -223,7 +180,6 @@ def batchTask(
     for task in tasks:
         singleTask(
             task,
-            localInputsOrRemote,
             remotePath,
             structureFilePath,
             updateBase,
@@ -240,7 +196,6 @@ def batchTask(
 
 def singleTask(
     pdbId,
-    localInputsOrRemote,
     remotePath,
     structureFilePath,
     updateBase,
@@ -258,7 +213,8 @@ def singleTask(
     download to cifFilePath
     form output path bcifFilePath
     """
-    if localInputsOrRemote == "local":
+    if not remotePath.startswith("http"):
+        # local files not yet implemented
         return
     else:
         # experimental models are stored with lower case file name and hash
@@ -340,7 +296,7 @@ def singleTask(
                 bcifFileName,
             )
     if os.path.exists(bcifFilePath):
-        if localInputsOrRemote == "local":
+        if not remotePath.startswith("http"):
             # assume local experiment - make no assumptions about file removal
             return
         # earlier timestamp ... overwrite
@@ -368,179 +324,12 @@ def singleTask(
         logger.exception(str(e))
     finally:
         # remove input file
-        if localInputsOrRemote == "remote":
+        if not remotePath.startswith("http"):
             os.unlink(cifFilePath)
         # remove temp files
         if counter[0] >= maxTempFiles:
-            removeTempFiles(tempPath=dtemp, listFileBase=None)
+            removeTempFiles(tempPath=dtemp)
             counter[0] = 0
-
-
-def validateOutput(
-    *,
-    listFileBase: str,
-    updateBase: str,
-    outfileSuffix: str,
-    missingFileBase: str,
-    missingFileName: str,
-    maxFiles: int,
-    outputContentType: bool,
-    outputHash: bool,
-) -> bool:
-    missing = []
-    for path in glob.glob(os.path.join(listFileBase, "*core_ids*.txt")):
-        count = 0
-        f = open(path, "r", encoding="utf-8")
-        for line in f:
-            count += 1
-            if count > maxFiles:
-                break
-            pdbId = line.strip()
-            # list files have upper case for all model types
-            # experimental models stored with lower case file name and hash
-            if path.find("comp_model") < 0:
-                pdbId = line.strip().lower()
-            contentType = "pdb"
-            dividedPath = pdbId[-3:-1]
-            # csms stored with upper case file name and hash
-            if path.find("comp_model") >= 0:
-                contentType = "csm"
-                dividedPath = os.path.join(pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2])
-            if outputContentType and outputHash:
-                out = os.path.join(
-                    updateBase,
-                    contentType,
-                    dividedPath,
-                    "%s%s" % (pdbId, outfileSuffix),
-                )
-            elif outputContentType:
-                out = os.path.join(
-                    updateBase, contentType, "%s%s" % (pdbId, outfileSuffix)
-                )
-            elif outputContentType and outputHash:
-                out = os.path.join(
-                    updateBase, dividedPath, "%s%s" % (pdbId, outfileSuffix)
-                )
-            else:
-                out = os.path.join(updateBase, "%s%s" % (pdbId, outfileSuffix))
-            if not os.path.exists(out):
-                missing.append(out)
-        f.close()
-    if len(missing) > 0:
-        missingFile = os.path.join(missingFileBase, missingFileName)
-        with open(missingFile, "w", encoding="utf-8") as w:
-            for line in missing:
-                w.write(line)
-                w.write("\n")
-    return True
-
-
-def removeRetractedEntries(
-    *,
-    listFileBase: str,
-    updateBase: str,
-    missingFileBase: str,
-    removedFileName: str,
-    outputContentType: bool,
-    outputHash: bool,
-) -> bool:
-    t = time.time()
-    # list of upper case ids
-    infiles = []
-    for filepath in glob.glob(os.path.join(listFileBase, "*core_ids*.txt")):
-        """uncomment to test
-        if filepath.find("comp_model") >= 0:
-            os.unlink(filepath)
-            continue
-        """
-        with open(filepath, "r", encoding="utf-8") as r:
-            infiles.extend(r.read().split("\n"))
-    infiles = [file for file in infiles if file != ""]
-    inkeys = set(infiles)
-    # {id : file path}
-    # normalize id to upper case
-    outfiles = {
-        os.path.basename(path)
-        .replace(".bcif.gz", "")
-        .replace(".bcif", "")
-        .upper() : str(path)
-        for path in pathlib.Path(updateBase).rglob("*.bcif*")
-    }
-    outkeys = set(outfiles.keys())
-    # keys from outfiles that are not in infiles
-    obsoleted = outkeys.difference(inkeys)
-    # paths for those keys
-    filepaths = [outfiles[key] for key in obsoleted if key in outfiles]
-    removed = []
-    for filepath in filepaths:
-        try:
-            os.unlink(filepath)
-            removed.append(filepath)
-            logger.info("removed %s", filepath)
-        except Exception as e:
-            logger.error(str(e))
-    if len(removed) > 0:
-        removedFile = os.path.join(missingFileBase, removedFileName)
-        with open(removedFile, "w", encoding="utf-8") as w:
-            for line in removed:
-                w.write(line)
-                w.write("\n")
-    logger.info("removed retracted entries in %.2f s", time.time() - t)
-    return True
-
-
-def removeTempFiles(tempPath: str, listFileBase: str) -> bool:
-    try:
-        # periodically
-        if tempPath and os.path.exists(tempPath) and os.path.isdir(tempPath):
-            for filename in os.listdir(tempPath):
-                path = os.path.join(tempPath, filename)
-                if os.path.isfile(path):
-                    os.unlink(path)
-        # once at application close
-        if (
-            listFileBase
-            and os.path.exists(listFileBase)
-            and os.path.isdir(listFileBase)
-        ):
-            for filename in os.listdir(listFileBase):
-                path = os.path.join(listFileBase, filename)
-                if os.path.isfile(path):
-                    os.unlink(path)
-            for path in glob.glob("/tmp/config-util*-cache"):
-                try:
-                    shutil.rmtree(path)
-                except Exception as e:
-                    logger.error(str(e))
-    except Exception as e:
-        logger.warning(str(e))
-    return True
-
-
-def tasksDone() -> bool:
-    logger.info("task maps completed")
-    return True
-
-
-def k8sBranch() -> bool:
-    logger.info("using k8s tasks")
-    return True
-
-
-def statusComplete(listFileBase: str, statusCompleteFile: str) -> bool:
-    """
-    must occur after end_task
-    """
-    completeFile = os.path.join(listFileBase, statusCompleteFile)
-    dirs = os.path.dirname(completeFile)
-    if not os.path.exists(dirs):
-        os.makedirs(dirs, mode=0o777)
-    with open(completeFile, "w", encoding="utf-8") as w:
-        w.write(
-            "Binary cif run completed successfully at %s."
-            % str(datetime.datetime.now())
-        )
-    return True
 
 
 def convert(
@@ -553,8 +342,7 @@ def convert(
         if not result:
             raise Exception()
     except Exception as e:
-        logger.exception("error during bcif conversion: %s", str(e))
-        return False
+        raise Exception("error during bcif conversion: %s", str(e))
     return True
 
 
@@ -568,6 +356,17 @@ def deconvert(
         if not result:
             raise Exception()
     except Exception as e:
-        logger.exception("error during bcif conversion: %s", str(e))
-        return False
+        raise Exception("error during bcif conversion: %s", str(e))
+    return True
+
+
+def removeTempFiles(tempPath: str) -> bool:
+    try:
+        if tempPath and os.path.exists(tempPath) and os.path.isdir(tempPath):
+            for filename in os.listdir(tempPath):
+                path = os.path.join(tempPath, filename)
+                if os.path.isfile(path):
+                    os.unlink(path)
+    except Exception as e:
+        logging.warning(str(e))
     return True
