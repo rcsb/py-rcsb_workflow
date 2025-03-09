@@ -20,6 +20,11 @@ import logging
 from rcsb.workflow.bcif.task_functions import localTaskMap
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+formatter = logging.Formatter(fmt="%(asctime)s @%(process)s [%(levelname)s]-%(module)s: %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
 class BcifWorkflow:

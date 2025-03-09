@@ -24,7 +24,7 @@ import datetime
 import time
 import logging
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
 
 
 def statusStart(listFileBase: str) -> bool:
@@ -285,7 +285,7 @@ def removeFiles(tempPath: str, listFileBase: str) -> bool:
                 path = os.path.join(listFileBase, filename)
                 if os.path.isfile(path):
                     os.unlink(path)
-            for path in glob.glob("/tmp/config-util*-cache"):
+            for path in glob.glob("/tmp/config-util*"):
                 try:
                     shutil.rmtree(path)
                 except Exception as e:
@@ -350,6 +350,10 @@ class TestBcif(unittest.TestCase):
         self.incrementalUpdate = True
         self.configPath = os.path.join(os.path.dirname(__file__), "bcifConfig.yml")
         #
+        nsplits = self.numSublistFiles
+        if self.numSublistFiles == 0:
+            nsplits = multiprocessing.cpu_count()
+        self.nresults = self.nfiles * 2 * nsplits
         logging.info("making temp dir %s", self.outputPath)
         logging.info("making temp dir %s", self.listFileBase)
 
@@ -455,7 +459,7 @@ class TestBcif(unittest.TestCase):
             "removed obsoleted entries, if any, were written to %s", removedFile
         )
 
-        self.assertTrue(len(os.listdir(self.outputPath)) == self.nfiles * 2)
+        self.assertTrue(len(os.listdir(self.outputPath)) == self.nresults)
 
         logging.info("bcif file conversion complete")
 

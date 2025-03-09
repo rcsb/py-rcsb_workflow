@@ -25,6 +25,11 @@ from mmcif.io.IoAdapterPy import IoAdapterPy as IoAdapter
 from rcsb.utils.io.MarshalUtil import MarshalUtil
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+formatter = logging.Formatter(fmt="%(asctime)s @%(process)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
 def localTaskMap(
@@ -148,7 +153,7 @@ def splitList(nfiles: int, subtasks: int, tasklist: List[str]) -> List[List[str]
         step = 1
     steps = nfiles // step
     logger.info(
-        "split list has %d files and %d steps with step %d", nfiles, steps, step
+        "splitting %d files into %d steps with step %d", nfiles, steps, step
     )
     if not isinstance(tasklist[0], str):
         tasklist = [str(task) for task in tasklist]
@@ -177,6 +182,7 @@ def batchTask(
     dtemp,
     maxTempFiles,
 ):
+    logger.info("processing %d tasks", len(tasks))
     for task in tasks:
         singleTask(
             task,
@@ -368,5 +374,5 @@ def removeTempFiles(tempPath: str) -> bool:
                 if os.path.isfile(path):
                     os.unlink(path)
     except Exception as e:
-        logging.warning(str(e))
+        logger.warning(str(e))
     return True
