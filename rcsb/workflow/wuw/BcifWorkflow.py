@@ -43,7 +43,6 @@ class BcifWorkflow:
         self.tempPath = tempfile.mkdtemp()
         self.listFileBase = args.listFileBase
         self.listFileName = args.listFileName
-        self.missingFileBase = args.missingFileBase
         # config
         self.pdbxDict = args.pdbxDict
         self.maDict = args.maDict
@@ -81,9 +80,3 @@ class BcifWorkflow:
         if os.path.exists(self.tempPath) and os.path.isdir(self.tempPath):
             shutil.rmtree(self.tempPath)
 
-        missingFile = os.path.join(self.missingFileBase)
-        removedFile = os.path.join(self.missingFileBase)
-        self.report("missing files, if any, were written to %s" % missingFile)
-        self.report(
-            "removed obsoleted entries, if any, were written to %s" % removedFile
-        )

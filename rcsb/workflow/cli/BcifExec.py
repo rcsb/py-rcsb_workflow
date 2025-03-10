@@ -89,7 +89,6 @@ def main():
         required=True,
         help="name of list file to read",
     )
-    parser.add_argument("--missingFileBase", default="/home/ubuntu", required=False)
     # config
     parser.add_argument(
         "--pdbxDict",

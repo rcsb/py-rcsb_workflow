@@ -88,6 +88,7 @@ def localTaskMap(
         batch = multiprocessing.cpu_count()
     logger.info("distributing %d files across %d sublists", len(files), batch)
 
+    # for local files, write entire file path into prereleaseFtpFileBasepath or csmFileRepoBasePath
     contentType = "pdb"
     remotePath = prereleaseFtpFileBasePath
     if filepath.find("pdbx_comp_model_") >= 0:
@@ -222,8 +223,12 @@ def singleTask(
     form output path bcifFilePath
     """
     if not remotePath.startswith("http"):
-        # local files not yet implemented
-        return
+        # local file
+        if not os.path.exists(remotePath) and os.path.isfile(remotePath):
+            logger.error("%s not found", remotePath)
+            return
+        cifFilePath = os.path.join(tempPath, os.path.basename(remotePath))
+        shutil.copy(remotePath, cifFilePath)
     else:
         # experimental models are stored with lower case file name and hash
         if contentType == "pdb":
@@ -311,16 +316,17 @@ def singleTask(
                 bcifFileName,
             )
     if os.path.exists(bcifFilePath):
-        if not remotePath.startswith("http"):
-            # assume local experiment - make no assumptions about file removal
-            return
-        # earlier timestamp ... overwrite
-        try:
-            os.unlink(bcifFilePath)
-            if os.path.exists(bcifFilePath):
-                raise Exception("file %s not removed" % bcifFilePath)
-        except Exception as e:
-            logger.exception(str(e))
+        if remotePath.startswith("http"):
+            # earlier timestamp ... overwrite
+            try:
+                os.unlink(bcifFilePath)
+                if os.path.exists(bcifFilePath):
+                    raise Exception("file %s not removed" % bcifFilePath)
+            except Exception as e:
+                logger.exception(str(e))
+        else:
+            # local experiment
+            pass
     # make nested directories
     dirs = os.path.dirname(bcifFilePath)
     if not os.path.exists(dirs):
@@ -340,9 +346,6 @@ def singleTask(
     except Exception as e:
         logger.exception(str(e))
     finally:
-        # remove input file
-        if not remotePath.startswith("http"):
-            os.unlink(cifFilePath)
         # remove temp files
         if counter[0] >= maxTempFiles:
             removeTempFiles(tempPath=dtemp)
