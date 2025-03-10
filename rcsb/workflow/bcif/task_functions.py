@@ -20,6 +20,8 @@ import tempfile
 import logging
 from typing import List
 import requests
+import dateutil
+import time
 from mmcif.api.DictionaryApi import DictionaryApi
 from mmcif.io.IoAdapterPy import IoAdapterPy as IoAdapter
 from rcsb.utils.io.MarshalUtil import MarshalUtil
@@ -241,6 +243,11 @@ def singleTask(
         try:
             r = requests.get(url, timeout=300, stream=True)
             if r and r.status_code < 400:
+                try:
+                    lmt = dateutil.parser.parse(r.headers["last-modified"]).timestamp()
+                except KeyError as e:
+                    logger.error(str(e))
+                    lmt = None
                 dirs = os.path.dirname(cifFilePath)
                 if not os.path.exists(dirs):
                     os.makedirs(dirs, mode=0o777)
@@ -251,6 +258,8 @@ def singleTask(
                             w.write(chunk)
                 shutil.chown(cifFilePath, "root", "root")
                 os.chmod(cifFilePath, 0o777)
+                if lmt:
+                    os.utime(cifFilePath, (time.time(), lmt))
             else:
                 raise requests.exceptions.RequestException(
                     "error - request failed for %s" % url
@@ -325,6 +334,8 @@ def singleTask(
             raise Exception("failed to convert %s" % cifFilePath)
         shutil.chown(bcifFilePath, "root", "root")
         os.chmod(bcifFilePath, 0o777)
+        if lmt is not None:
+            os.utime(bcifFilePath, (time.time(), lmt))
         counter[0] += 1
     except Exception as e:
         logger.exception(str(e))
