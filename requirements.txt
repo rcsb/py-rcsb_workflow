@@ -7,3 +7,5 @@ rcsb.utils.seqalign >= 0.31
 rcsb.utils.io >= 1.48
 rcsb.exdb >= 1.28  # v1.28 is when circular dependency was removed
 rcsb.db >= 1.800
+requests
+mmcif

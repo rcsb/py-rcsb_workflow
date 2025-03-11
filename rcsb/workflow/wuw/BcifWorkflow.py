@@ -22,7 +22,9 @@ from rcsb.workflow.bcif.task_functions import localTaskMap
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
-formatter = logging.Formatter(fmt="%(asctime)s @%(process)s [%(levelname)s]-%(module)s: %(message)s")
+formatter = logging.Formatter(
+    fmt="%(asctime)s @%(process)s [%(levelname)s]-%(module)s: %(message)s"
+)
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
@@ -40,7 +42,6 @@ class BcifWorkflow:
         self.outputHash = bool(args.outputHash)
         # paths and files
         self.outputPath = args.outputPath
-        self.tempPath = tempfile.mkdtemp()
         self.listFileBase = args.listFileBase
         self.listFileName = args.listFileName
         # config
@@ -59,24 +60,19 @@ class BcifWorkflow:
     def __call__(self):
 
         localTaskMap(
-            self.listFileBase,
             self.listFileName,
+            self.listFileBase,
+            self.outputPath,
+            self.outfileSuffix,
+            self.outputContentType,
+            self.outputHash,
+            self.batch,
+            self.nfiles,
+            self.maxTempFiles,
             self.prereleaseFtpFileBasePath,
             self.csmFileRepoBasePath,
             self.structureFilePath,
-            self.tempPath,
-            self.outputPath,
-            self.outfileSuffix,
-            self.batch,
-            self.nfiles,
             self.pdbxDict,
             self.maDict,
             self.rcsbDict,
-            self.outputContentType,
-            self.outputHash,
-            self.maxTempFiles,
         )
-
-        if os.path.exists(self.tempPath) and os.path.isdir(self.tempPath):
-            shutil.rmtree(self.tempPath)
-

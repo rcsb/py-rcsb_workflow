@@ -21,7 +21,9 @@ from rcsb.workflow.wuw.BcifWorkflow import BcifWorkflow
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
-formatter = logging.Formatter(fmt="%(asctime)s @%(process)s [%(levelname)s]-%(module)s: %(message)s")
+formatter = logging.Formatter(
+    fmt="%(asctime)s @%(process)s [%(levelname)s]-%(module)s: %(message)s"
+)
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 

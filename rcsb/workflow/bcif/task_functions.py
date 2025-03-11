@@ -19,54 +19,78 @@ import shutil
 import tempfile
 import logging
 from typing import List
+import time
 import requests
 import dateutil
-import time
 from mmcif.api.DictionaryApi import DictionaryApi
 from mmcif.io.IoAdapterPy import IoAdapterPy as IoAdapter
 from rcsb.utils.io.MarshalUtil import MarshalUtil
 
+# pylint:disable=W0102
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
-formatter = logging.Formatter(fmt="%(asctime)s @%(process)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
+formatter = logging.Formatter(
+    fmt="%(asctime)s @%(process)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s"
+)
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
 def localTaskMap(
-    listFileBase: str,
     listFileName: str,
+    listFileBase: str,
+    updateBase: str,
+    outfileSuffix: str,
+    outputContentType: bool,
+    outputHash: bool,
+    batch: int,
+    maxFiles: int,
+    maxTempFiles: int,
     prereleaseFtpFileBasePath: str,
     csmFileRepoBasePath: str,
     structureFilePath: str,
-    tempPath: str,
-    updateBase: str,
-    outfileSuffix: str,
-    batch: int,
-    maxFiles: int,
     pdbxDict: str,
     maDict: str,
     rcsbDict: str,
-    outputContentType: bool,
-    outputHash: bool,
-    maxTempFiles: int,
 ) -> bool:
+    """runs once per list file"""
+
+    # path for cif file downloads with known file names (removed on conversion)
+    tempPath = tempfile.mkdtemp()
+    # paths for randomly-named temp files (bulk removal periodically)
+    dtemps = []
+
     # read sublist
     filepath = os.path.join(listFileBase, listFileName)
     files = []
     if not os.path.exists(filepath):
         raise FileNotFoundError("no input files")
-
     f = open(filepath, "r", encoding="utf-8")
     for line in f:
         files.append(line.strip())
         if 0 < maxFiles <= len(files):
             break
     f.close()
-
     if len(files) < 1:
         raise ValueError("no files")
+
+    # select remote path
+    # for local files, write entire file path into prereleaseFtpFileBasepath or csmFileRepoBasePath
+    contentType = "pdb"
+    remotePath = prereleaseFtpFileBasePath
+    if filepath.find("pdbx_comp_model_") >= 0:
+        contentType = "csm"
+        remotePath = csmFileRepoBasePath
+
+    # determine batch size
+    if (batch is None) or not str(batch).isdigit():
+        batch = 1
+    batch = int(batch)
+    if batch == 0:
+        batch = multiprocessing.cpu_count()
+    logger.info("distributing %d files across %d sublists", len(files), batch)
 
     # form dictionary object
     dictionaryApi = None
@@ -78,27 +102,13 @@ def localTaskMap(
             containers += adapter.readFile(inputFilePath=path)
         dictionaryApi = DictionaryApi(containerList=containers, consolidate=True)
     except Exception as e:
-        logger.exception("failed to create dictionary api: %s", str(e))
+        raise FileNotFoundError("failed to create dictionary api: %s" % str(e))
 
     # traverse sublist and send each input file to converter
-    if (batch is None) or not str(batch).isdigit():
-        batch = 1
-    batch = int(batch)
-    if batch == 0:
-        batch = multiprocessing.cpu_count()
-    logger.info("distributing %d files across %d sublists", len(files), batch)
-
-    # for local files, write entire file path into prereleaseFtpFileBasepath or csmFileRepoBasePath
-    contentType = "pdb"
-    remotePath = prereleaseFtpFileBasePath
-    if filepath.find("pdbx_comp_model_") >= 0:
-        contentType = "csm"
-        remotePath = csmFileRepoBasePath
-
-    dtemp = tempfile.mkdtemp(dir=tempPath)
-
     procs = []
     if batch == 1:
+        dtemp = tempfile.mkdtemp(dir=tempPath)
+        dtemps.append(dtemp)
         # process one file at a time
         for line in files:
             args = (
@@ -107,11 +117,11 @@ def localTaskMap(
                 structureFilePath,
                 updateBase,
                 outfileSuffix,
-                tempPath,
-                dictionaryApi,
                 contentType,
                 outputContentType,
                 outputHash,
+                dictionaryApi,
+                tempPath,
                 dtemp,
                 maxTempFiles,
             )
@@ -121,17 +131,19 @@ def localTaskMap(
         nfiles = len(files)
         tasks = splitList(nfiles, batch, files)
         for task in tasks:
+            dtemp = tempfile.mkdtemp(dir=tempPath)
+            dtemps.append(dtemp)
             args = (
                 task,
                 remotePath,
                 structureFilePath,
                 updateBase,
                 outfileSuffix,
-                tempPath,
-                dictionaryApi,
                 contentType,
                 outputContentType,
                 outputHash,
+                dictionaryApi,
+                tempPath,
                 dtemp,
                 maxTempFiles,
             )
@@ -143,7 +155,10 @@ def localTaskMap(
         procs.clear()
 
     try:
-        shutil.rmtree(dtemp)
+        for dtemp in dtemps:
+            if os.path.exists(dtemp):
+                shutil.rmtree(dtemp)
+        shutil.rmtree(tempPath)
     except Exception as e:
         logger.error(str(e))
 
@@ -155,9 +170,7 @@ def splitList(nfiles: int, subtasks: int, tasklist: List[str]) -> List[List[str]
     if step < 1:
         step = 1
     steps = nfiles // step
-    logger.info(
-        "splitting %d files into %d steps with step %d", nfiles, steps, step
-    )
+    logger.info("splitting %d files into %d steps with step %d", nfiles, steps, step)
     if not isinstance(tasklist[0], str):
         tasklist = [str(task) for task in tasklist]
     tasks = [
@@ -177,11 +190,11 @@ def batchTask(
     structureFilePath,
     updateBase,
     outfileSuffix,
-    tempPath,
-    dictionaryApi,
     contentType,
     outputContentType,
     outputHash,
+    dictionaryApi,
+    tempPath,
     dtemp,
     maxTempFiles,
 ):
@@ -193,11 +206,11 @@ def batchTask(
             structureFilePath,
             updateBase,
             outfileSuffix,
-            tempPath,
-            dictionaryApi,
             contentType,
             outputContentType,
             outputHash,
+            dictionaryApi,
+            tempPath,
             dtemp,
             maxTempFiles,
         )
@@ -209,22 +222,19 @@ def singleTask(
     structureFilePath,
     updateBase,
     outfileSuffix,
-    tempPath,
-    dictionaryApi,
     contentType,
     outputContentType,
     outputHash,
+    dictionaryApi,
+    tempPath,
     dtemp,
     maxTempFiles,
     counter=[0],
 ):
-    """
-    download to cifFilePath
-    form output path bcifFilePath
-    """
+    # copy or download to cifFilePath
     if not remotePath.startswith("http"):
         # local file
-        if not os.path.exists(remotePath) and os.path.isfile(remotePath):
+        if not os.path.exists(remotePath):
             logger.error("%s not found", remotePath)
             return
         cifFilePath = os.path.join(tempPath, os.path.basename(remotePath))
@@ -274,7 +284,56 @@ def singleTask(
             if os.path.exists(cifFilePath):
                 os.unlink(cifFilePath)
             return
+
+    # form output path bcifFilePath
+    bcifFilePath = getBcifFilePath(
+        pdbId, outfileSuffix, updateBase, contentType, outputContentType, outputHash
+    )
+    if not bcifFilePath:
+        raise ValueError("failed to form bcif file path")
+    if os.path.exists(bcifFilePath):
+        # earlier timestamp ... overwrite
+        try:
+            os.unlink(bcifFilePath)
+            if os.path.exists(bcifFilePath):
+                raise Exception("file %s not removed" % bcifFilePath)
+        except Exception as e:
+            logger.exception(str(e))
+
+    # make nested directories
+    dirs = os.path.dirname(bcifFilePath)
+    if not os.path.exists(dirs):
+        os.makedirs(dirs)
+        shutil.chown(dirs, "root", "root")
+        os.chmod(dirs, 0o777)
+
+    # convert to bcif
+    try:
+        result = convert(cifFilePath, bcifFilePath, dtemp, dictionaryApi)
+        if not result:
+            raise Exception("failed to convert %s" % cifFilePath)
+        shutil.chown(bcifFilePath, "root", "root")
+        os.chmod(bcifFilePath, 0o777)
+        if lmt is not None:
+            os.utime(bcifFilePath, (time.time(), lmt))
+        counter[0] += 1
+    except Exception as e:
+        logger.exception(str(e))
+    finally:
+        # remove cif file
+        if remotePath.startswith("http") and os.path.exists(cifFilePath):
+            os.unlink(cifFilePath)
+        # remove temp files
+        if counter[0] >= maxTempFiles:
+            removeTempFiles(tempPath=dtemp)
+            counter[0] = 0
+
+
+def getBcifFilePath(
+    pdbId, outfileSuffix, updateBase, contentType, outputContentType, outputHash
+):
     bcifFileName = "%s%s" % (pdbId, outfileSuffix)
+    bcifFilePath = None
     if contentType == "pdb":
         if outputContentType and outputHash:
             bcifFilePath = os.path.join(
@@ -315,41 +374,7 @@ def singleTask(
                 updateBase,
                 bcifFileName,
             )
-    if os.path.exists(bcifFilePath):
-        if remotePath.startswith("http"):
-            # earlier timestamp ... overwrite
-            try:
-                os.unlink(bcifFilePath)
-                if os.path.exists(bcifFilePath):
-                    raise Exception("file %s not removed" % bcifFilePath)
-            except Exception as e:
-                logger.exception(str(e))
-        else:
-            # local experiment
-            pass
-    # make nested directories
-    dirs = os.path.dirname(bcifFilePath)
-    if not os.path.exists(dirs):
-        os.makedirs(dirs, mode=0o777)
-        shutil.chown(dirs, "root", "root")
-        os.chmod(dirs, 0o777)
-    # convert to bcif
-    try:
-        result = convert(cifFilePath, bcifFilePath, dtemp, dictionaryApi)
-        if not result:
-            raise Exception("failed to convert %s" % cifFilePath)
-        shutil.chown(bcifFilePath, "root", "root")
-        os.chmod(bcifFilePath, 0o777)
-        if lmt is not None:
-            os.utime(bcifFilePath, (time.time(), lmt))
-        counter[0] += 1
-    except Exception as e:
-        logger.exception(str(e))
-    finally:
-        # remove temp files
-        if counter[0] >= maxTempFiles:
-            removeTempFiles(tempPath=dtemp)
-            counter[0] = 0
+    return bcifFilePath
 
 
 def convert(
@@ -362,7 +387,7 @@ def convert(
         if not result:
             raise Exception()
     except Exception as e:
-        raise Exception("error during bcif conversion: %s", str(e))
+        raise Exception("error during bcif conversion: %s" % str(e))
     return True
 
 
@@ -376,7 +401,7 @@ def deconvert(
         if not result:
             raise Exception()
     except Exception as e:
-        raise Exception("error during bcif conversion: %s", str(e))
+        raise Exception("error during bcif conversion: %s" % str(e))
     return True
 
 
