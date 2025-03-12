@@ -9,6 +9,8 @@
 #   5-May-2023 Pass in fromDbPharos and reloadPharos parameters to exportFasta()
 #  12-Jun-2023 dwp Set useTaxonomy filter to False for CARD annotations
 #  10-Dec-2024 dwp Specify 'max-seqs' for mmseqs search to override default value
+#  13-Feb-2025 dwp Remove IMGT from feature building after service became unavailable February 2025
+#  19-Feb-2025 dwp Bring back IMGT
 ##
 """
 Execution workflow for protein target data ETL operations.

@@ -18,6 +18,8 @@
 #  20-Aug-2024 dwp Add step for loading target cofactor data to MongoDB
 #  27-Aug-2024 dwp Update usage of CARDTargetOntologyProvider
 #  10-Dec-2024 dwp Add support for 'max-seqs' flag in mmseqs search
+#  13-Feb-2025 dwp Remove IMGT from feature building after service became unavailable February 2025
+#  19-Feb-2025 dwp Bring back IMGT
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
