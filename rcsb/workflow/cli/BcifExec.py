@@ -74,12 +74,6 @@ def main():
     )
     # paths
     parser.add_argument(
-        "--outputPath",
-        default="/mnt/vdb1/out",
-        required=True,
-        help="output directory for bcif files",
-    )
-    parser.add_argument(
         "--listFileBase",
         default="/tmp",
         required=False,
@@ -90,6 +84,18 @@ def main():
         default="pdbx_core_ids-1.txt",
         required=True,
         help="name of list file to read",
+    )
+    parser.add_argument(
+        "--remotePath",
+        default="http://prereleaseftp-external-east.rcsb.org/pdb/data/structures/divided/mmCIF/",
+        required=True,
+        help="url or directory for cif files",
+    )
+    parser.add_argument(
+        "--outputPath",
+        default="/mnt/vdb1/out",
+        required=True,
+        help="output directory for bcif files",
     )
     # config
     parser.add_argument(
@@ -106,31 +112,6 @@ def main():
         "--rcsbDict",
         default="https://raw.githubusercontent.com/rcsb/py-rcsb_exdb_assets/master/dictionary_files/dist/rcsb_mmcif_ext.dic",
         required=False,
-    )
-    # from sandbox_config.py/MasterConfig
-    parser.add_argument(
-        "--prereleaseFtpFileBasePath",
-        default="http://prereleaseftp-external-east.rcsb.org/pdb",
-        required=False,
-    )
-    parser.add_argument(
-        "--pdbIdsTimestampFilePath",
-        default="holdings/released_structures_last_modified_dates.json.gz",
-        required=False,
-    )
-    parser.add_argument(
-        "--csmFileRepoBasePath",
-        default="http://computed-models-external-east.rcsb.org/staging",
-        required=False,
-    )
-    parser.add_argument(
-        "--compModelFileHoldingsList",
-        default="holdings/computed-models-holdings-list.json",
-        required=False,
-        help="list file rather than holdings file itself",
-    )
-    parser.add_argument(
-        "--structureFilePath", default="data/structures/divided/mmCIF/", required=False
     )
 
     args = parser.parse_args()

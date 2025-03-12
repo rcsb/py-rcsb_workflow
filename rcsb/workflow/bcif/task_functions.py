@@ -19,9 +19,7 @@ import shutil
 import tempfile
 import logging
 from typing import List
-import time
 import requests
-import dateutil
 from mmcif.api.DictionaryApi import DictionaryApi
 from mmcif.io.IoAdapterPy import IoAdapterPy as IoAdapter
 from rcsb.utils.io.MarshalUtil import MarshalUtil
@@ -38,7 +36,7 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
-def localTaskMap(
+def convertPrereleaseCifFiles(
     listFileName: str,
     listFileBase: str,
     updateBase: str,
@@ -48,9 +46,7 @@ def localTaskMap(
     batch: int,
     maxFiles: int,
     maxTempFiles: int,
-    prereleaseFtpFileBasePath: str,
-    csmFileRepoBasePath: str,
-    structureFilePath: str,
+    remotePath: str,
     pdbxDict: str,
     maDict: str,
     rcsbDict: str,
@@ -76,13 +72,10 @@ def localTaskMap(
     if len(files) < 1:
         raise ValueError("no files")
 
-    # select remote path
-    # for local files, write entire file path into prereleaseFtpFileBasepath or csmFileRepoBasePath
+    # set content type
     contentType = "pdb"
-    remotePath = prereleaseFtpFileBasePath
     if filepath.find("pdbx_comp_model_") >= 0:
         contentType = "csm"
-        remotePath = csmFileRepoBasePath
 
     # determine batch size
     if (batch is None) or not str(batch).isdigit():
@@ -114,7 +107,6 @@ def localTaskMap(
             args = (
                 line,
                 remotePath,
-                structureFilePath,
                 updateBase,
                 outfileSuffix,
                 contentType,
@@ -136,7 +128,6 @@ def localTaskMap(
             args = (
                 task,
                 remotePath,
-                structureFilePath,
                 updateBase,
                 outfileSuffix,
                 contentType,
@@ -187,7 +178,6 @@ def splitList(nfiles: int, subtasks: int, tasklist: List[str]) -> List[List[str]
 def batchTask(
     tasks,
     remotePath,
-    structureFilePath,
     updateBase,
     outfileSuffix,
     contentType,
@@ -203,7 +193,6 @@ def batchTask(
         singleTask(
             task,
             remotePath,
-            structureFilePath,
             updateBase,
             outfileSuffix,
             contentType,
@@ -219,7 +208,6 @@ def batchTask(
 def singleTask(
     pdbId,
     remotePath,
-    structureFilePath,
     updateBase,
     outfileSuffix,
     contentType,
@@ -231,26 +219,28 @@ def singleTask(
     maxTempFiles,
     counter=[0],
 ):
+    if contentType == "pdb":
+        pdbId = pdbId.lower()
+    elif contentType == "csm":
+        pdbId = pdbId.upper()
+    remoteFileName = "%s%s" % (
+        pdbId,
+        outfileSuffix.replace(".bcif.gz", ".cif.gz").replace(".bcif", ".cif"),
+    )
     # copy or download to cifFilePath
     if not remotePath.startswith("http"):
         # local file
-        if not os.path.exists(remotePath):
-            logger.error("%s not found", remotePath)
+        localFilePath = os.path.join(remotePath, remoteFileName)
+        if not os.path.exists(localFilePath):
+            logger.error("%s not found", localFilePath)
             return
-        cifFilePath = os.path.join(tempPath, os.path.basename(remotePath))
-        shutil.copy(remotePath, cifFilePath)
+        cifFilePath = os.path.join(tempPath, remoteFileName)
+        shutil.copy(localFilePath, cifFilePath)
     else:
-        # experimental models are stored with lower case file name and hash
         if contentType == "pdb":
-            pdbId = pdbId.lower()
-            remoteFileName = "%s.cif.gz" % pdbId
-            url = os.path.join(
-                remotePath, structureFilePath, pdbId[-3:-1], remoteFileName
-            )
+            url = os.path.join(remotePath, pdbId[-3:-1], remoteFileName)
             cifFilePath = os.path.join(tempPath, remoteFileName)
-        # computed structure models are stored with upper case file name and hash
         elif contentType == "csm":
-            remoteFileName = "%s.cif.gz" % pdbId
             url = os.path.join(
                 remotePath, pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2], remoteFileName
             )
@@ -258,11 +248,6 @@ def singleTask(
         try:
             r = requests.get(url, timeout=300, stream=True)
             if r and r.status_code < 400:
-                try:
-                    lmt = dateutil.parser.parse(r.headers["last-modified"]).timestamp()
-                except KeyError as e:
-                    logger.error(str(e))
-                    lmt = None
                 dirs = os.path.dirname(cifFilePath)
                 if not os.path.exists(dirs):
                     os.makedirs(dirs, mode=0o777)
@@ -273,8 +258,6 @@ def singleTask(
                             w.write(chunk)
                 shutil.chown(cifFilePath, "root", "root")
                 os.chmod(cifFilePath, 0o777)
-                if lmt:
-                    os.utime(cifFilePath, (time.time(), lmt))
             else:
                 raise requests.exceptions.RequestException(
                     "error - request failed for %s" % url
@@ -314,8 +297,6 @@ def singleTask(
             raise Exception("failed to convert %s" % cifFilePath)
         shutil.chown(bcifFilePath, "root", "root")
         os.chmod(bcifFilePath, 0o777)
-        if lmt is not None:
-            os.utime(bcifFilePath, (time.time(), lmt))
         counter[0] += 1
     except Exception as e:
         logger.exception(str(e))

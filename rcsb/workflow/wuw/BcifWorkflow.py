@@ -13,11 +13,8 @@ __author__ = "James Smith"
 __email__ = "james.smith@rcsb.org"
 __license__ = "Apache 2.0"
 
-import os
-import shutil
-import tempfile
 import logging
-from rcsb.workflow.bcif.task_functions import localTaskMap
+from rcsb.workflow.bcif.task_functions import convertPrereleaseCifFiles
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -41,25 +38,26 @@ class BcifWorkflow:
         self.outputContentType = bool(args.outputContentType)
         self.outputHash = bool(args.outputHash)
         # paths and files
-        self.outputPath = args.outputPath
         self.listFileBase = args.listFileBase
         self.listFileName = args.listFileName
+        self.remotePath = args.remotePath
+        self.outputPath = args.outputPath
         # config
         self.pdbxDict = args.pdbxDict
         self.maDict = args.maDict
         self.rcsbDict = args.rcsbDict
-        self.prereleaseFtpFileBasePath = args.prereleaseFtpFileBasePath
-        self.pdbIdsTimestampFilePath = args.pdbIdsTimestampFilePath
-        self.csmFileRepoBasePath = args.csmFileRepoBasePath
-        self.compModelFileHoldingsList = args.compModelFileHoldingsList
-        self.structureFilePath = args.structureFilePath
+        #
+        self.validate()
 
-    def report(self, msg):
-        logger.info(msg)
+    # public method required by pylint
+    def validate(self):
+        assert (
+            self.outfileSuffix == ".bcif" or self.outfileSuffix == ".bcif.gz"
+        ), "error - require either .bcif or .bcif.gz output file"
 
     def __call__(self):
 
-        localTaskMap(
+        convertPrereleaseCifFiles(
             self.listFileName,
             self.listFileBase,
             self.outputPath,
@@ -69,9 +67,7 @@ class BcifWorkflow:
             self.batch,
             self.nfiles,
             self.maxTempFiles,
-            self.prereleaseFtpFileBasePath,
-            self.csmFileRepoBasePath,
-            self.structureFilePath,
+            self.remotePath,
             self.pdbxDict,
             self.maDict,
             self.rcsbDict,

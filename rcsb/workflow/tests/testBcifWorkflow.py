@@ -17,6 +17,7 @@ import os
 import shutil
 import multiprocessing
 import glob
+import gzip
 import tempfile
 import unittest
 from typing import List
@@ -83,6 +84,8 @@ def writeLists(lists, contentType, outfileDir):
 
 def distributeComputation(
     listFileBase,
+    pdbLocalPath,
+    csmLocalPath,
     outputPath,
     outfileSuffix,
     outputContentType,
@@ -103,9 +106,13 @@ def distributeComputation(
                 logging.warning("could not read from %s", path)
                 continue
             listFileName = os.path.basename(path)
+            remotePath = pdbLocalPath
+            if listFileName.startswith("pdbx_comp_model"):
+                remotePath = csmLocalPath
             params = (
                 listFileBase,
                 listFileName,
+                remotePath,
                 outputPath,
                 outfileSuffix,
                 outputContentType,
@@ -126,6 +133,7 @@ def distributeComputation(
 def computeBcif(
     listFileBase,
     listFileName,
+    remotePath,
     outputPath,
     outfileSuffix,
     outputContentType,
@@ -140,7 +148,7 @@ def computeBcif(
         outContentType = "--outputContentType"
     if outputHash:
         outHash = "--outputHash"
-    cmd = f"python3 -m rcsb.workflow.cli.BcifExec --batch {batch} --nfiles {nfiles} --maxTempFiles {maxTempFiles} --listFileBase {listFileBase} --listFileName {listFileName} --outputPath {outputPath} --outfileSuffix {outfileSuffix} {outContentType} {outHash}"
+    cmd = f"python3 -m rcsb.workflow.cli.BcifExec --batch {batch} --nfiles {nfiles} --maxTempFiles {maxTempFiles} --listFileBase {listFileBase} --listFileName {listFileName} --remotePath {remotePath} --outputPath {outputPath} --outfileSuffix {outfileSuffix} {outContentType} {outHash}"
     status = os.system(cmd)
     if status == 0:
         return True
@@ -174,23 +182,30 @@ class TestBcif(unittest.TestCase):
         self.outputPath = tempfile.mkdtemp()
         self.listFileBase = tempfile.mkdtemp()
         # local
-        self.prereleaseFtpFileBasePath = os.path.abspath(
+        self.pdbLocalPath = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "test-data", "bcif", "pdb")
         )
-        self.csmFileRepoBasePath = os.path.abspath(
+        self.csmLocalPath = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "test-data", "bcif", "csm")
         )
+        # remote (from sandbox_config.py/MasterConfig)
+        self.pdbRemotePath = "http://prereleaseftp-external-east.rcsb.org/pdb/data/structures/divided/mmCIF/"
+        self.csmRemotePath = "http://computed-models-external-east.rcsb.org/staging"
+        self.pdbIdsTimestampFilePath = (
+            "holdings/released_structures_last_modified_dates.json.gz"
+        )
+        self.compModelFileHoldingsList = "holdings/computed-models-holdings-list.json"
         # settings
         self.batch = 0
         self.nlists = 2
-        self.nfiles = len(os.listdir(self.prereleaseFtpFileBasePath))
+        self.nfiles = len(os.listdir(self.pdbLocalPath))
         self.maxTempFiles = self.nfiles
         self.outfileSuffix = ".bcif.gz"
         self.outputContentType = False
         self.outputHash = False
         #
-        self.nresults = len(os.listdir(self.prereleaseFtpFileBasePath)) + len(
-            os.listdir(self.csmFileRepoBasePath)
+        self.nresults = len(os.listdir(self.pdbLocalPath)) + len(
+            os.listdir(self.csmLocalPath)
         )
         #
         logging.info("making temp dir %s", self.outputPath)
@@ -202,80 +217,332 @@ class TestBcif(unittest.TestCase):
         if os.path.exists(self.outputPath):
             shutil.rmtree(self.outputPath)
 
-    def test_splitlist_workflow(self):
+    def test_local_workflow(self):
         t = time.time()
 
-        self.batch = 1
-        self.nlists = 4
+        batch = 1
+        outfileSuffix = ".bcif.gz"
 
         pdblist = getList(
-            self.prereleaseFtpFileBasePath,
+            self.pdbLocalPath,
             os.path.join(self.listFileBase, "pdbx_core_ids-1.txt"),
         )
         csmlist = getList(
-            self.csmFileRepoBasePath,
+            self.csmLocalPath,
             os.path.join(self.listFileBase, "pdbx_comp_model_core_ids-1.txt"),
         )
 
-        pdblists = splitList(self.nfiles, self.nlists, pdblist)
-        writeLists(pdblists, "pdb", self.listFileBase)
-        csmlists = splitList(self.nfiles, self.nlists, csmlist)
-        writeLists(csmlists, "csm", self.listFileBase)
-
         distributeComputation(
             self.listFileBase,
+            self.pdbLocalPath,
+            self.csmLocalPath,
             self.outputPath,
-            self.outfileSuffix,
+            outfileSuffix,
             self.outputContentType,
             self.outputHash,
-            self.batch,
+            batch,
             self.nfiles,
             self.maxTempFiles,
         )
 
         self.assertTrue(len(os.listdir(self.outputPath)) == self.nresults)
 
-        logging.info("bcif file conversion completed in %.2f s", (time.time() - t))
+        for pdbid in pdblist:
+            pdbid = pdbid.lower()
+            self.assertTrue(
+                os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % pdbid))
+            )
+
+        for csmid in csmlist:
+            csmid = csmid.upper()
+            self.assertTrue(
+                os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % csmid))
+            )
+
+        logging.info("test local workflow completed in %.2f s", (time.time() - t))
+
+        logging.info(str(os.listdir(self.outputPath)))
+
+    def test_remote_workflow(self):
+        t = time.time()
+
+        batch = 1
+        outfileSuffix = ".bcif.gz"
+
+        # get lists for local files but then download them
+        pdblist = getList(
+            self.pdbLocalPath,
+            os.path.join(self.listFileBase, "pdbx_core_ids-1.txt"),
+        )
+        csmlist = getList(
+            self.csmLocalPath,
+            os.path.join(self.listFileBase, "pdbx_comp_model_core_ids-1.txt"),
+        )
+
+        distributeComputation(
+            self.listFileBase,
+            self.pdbRemotePath,
+            self.csmRemotePath,
+            self.outputPath,
+            outfileSuffix,
+            self.outputContentType,
+            self.outputHash,
+            batch,
+            self.nfiles,
+            self.maxTempFiles,
+        )
+
+        self.assertTrue(len(os.listdir(self.outputPath)) == self.nresults)
+
+        for pdbid in pdblist:
+            pdbid = pdbid.lower()
+            self.assertTrue(
+                os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % pdbid))
+            )
+
+        for csmid in csmlist:
+            csmid = csmid.upper()
+            self.assertTrue(
+                os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % csmid))
+            )
+
+        logging.info("test remote workflow completed in %.2f s", (time.time() - t))
+
+        logging.info(str(os.listdir(self.outputPath)))
+
+    def test_expanded_files(self):
+        t = time.time()
+
+        batch = 1
+        outfileSuffix = ".bcif"
+
+        pdbdir = tempfile.mkdtemp()
+        csmdir = tempfile.mkdtemp()
+        for filename in os.listdir(self.pdbLocalPath):
+            filepath = os.path.join(self.pdbLocalPath, filename)
+            outpath = os.path.join(pdbdir, filename.replace(".gz", ""))
+            with gzip.open(filepath, "rb") as r:
+                with open(outpath, "wb") as w:
+                    shutil.copyfileobj(r, w)
+        for filename in os.listdir(self.csmLocalPath):
+            filepath = os.path.join(self.csmLocalPath, filename)
+            outpath = os.path.join(csmdir, filename.replace(".gz", ""))
+            with gzip.open(filepath, "rb") as r:
+                with open(outpath, "wb") as w:
+                    shutil.copyfileobj(r, w)
+
+        pdblist = getList(
+            pdbdir,
+            os.path.join(self.listFileBase, "pdbx_core_ids-1.txt"),
+        )
+        csmlist = getList(
+            csmdir,
+            os.path.join(self.listFileBase, "pdbx_comp_model_core_ids-1.txt"),
+        )
+
+        distributeComputation(
+            self.listFileBase,
+            pdbdir,
+            csmdir,
+            self.outputPath,
+            outfileSuffix,
+            self.outputContentType,
+            self.outputHash,
+            batch,
+            self.nfiles,
+            self.maxTempFiles,
+        )
+
+        self.assertTrue(len(os.listdir(self.outputPath)) == self.nresults)
+
+        for pdbid in pdblist:
+            pdbid = pdbid.lower()
+            self.assertTrue(
+                os.path.exists(os.path.join(self.outputPath, "%s.bcif" % pdbid))
+            )
+
+        for csmid in csmlist:
+            csmid = csmid.upper()
+            self.assertTrue(
+                os.path.exists(os.path.join(self.outputPath, "%s.bcif" % csmid))
+            )
+
+        logging.info("test expanded files completed in %.2f s", (time.time() - t))
+
+        logging.info(str(os.listdir(self.outputPath)))
+
+        shutil.rmtree(pdbdir)
+        shutil.rmtree(csmdir)
+
+    def test_hashed_storage(self):
+        t = time.time()
+
+        batch = 1
+        outfileSuffix = ".bcif.gz"
+        outputContentType = True
+        outputHash = True
+
+        pdblist = getList(
+            self.pdbLocalPath,
+            os.path.join(self.listFileBase, "pdbx_core_ids-1.txt"),
+        )
+        csmlist = getList(
+            self.csmLocalPath,
+            os.path.join(self.listFileBase, "pdbx_comp_model_core_ids-1.txt"),
+        )
+
+        distributeComputation(
+            self.listFileBase,
+            self.pdbLocalPath,
+            self.csmLocalPath,
+            self.outputPath,
+            outfileSuffix,
+            outputContentType,
+            outputHash,
+            batch,
+            self.nfiles,
+            self.maxTempFiles,
+        )
+
+        self.assertFalse(len(os.listdir(self.outputPath)) == self.nresults)
+
+        for pdbid in pdblist:
+            pdbid = pdbid.lower()
+            self.assertTrue(
+                os.path.exists(
+                    os.path.join(
+                        self.outputPath, "pdb", pdbid[1:3], "%s.bcif.gz" % pdbid
+                    )
+                )
+            )
+
+        for csmid in csmlist:
+            csmid = csmid.upper()
+            self.assertTrue(
+                os.path.exists(
+                    os.path.join(
+                        self.outputPath,
+                        "csm",
+                        csmid[0:2],
+                        csmid[-6:-4],
+                        csmid[-4:-2],
+                        "%s.bcif.gz" % csmid,
+                    )
+                )
+            )
+
+        logging.info(str(os.listdir(self.outputPath)))
+
+        for root, subdir, files in os.walk(self.outputPath):
+            logging.info(root)
+            for f in files:
+                logging.info(f)
+
+        logging.info("test hashed storage completed in %.2f s", (time.time() - t))
+
+    def test_splitlist_workflow(self):
+        t = time.time()
+
+        batch = 1
+        nlists = 4
+        outfileSuffix = ".bcif.gz"
+
+        pdblist = getList(
+            self.pdbLocalPath,
+            os.path.join(self.listFileBase, "pdbx_core_ids-1.txt"),
+        )
+        csmlist = getList(
+            self.csmLocalPath,
+            os.path.join(self.listFileBase, "pdbx_comp_model_core_ids-1.txt"),
+        )
+
+        pdblists = splitList(self.nfiles, nlists, pdblist)
+        writeLists(pdblists, "pdb", self.listFileBase)
+        csmlists = splitList(self.nfiles, nlists, csmlist)
+        writeLists(csmlists, "csm", self.listFileBase)
+
+        distributeComputation(
+            self.listFileBase,
+            self.pdbLocalPath,
+            self.csmLocalPath,
+            self.outputPath,
+            outfileSuffix,
+            self.outputContentType,
+            self.outputHash,
+            batch,
+            self.nfiles,
+            self.maxTempFiles,
+        )
+
+        self.assertTrue(len(os.listdir(self.outputPath)) == self.nresults)
+
+        for pdbid in pdblist:
+            pdbid = pdbid.lower()
+            self.assertTrue(
+                os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % pdbid))
+            )
+
+        for csmid in csmlist:
+            csmid = csmid.upper()
+            self.assertTrue(
+                os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % csmid))
+            )
+
+        logging.info("test splitlist workflow completed in %.2f s", (time.time() - t))
 
         logging.info(str(os.listdir(self.outputPath)))
 
     def test_batch_workflow(self):
         t = time.time()
 
-        self.batch = 0
-        self.nlists = 2
+        batch = 0
+        outfileSuffix = ".bcif.gz"
 
-        getList(
-            self.prereleaseFtpFileBasePath,
+        pdblist = getList(
+            self.pdbLocalPath,
             os.path.join(self.listFileBase, "pdbx_core_ids-1.txt"),
         )
-        getList(
-            self.csmFileRepoBasePath,
+        csmlist = getList(
+            self.csmLocalPath,
             os.path.join(self.listFileBase, "pdbx_comp_model_core_ids-1.txt"),
         )
 
         distributeComputation(
             self.listFileBase,
+            self.pdbLocalPath,
+            self.csmLocalPath,
             self.outputPath,
-            self.outfileSuffix,
+            outfileSuffix,
             self.outputContentType,
             self.outputHash,
-            self.batch,
+            batch,
             self.nfiles,
             self.maxTempFiles,
         )
 
         self.assertTrue(len(os.listdir(self.outputPath)) == self.nresults)
 
-        logging.info("bcif file conversion completed in %.2f s", (time.time() - t))
+        for pdbid in pdblist:
+            pdbid = pdbid.lower()
+            self.assertTrue(
+                os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % pdbid))
+            )
+
+        for csmid in csmlist:
+            csmid = csmid.upper()
+            self.assertTrue(
+                os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % csmid))
+            )
+
+        logging.info("test batch workflow completed in %.2f s", (time.time() - t))
 
         logging.info(str(os.listdir(self.outputPath)))
 
     def test_deconvert(self):
         infiles = []
         maxfiles = 3
-        for filename in os.listdir(self.prereleaseFtpFileBasePath):
-            infiles.append(os.path.join(self.prereleaseFtpFileBasePath, filename))
+        for filename in os.listdir(self.pdbLocalPath):
+            infiles.append(os.path.join(self.pdbLocalPath, filename))
             if len(infiles) >= maxfiles:
                 break
         out = tempfile.mkdtemp()
