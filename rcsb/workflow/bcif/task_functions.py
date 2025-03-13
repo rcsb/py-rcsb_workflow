@@ -95,7 +95,7 @@ def convertPrereleaseCifFiles(
             containers += adapter.readFile(inputFilePath=path)
         dictionaryApi = DictionaryApi(containerList=containers, consolidate=True)
     except Exception as e:
-        raise FileNotFoundError("failed to create dictionary api: %s" % str(e))
+        raise FileNotFoundError("failed to create dictionary api: %s" % str(e)) from e
 
     # traverse sublist and send each input file to converter
     procs = []
@@ -237,27 +237,37 @@ def singleTask(
         cifFilePath = os.path.join(tempPath, remoteFileName)
         shutil.copy(localFilePath, cifFilePath)
     else:
-        if contentType == "pdb":
-            url = os.path.join(remotePath, pdbId[-3:-1], remoteFileName)
-            cifFilePath = os.path.join(tempPath, remoteFileName)
-        elif contentType == "csm":
+        url = os.path.join(remotePath, pdbId[-3:-1], remoteFileName)
+        cifFilePath = os.path.join(tempPath, remoteFileName)
+        if contentType == "csm":
             url = os.path.join(
                 remotePath, pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2], remoteFileName
             )
             cifFilePath = os.path.join(tempPath, remoteFileName)
         try:
             r = requests.get(url, timeout=300, stream=True)
+        except requests.exceptions.ConnectTimeout as e:
+            logger.exception(str(e))
+            return
+        try:
             if r and r.status_code < 400:
                 dirs = os.path.dirname(cifFilePath)
                 if not os.path.exists(dirs):
-                    os.makedirs(dirs, mode=0o777)
-                    shutil.chown(dirs, "root", "root")
+                    os.makedirs(dirs)
+                    try:
+                        os.chmod(dirs, 0o777)
+                        shutil.chown(dirs, "ubuntu", "ubuntu")
+                    except PermissionError as e:
+                        pass
                 with open(cifFilePath, "ab") as w:
                     for chunk in r.raw.stream(1024, decode_content=False):
                         if chunk:
                             w.write(chunk)
-                shutil.chown(cifFilePath, "root", "root")
-                os.chmod(cifFilePath, 0o777)
+                try:
+                    shutil.chown(cifFilePath, "ubuntu", "ubuntu")
+                    os.chmod(cifFilePath, 0o777)
+                except PermissionError as e:
+                    pass
             else:
                 raise requests.exceptions.RequestException(
                     "error - request failed for %s" % url
@@ -287,16 +297,22 @@ def singleTask(
     dirs = os.path.dirname(bcifFilePath)
     if not os.path.exists(dirs):
         os.makedirs(dirs)
-        shutil.chown(dirs, "root", "root")
-        os.chmod(dirs, 0o777)
+        try:
+            shutil.chown(dirs, "ubuntu", "ubuntu")
+            os.chmod(dirs, 0o777)
+        except PermissionError as e:
+            pass
 
     # convert to bcif
     try:
         result = convert(cifFilePath, bcifFilePath, dtemp, dictionaryApi)
         if not result:
             raise Exception("failed to convert %s" % cifFilePath)
-        shutil.chown(bcifFilePath, "root", "root")
-        os.chmod(bcifFilePath, 0o777)
+        try:
+            shutil.chown(bcifFilePath, "ubuntu", "ubuntu")
+            os.chmod(bcifFilePath, 0o777)
+        except PermissionError as e:
+            pass
         counter[0] += 1
     except Exception as e:
         logger.exception(str(e))
@@ -321,7 +337,7 @@ def getBcifFilePath(
                 updateBase, contentType, pdbId[-3:-1], bcifFileName
             )
         elif outputContentType:
-            bcifFilePath = os.path.join(updateBase, pdbId[-3:-1], bcifFileName)
+            bcifFilePath = os.path.join(updateBase, contentType, bcifFileName)
         elif outputHash:
             bcifFilePath = os.path.join(updateBase, pdbId[-3:-1], bcifFileName)
         else:
@@ -368,7 +384,7 @@ def convert(
         if not result:
             raise Exception()
     except Exception as e:
-        raise Exception("error during bcif conversion: %s" % str(e))
+        raise Exception("error during bcif conversion: %s" % str(e)) from e
     return True
 
 
@@ -382,7 +398,7 @@ def deconvert(
         if not result:
             raise Exception()
     except Exception as e:
-        raise Exception("error during bcif conversion: %s" % str(e))
+        raise Exception("error during bcif conversion: %s" % str(e)) from e
     return True
 
 

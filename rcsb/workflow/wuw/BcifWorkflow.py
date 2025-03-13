@@ -5,7 +5,7 @@
 ##
 
 """
-Run workflow for tasks requested on command line.
+Run workflow for pdb entries specified in input list. 
 """
 
 __docformat__ = "google en"

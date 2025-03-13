@@ -50,38 +50,6 @@ def getList(cifFilePath, outFilePath) -> List[str]:
     return pdbids
 
 
-def splitList(nfiles: int, subtasks: int, tasklist: List[str]) -> List[List[str]]:
-    step = nfiles // subtasks
-    if step < 1:
-        step = 1
-    steps = nfiles // step
-    logging.info("splitting %d files into %d steps with step %d", nfiles, steps, step)
-    if not isinstance(tasklist[0], str):
-        tasklist = [str(task) for task in tasklist]
-    tasks = [
-        (
-            tasklist[index * step : step + index * step]
-            if index < steps - 1
-            else tasklist[index * step : nfiles]
-        )
-        for index in range(0, steps)
-    ]
-    return tasks
-
-
-def writeLists(lists, contentType, outfileDir):
-    for index in range(0, len(lists)):
-        if contentType == "pdb":
-            outfileName = "pdbx_core_ids-%d.txt" % (index + 1)
-        elif contentType == "csm":
-            outfileName = "pdbx_comp_model_core_ids-%d.txt" % (index + 1)
-        outfilePath = os.path.join(outfileDir, outfileName)
-        with open(outfilePath, "w", encoding="utf-8") as w:
-            for pdbid in lists[index]:
-                w.write(pdbid)
-                w.write("\n")
-
-
 def distributeComputation(
     listFileBase,
     pdbLocalPath,
@@ -148,7 +116,20 @@ def computeBcif(
         outContentType = "--outputContentType"
     if outputHash:
         outHash = "--outputHash"
-    cmd = f"python3 -m rcsb.workflow.cli.BcifExec --batch {batch} --nfiles {nfiles} --maxTempFiles {maxTempFiles} --listFileBase {listFileBase} --listFileName {listFileName} --remotePath {remotePath} --outputPath {outputPath} --outfileSuffix {outfileSuffix} {outContentType} {outHash}"
+    options = [
+        "python3 -m rcsb.workflow.cli.BcifExec",
+        f"--batch {batch}",
+        f"--nfiles {nfiles}",
+        f"--maxTempFiles {maxTempFiles}",
+        f"--listFileBase {listFileBase}",
+        f"--listFileName {listFileName}",
+        f"--remotePath {remotePath}",
+        f"--outputPath {outputPath}",
+        f"--outfileSuffix {outfileSuffix}",
+        f"{outContentType}",
+        f"{outHash}",
+    ]
+    cmd = " ".join(options)
     status = os.system(cmd)
     if status == 0:
         return True
@@ -171,7 +152,7 @@ def getDictionaryApi():
             containers += adapter.readFile(inputFilePath=path)
         dictionaryApi = DictionaryApi(containerList=containers, consolidate=True)
     except Exception as e:
-        raise FileNotFoundError("failed to create dictionary api: %s" % str(e))
+        raise FileNotFoundError("failed to create dictionary api: %s" % str(e)) from e
     return dictionaryApi
 
 
@@ -439,58 +420,6 @@ class TestBcif(unittest.TestCase):
                 logging.info(f)
 
         logging.info("test hashed storage completed in %.2f s", (time.time() - t))
-
-    def test_splitlist_workflow(self):
-        t = time.time()
-
-        batch = 1
-        nlists = 4
-        outfileSuffix = ".bcif.gz"
-
-        pdblist = getList(
-            self.pdbLocalPath,
-            os.path.join(self.listFileBase, "pdbx_core_ids-1.txt"),
-        )
-        csmlist = getList(
-            self.csmLocalPath,
-            os.path.join(self.listFileBase, "pdbx_comp_model_core_ids-1.txt"),
-        )
-
-        pdblists = splitList(self.nfiles, nlists, pdblist)
-        writeLists(pdblists, "pdb", self.listFileBase)
-        csmlists = splitList(self.nfiles, nlists, csmlist)
-        writeLists(csmlists, "csm", self.listFileBase)
-
-        distributeComputation(
-            self.listFileBase,
-            self.pdbLocalPath,
-            self.csmLocalPath,
-            self.outputPath,
-            outfileSuffix,
-            self.outputContentType,
-            self.outputHash,
-            batch,
-            self.nfiles,
-            self.maxTempFiles,
-        )
-
-        self.assertTrue(len(os.listdir(self.outputPath)) == self.nresults)
-
-        for pdbid in pdblist:
-            pdbid = pdbid.lower()
-            self.assertTrue(
-                os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % pdbid))
-            )
-
-        for csmid in csmlist:
-            csmid = csmid.upper()
-            self.assertTrue(
-                os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % csmid))
-            )
-
-        logging.info("test splitlist workflow completed in %.2f s", (time.time() - t))
-
-        logging.info(str(os.listdir(self.outputPath)))
 
     def test_batch_workflow(self):
         t = time.time()

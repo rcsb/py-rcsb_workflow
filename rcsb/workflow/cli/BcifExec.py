@@ -18,7 +18,7 @@ import logging
 import time
 from rcsb.workflow.wuw.BcifWorkflow import BcifWorkflow
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("bcif")
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 formatter = logging.Formatter(
@@ -41,12 +41,12 @@ def main():
     parser.add_argument(
         "--nfiles",
         default=0,
-        required=True,
+        required=False,
         help="set 0 for all files, set less than N for a test run, will not produce exactly n files",
     )
     parser.add_argument(
         "--maxTempFiles",
-        default=100,
+        default=1000,
         required=False,
         help="max reads before clear out temp files",
     )
