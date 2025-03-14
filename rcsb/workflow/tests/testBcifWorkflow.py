@@ -414,8 +414,8 @@ class TestBcif(unittest.TestCase):
 
         logging.info(str(os.listdir(self.outputPath)))
 
-        for root, subdir, files in os.walk(self.outputPath):
-            logging.info(root)
+        for root, _, files in os.walk(self.outputPath):
+            logging.info("%s %s", root, _)
             for f in files:
                 logging.info(f)
 

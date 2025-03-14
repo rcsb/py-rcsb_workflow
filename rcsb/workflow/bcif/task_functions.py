@@ -245,8 +245,10 @@ def singleTask(
             )
             cifFilePath = os.path.join(tempPath, remoteFileName)
         try:
-            r = requests.get(url, timeout=300, stream=True)
-        except requests.exceptions.ConnectTimeout as e:
+            r = requests.get(url, timeout=(20, 30), stream=True)
+            r.raise_for_status()
+        except Exception as e:
+            # timed out
             logger.exception(str(e))
             return
         try:
@@ -256,17 +258,15 @@ def singleTask(
                     os.makedirs(dirs)
                     try:
                         os.chmod(dirs, 0o777)
-                        shutil.chown(dirs, "ubuntu", "ubuntu")
-                    except PermissionError as e:
+                    except PermissionError:
                         pass
                 with open(cifFilePath, "ab") as w:
                     for chunk in r.raw.stream(1024, decode_content=False):
                         if chunk:
                             w.write(chunk)
                 try:
-                    shutil.chown(cifFilePath, "ubuntu", "ubuntu")
                     os.chmod(cifFilePath, 0o777)
-                except PermissionError as e:
+                except PermissionError:
                     pass
             else:
                 raise requests.exceptions.RequestException(
@@ -298,9 +298,8 @@ def singleTask(
     if not os.path.exists(dirs):
         os.makedirs(dirs)
         try:
-            shutil.chown(dirs, "ubuntu", "ubuntu")
             os.chmod(dirs, 0o777)
-        except PermissionError as e:
+        except PermissionError:
             pass
 
     # convert to bcif
@@ -309,9 +308,8 @@ def singleTask(
         if not result:
             raise Exception("failed to convert %s" % cifFilePath)
         try:
-            shutil.chown(bcifFilePath, "ubuntu", "ubuntu")
             os.chmod(bcifFilePath, 0o777)
-        except PermissionError as e:
+        except PermissionError:
             pass
         counter[0] += 1
     except Exception as e:
