@@ -21,6 +21,7 @@ import gzip
 import tempfile
 import unittest
 from typing import List
+import requests
 import logging
 import time
 from mmcif.api.DictionaryApi import DictionaryApi
@@ -31,6 +32,9 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s",
 )
+
+
+pdbTestPath = "http://prereleaseftp-external-east.rcsb.org/pdb/data/structures/divided/mmCIF/00/100d.cif.gz"
 
 
 def getList(cifFilePath, outFilePath) -> List[str]:
@@ -244,6 +248,7 @@ class TestBcif(unittest.TestCase):
 
         logging.info(str(os.listdir(self.outputPath)))
 
+    @unittest.skipUnless(requests.head(pdbTestPath), "test remote workflow requires internal server access")
     def test_remote_workflow(self):
         t = time.time()
 
