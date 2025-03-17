@@ -17,6 +17,7 @@ import multiprocessing
 import os
 import shutil
 import tempfile
+from itertools import chain
 import logging
 from typing import List
 import requests
@@ -39,6 +40,7 @@ logger.addHandler(handler)
 def convertPrereleaseCifFiles(
     listFileName: str,
     listFileBase: str,
+    remotePath: str,
     updateBase: str,
     outfileSuffix: str,
     outputContentType: bool,
@@ -46,7 +48,6 @@ def convertPrereleaseCifFiles(
     batch: int,
     maxFiles: int,
     maxTempFiles: int,
-    remotePath: str,
     pdbxDict: str,
     maDict: str,
     rcsbDict: str,
@@ -60,6 +61,11 @@ def convertPrereleaseCifFiles(
 
     # read sublist
     filepath = os.path.join(listFileBase, listFileName)
+    logger.info(
+        "convert prerelease cif files reading list file %s and remote path %s",
+        filepath,
+        remotePath,
+    )
     files = []
     if not os.path.exists(filepath):
         raise FileNotFoundError("no input files")
@@ -81,7 +87,7 @@ def convertPrereleaseCifFiles(
     if (batch is None) or not str(batch).isdigit():
         batch = 1
     batch = int(batch)
-    if batch == 0:
+    if batch <= 0:
         batch = multiprocessing.cpu_count()
     logger.info("distributing %d files across %d sublists", len(files), batch)
 
@@ -109,9 +115,9 @@ def convertPrereleaseCifFiles(
                 remotePath,
                 updateBase,
                 outfileSuffix,
-                contentType,
                 outputContentType,
                 outputHash,
+                contentType,
                 dictionaryApi,
                 tempPath,
                 dtemp,
@@ -122,6 +128,11 @@ def convertPrereleaseCifFiles(
         # process with file batching
         nfiles = len(files)
         tasks = splitList(nfiles, batch, files)
+        nresults = len(list(chain(*tasks)))
+        if nresults != nfiles:
+            logger.warning(
+                "split list returned %d files instead of %d", nresults, nfiles
+            )
         for task in tasks:
             dtemp = tempfile.mkdtemp(dir=tempPath)
             dtemps.append(dtemp)
@@ -130,9 +141,9 @@ def convertPrereleaseCifFiles(
                 remotePath,
                 updateBase,
                 outfileSuffix,
-                contentType,
                 outputContentType,
                 outputHash,
+                contentType,
                 dictionaryApi,
                 tempPath,
                 dtemp,
@@ -180,9 +191,9 @@ def batchTask(
     remotePath,
     updateBase,
     outfileSuffix,
-    contentType,
     outputContentType,
     outputHash,
+    contentType,
     dictionaryApi,
     tempPath,
     dtemp,
@@ -195,9 +206,9 @@ def batchTask(
             remotePath,
             updateBase,
             outfileSuffix,
-            contentType,
             outputContentType,
             outputHash,
+            contentType,
             dictionaryApi,
             tempPath,
             dtemp,
@@ -210,9 +221,9 @@ def singleTask(
     remotePath,
     updateBase,
     outfileSuffix,
-    contentType,
     outputContentType,
     outputHash,
+    contentType,
     dictionaryApi,
     tempPath,
     dtemp,
@@ -244,39 +255,22 @@ def singleTask(
                 remotePath, pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2], remoteFileName
             )
             cifFilePath = os.path.join(tempPath, remoteFileName)
-        try:
-            r = requests.get(url, timeout=(20, 30), stream=True)
-            r.raise_for_status()
-        except Exception as e:
-            # timed out
-            logger.exception(str(e))
-            return
-        try:
-            if r and r.status_code < 400:
-                dirs = os.path.dirname(cifFilePath)
-                if not os.path.exists(dirs):
-                    os.makedirs(dirs)
-                    try:
-                        os.chmod(dirs, 0o777)
-                    except PermissionError:
-                        pass
-                with open(cifFilePath, "ab") as w:
-                    for chunk in r.raw.stream(1024, decode_content=False):
-                        if chunk:
-                            w.write(chunk)
-                try:
-                    os.chmod(cifFilePath, 0o777)
-                except PermissionError:
-                    pass
-            else:
-                raise requests.exceptions.RequestException(
-                    "error - request failed for %s" % url
-                )
-        except Exception as e:
-            logger.exception(str(e))
-            if os.path.exists(cifFilePath):
-                os.unlink(cifFilePath)
-            return
+        r = requests.get(url, timeout=(20, 30), stream=True)
+        if r and r.status_code == 200:
+            dirs = os.path.dirname(cifFilePath)
+            if not os.path.exists(dirs):
+                os.makedirs(dirs)
+            with open(cifFilePath, "ab") as w:
+                for chunk in r.raw.stream(1024, decode_content=False):
+                    if chunk:
+                        w.write(chunk)
+        else:
+            status_code = 0
+            if r:
+                status_code = r.status_code
+            raise requests.exceptions.RequestException(
+                "error - request failed for %s with status code %d" % (url, status_code)
+            )
 
     # form output path bcifFilePath
     bcifFilePath = getBcifFilePath(
@@ -286,42 +280,30 @@ def singleTask(
         raise ValueError("failed to form bcif file path")
     if os.path.exists(bcifFilePath):
         # earlier timestamp ... overwrite
-        try:
-            os.unlink(bcifFilePath)
-            if os.path.exists(bcifFilePath):
-                raise Exception("file %s not removed" % bcifFilePath)
-        except Exception as e:
-            logger.exception(str(e))
+        os.unlink(bcifFilePath)
+        if os.path.exists(bcifFilePath):
+            raise PermissionError("file %s not removed" % bcifFilePath)
 
     # make nested directories
     dirs = os.path.dirname(bcifFilePath)
     if not os.path.exists(dirs):
         os.makedirs(dirs)
-        try:
-            os.chmod(dirs, 0o777)
-        except PermissionError:
-            pass
 
     # convert to bcif
-    try:
-        result = convert(cifFilePath, bcifFilePath, dtemp, dictionaryApi)
-        if not result:
-            raise Exception("failed to convert %s" % cifFilePath)
-        try:
-            os.chmod(bcifFilePath, 0o777)
-        except PermissionError:
-            pass
-        counter[0] += 1
-    except Exception as e:
-        logger.exception(str(e))
-    finally:
-        # remove cif file
-        if remotePath.startswith("http") and os.path.exists(cifFilePath):
-            os.unlink(cifFilePath)
-        # remove temp files
-        if counter[0] >= maxTempFiles:
-            removeTempFiles(tempPath=dtemp)
-            counter[0] = 0
+    result = convert(cifFilePath, bcifFilePath, dtemp, dictionaryApi)
+    if not result:
+        raise Exception("failed to convert %s" % cifFilePath)
+
+    # remove cif file
+    if remotePath.startswith("http") and os.path.exists(cifFilePath):
+        os.unlink(cifFilePath)
+
+    counter[0] += 1
+
+    # remove temp files
+    if counter[0] >= maxTempFiles:
+        removeTempFiles(tempPath=dtemp)
+        counter[0] = 0
 
 
 def getBcifFilePath(
@@ -377,12 +359,9 @@ def convert(
 ) -> bool:
     mu = MarshalUtil(workPath=workpath)
     data = mu.doImport(infile, fmt="mmcif")
-    try:
-        result = mu.doExport(outfile, data, fmt="bcif", dictionaryApi=dictionaryApi)
-        if not result:
-            raise Exception()
-    except Exception as e:
-        raise Exception("error during bcif conversion: %s" % str(e)) from e
+    result = mu.doExport(outfile, data, fmt="bcif", dictionaryApi=dictionaryApi)
+    if not result:
+        return False
     return True
 
 
@@ -391,16 +370,13 @@ def deconvert(
 ) -> bool:
     mu = MarshalUtil(workPath=workpath)
     data = mu.doImport(infile, fmt="bcif")
-    try:
-        result = mu.doExport(outfile, data, fmt="mmcif", dictionaryApi=dictionaryApi)
-        if not result:
-            raise Exception()
-    except Exception as e:
-        raise Exception("error during bcif conversion: %s" % str(e)) from e
+    result = mu.doExport(outfile, data, fmt="mmcif", dictionaryApi=dictionaryApi)
+    if not result:
+        return False
     return True
 
 
-def removeTempFiles(tempPath: str) -> bool:
+def removeTempFiles(tempPath: str):
     try:
         if tempPath and os.path.exists(tempPath) and os.path.isdir(tempPath):
             for filename in os.listdir(tempPath):
@@ -409,4 +385,3 @@ def removeTempFiles(tempPath: str) -> bool:
                     os.unlink(path)
     except Exception as e:
         logger.warning(str(e))
-    return True

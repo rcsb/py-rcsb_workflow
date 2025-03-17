@@ -21,9 +21,9 @@ import gzip
 import tempfile
 import unittest
 from typing import List
-import requests
 import logging
 import time
+import requests
 from mmcif.api.DictionaryApi import DictionaryApi
 from mmcif.io.IoAdapterPy import IoAdapterPy as IoAdapter
 from rcsb.workflow.bcif.task_functions import convert, deconvert
@@ -248,7 +248,10 @@ class TestBcif(unittest.TestCase):
 
         logging.info(str(os.listdir(self.outputPath)))
 
-    @unittest.skipUnless(requests.head(pdbTestPath), "test remote workflow requires internal server access")
+    @unittest.skipUnless(
+        requests.head(pdbTestPath),
+        "test remote workflow requires internal server access",
+    )
     def test_remote_workflow(self):
         t = time.time()
 

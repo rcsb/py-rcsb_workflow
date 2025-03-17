@@ -130,6 +130,6 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         logger.exception(str(e))
-        raise Exception(str(e)) from e
+        raise e
     t2 = time.time() - t
     logger.info("completed in %.2f s", t2)

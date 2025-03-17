@@ -13,6 +13,8 @@ __author__ = "James Smith"
 __email__ = "james.smith@rcsb.org"
 __license__ = "Apache 2.0"
 
+import os
+import re
 import logging
 from rcsb.workflow.bcif.task_functions import convertPrereleaseCifFiles
 
@@ -54,12 +56,24 @@ class BcifWorkflow:
         assert (
             self.outfileSuffix == ".bcif" or self.outfileSuffix == ".bcif.gz"
         ), "error - require either .bcif or .bcif.gz output file"
+        assert re.match(
+            r"^pdbx_comp_model_core_ids-\d+\.txt$", self.listFileName
+        ) or re.match(
+            r"^pdbx_core_ids-\d+\.txt$", self.listFileName
+        ), "error - list file name must resemble either pdbx_core_ids-1.txt or pdbx_comp_model_core_ids-1.txt"
 
     def __call__(self):
+
+        logger.info(
+            "running bcif workflow on %s and %s",
+            os.path.join(self.listFileBase, self.listFileName),
+            self.remotePath,
+        )
 
         convertPrereleaseCifFiles(
             self.listFileName,
             self.listFileBase,
+            self.remotePath,
             self.outputPath,
             self.outfileSuffix,
             self.outputContentType,
@@ -67,7 +81,6 @@ class BcifWorkflow:
             self.batch,
             self.nfiles,
             self.maxTempFiles,
-            self.remotePath,
             self.pdbxDict,
             self.maDict,
             self.rcsbDict,
