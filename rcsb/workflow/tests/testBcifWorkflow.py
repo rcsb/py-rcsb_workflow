@@ -21,12 +21,14 @@ import gzip
 import tempfile
 import unittest
 from typing import List
+from itertools import chain
 import logging
 import time
-import requests
+import requests  # noqa: F401 pylint: disable=W0611
 from mmcif.api.DictionaryApi import DictionaryApi
 from mmcif.io.IoAdapterPy import IoAdapterPy as IoAdapter
-from rcsb.workflow.bcif.task_functions import convert, deconvert
+from rcsb.workflow.bcif.task_functions import convert, deconvert, splitList
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -172,6 +174,11 @@ class TestBcif(unittest.TestCase):
         )
         self.csmLocalPath = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "test-data", "bcif", "csm")
+        )
+        self.pdbFullListFile = os.path.abspath(
+            os.path.join(
+                os.path.dirname(__file__), "test-data", "bcif", "pdbx_core_ids-1.txt"
+            )
         )
         # remote (from sandbox_config.py/MasterConfig)
         self.pdbRemotePath = "http://prereleaseftp-external-east.rcsb.org/pdb/data/structures/divided/mmCIF/"
@@ -471,6 +478,38 @@ class TestBcif(unittest.TestCase):
         logging.info("test batch workflow completed in %.2f s", (time.time() - t))
 
         logging.info(str(os.listdir(self.outputPath)))
+
+    def test_split_list(self):
+        # read list of 230000
+        entries = []
+        r = open(self.pdbFullListFile, "r", encoding="utf-8")
+        for line in r:
+            entries.append(line.strip())
+        r.close()
+        print("%d entries" % len(entries))
+
+        # split into 4 lists
+        nfiles = len(entries)
+        subtasks = 4
+        sublists = splitList(nfiles, subtasks, entries)
+        print("%d sublists" % len(sublists))
+
+        # count results
+        flatlist = list(chain(*sublists))
+        resultcount = len(flatlist)
+        print("%d results" % resultcount)
+        assert resultcount == nfiles, "error - %d results %d files" % (
+            resultcount,
+            nfiles,
+        )
+
+        # verify unique
+        resultset = set(flatlist)
+        print("%d unique results" % len(resultset))
+        assert len(resultset) == nfiles, "error - %d unique results %d files" % (
+            len(resultset),
+            nfiles,
+        )
 
     def test_deconvert(self):
         infiles = []
