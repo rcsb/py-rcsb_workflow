@@ -5,7 +5,7 @@
 ##
 
 """
-Run workflow for pdb entries specified in input list. 
+Run workflow for pdb entries specified in input list.
 """
 
 __docformat__ = "google en"
@@ -60,7 +60,7 @@ class BcifWorkflow:
             r"^pdbx_comp_model_core_ids-\d+\.txt$", self.listFileName
         ) or re.match(
             r"^pdbx_core_ids-\d+\.txt$", self.listFileName
-        ), "error - list file name must resemble either pdbx_core_ids-1.txt or pdbx_comp_model_core_ids-1.txt"
+        ), "require pdbx_core_ids-1.txt or pdbx_comp_model_core_ids-1.txt"
 
     def __call__(self):
 

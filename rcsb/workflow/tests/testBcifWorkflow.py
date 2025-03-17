@@ -248,10 +248,7 @@ class TestBcif(unittest.TestCase):
 
         logging.info(str(os.listdir(self.outputPath)))
 
-    @unittest.skipUnless(
-        requests.head(pdbTestPath),
-        "test remote workflow requires internal server access",
-    )
+    @unittest.skip("requires local server authorization")
     def test_remote_workflow(self):
         t = time.time()
 
