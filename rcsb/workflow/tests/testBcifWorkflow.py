@@ -480,36 +480,47 @@ class TestBcif(unittest.TestCase):
         logging.info(str(os.listdir(self.outputPath)))
 
     def test_split_list(self):
-        # read list of 230000
-        entries = []
-        r = open(self.pdbFullListFile, "r", encoding="utf-8")
-        for line in r:
-            entries.append(line.strip())
-        r.close()
-        print("%d entries" % len(entries))
+        for subtasks in range(1, 10):
+            # read list of 230000
+            entries = []
+            r = open(self.pdbFullListFile, "r", encoding="utf-8")
+            for line in r:
+                entries.append(line.strip())
+            r.close()
+            print("%d entries" % len(entries))
 
-        # split into 4 lists
-        nfiles = len(entries)
-        subtasks = 4
-        sublists = splitList(nfiles, subtasks, entries)
-        print("%d sublists" % len(sublists))
+            # split into sublists
+            nfiles = len(entries)
+            sublists = splitList(nfiles, subtasks, entries)
+            print(
+                "%d sublists of lengths %s"
+                % (len(sublists), str([len(sublist) for sublist in sublists]))
+            )
 
-        # count results
-        flatlist = list(chain(*sublists))
-        resultcount = len(flatlist)
-        print("%d results" % resultcount)
-        assert resultcount == nfiles, "error - %d results %d files" % (
-            resultcount,
-            nfiles,
-        )
+            # count results
+            flatlist = list(chain(*sublists))
+            resultcount = len(flatlist)
+            print("%d results" % resultcount)
+            self.assertTrue(
+                resultcount == nfiles,
+                "error - %d results %d files"
+                % (
+                    resultcount,
+                    nfiles,
+                ),
+            )
 
-        # verify unique
-        resultset = set(flatlist)
-        print("%d unique results" % len(resultset))
-        assert len(resultset) == nfiles, "error - %d unique results %d files" % (
-            len(resultset),
-            nfiles,
-        )
+            # verify unique
+            resultset = set(flatlist)
+            print("%d unique results" % len(resultset))
+            self.assertTrue(
+                len(resultset) == nfiles,
+                "error - %d unique results %d files"
+                % (
+                    len(resultset),
+                    nfiles,
+                ),
+            )
 
     def test_deconvert(self):
         infiles = []
