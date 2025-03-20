@@ -181,8 +181,14 @@ class TestBcif(unittest.TestCase):
             )
         )
         # remote (from sandbox_config.py/MasterConfig)
-        self.pdbRemotePath = "http://prereleaseftp-external-east.rcsb.org/pdb/data/structures/divided/mmCIF/"
-        self.csmRemotePath = "http://computed-models-external-east.rcsb.org/staging"
+        self.pdbRemotePath = (
+            "http://prereleaseftp-east.rcsb.org/pdb/data/structures/divided/mmCIF/"
+        )
+        self.pdbRemoteExternalPath = "http://prereleaseftp-external-east.rcsb.org/pdb/data/structures/divided/mmCIF/"
+        self.csmRemotePath = "http://computed-models-east.rcsb.org/staging"
+        self.csmRemoteExternalPath = (
+            "http://computed-models-external-east.rcsb.org/staging"
+        )
         self.pdbIdsTimestampFilePath = (
             "holdings/released_structures_last_modified_dates.json.gz"
         )

@@ -20,9 +20,6 @@ import tempfile
 from itertools import chain
 import logging
 from typing import List
-import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 from mmcif.api.DictionaryApi import DictionaryApi
 from mmcif.io.IoAdapterPy import IoAdapterPy as IoAdapter
 from rcsb.utils.io.MarshalUtil import MarshalUtil
@@ -56,9 +53,8 @@ def convertPrereleaseCifFiles(
 ) -> bool:
     """runs once per list file"""
 
-    # path for cif file downloads with known file names (removed on conversion)
-    tempPath = tempfile.mkdtemp()
     # paths for randomly-named temp files (bulk removal periodically)
+    tempPath = tempfile.mkdtemp()
     dtemps = []
 
     # read sublist
@@ -121,7 +117,6 @@ def convertPrereleaseCifFiles(
                 outputHash,
                 contentType,
                 dictionaryApi,
-                tempPath,
                 dtemp,
                 maxTempFiles,
             )
@@ -147,7 +142,6 @@ def convertPrereleaseCifFiles(
                 outputHash,
                 contentType,
                 dictionaryApi,
-                tempPath,
                 dtemp,
                 maxTempFiles,
             )
@@ -197,7 +191,6 @@ def batchTask(
     outputHash,
     contentType,
     dictionaryApi,
-    tempPath,
     dtemp,
     maxTempFiles,
 ):
@@ -212,7 +205,6 @@ def batchTask(
             outputHash,
             contentType,
             dictionaryApi,
-            tempPath,
             dtemp,
             maxTempFiles,
         )
@@ -227,7 +219,6 @@ def singleTask(
     outputHash,
     contentType,
     dictionaryApi,
-    tempPath,
     dtemp,
     maxTempFiles,
     counter=[0],
@@ -240,51 +231,22 @@ def singleTask(
         pdbId,
         outfileSuffix.replace(".bcif.gz", ".cif.gz").replace(".bcif", ".cif"),
     )
-    # copy or download to cifFilePath
+
+    # form input cifFilePath
     if not remotePath.startswith("http"):
         # local file
-        localFilePath = os.path.join(remotePath, remoteFileName)
-        if not os.path.exists(localFilePath):
-            logger.error("%s not found", localFilePath)
+        cifFilePath = os.path.join(remotePath, remoteFileName)
+        if not os.path.exists(cifFilePath):
+            logger.warning("%s not found", cifFilePath)
             return
-        cifFilePath = os.path.join(tempPath, remoteFileName)
-        shutil.copy(localFilePath, cifFilePath)
     else:
-        url = os.path.join(remotePath, pdbId[-3:-1], remoteFileName)
-        cifFilePath = os.path.join(tempPath, remoteFileName)
+        cifFilePath = os.path.join(remotePath, pdbId[-3:-1], remoteFileName)
         if contentType == "csm":
-            url = os.path.join(
+            cifFilePath = os.path.join(
                 remotePath, pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2], remoteFileName
             )
-            cifFilePath = os.path.join(tempPath, remoteFileName)
-        with requests.Session() as s:
-            retries = Retry(
-                total=3,
-                backoff_factor=15,
-                status_forcelist=[429, 500, 502, 503, 504],
-                allowed_methods=["GET"],
-            )
-            s.mount("https://", HTTPAdapter(max_retries=retries))
-            s.mount("http://", HTTPAdapter(max_retries=retries))
-            r = s.get(url, timeout=(60, 60), stream=True, allow_redirects=True)
-            if r and r.status_code == 200:
-                dirs = os.path.dirname(cifFilePath)
-                if not os.path.exists(dirs):
-                    os.makedirs(dirs)
-                with open(cifFilePath, "ab") as w:
-                    for chunk in r.raw.stream(1024, decode_content=False):
-                        if chunk:
-                            w.write(chunk)
-            else:
-                status_code = 0
-                if r:
-                    status_code = r.status_code
-                raise requests.exceptions.RequestException(
-                    "error - request failed for %s with status code %d"
-                    % (url, status_code)
-                )
 
-    # form output path bcifFilePath
+    # form output bcifFilePath
     bcifFilePath = getBcifFilePath(
         pdbId, outfileSuffix, updateBase, contentType, outputContentType, outputHash
     )
@@ -305,10 +267,6 @@ def singleTask(
     result = convert(cifFilePath, bcifFilePath, dtemp, dictionaryApi)
     if not result:
         raise Exception("failed to convert %s" % cifFilePath)
-
-    # remove cif file
-    if remotePath.startswith("http") and os.path.exists(cifFilePath):
-        os.unlink(cifFilePath)
 
     counter[0] += 1
 
