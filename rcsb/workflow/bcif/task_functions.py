@@ -42,6 +42,7 @@ def convertPrereleaseCifFiles(
     remotePath: str,
     updateBase: str,
     outfileSuffix: str,
+    contentType: str,
     outputContentType: bool,
     outputHash: bool,
     batch: int,
@@ -54,8 +55,7 @@ def convertPrereleaseCifFiles(
     """runs once per list file"""
 
     # paths for randomly-named temp files (bulk removal periodically)
-    tempPath = tempfile.mkdtemp()
-    dtemps = []
+    temppaths = []
 
     # read sublist
     filepath = os.path.join(listFileBase, listFileName)
@@ -76,11 +76,6 @@ def convertPrereleaseCifFiles(
     if len(files) < 1:
         raise ValueError("no files")
 
-    # set content type
-    contentType = "pdb"
-    if filepath.find("pdbx_comp_model_") >= 0:
-        contentType = "csm"
-
     # determine batch size
     if (batch is None) or not str(batch).isdigit():
         batch = 1
@@ -90,22 +85,13 @@ def convertPrereleaseCifFiles(
     logger.info("distributing %d files across %d sublists", len(files), batch)
 
     # form dictionary object
-    dictionaryApi = None
-    paths = [pdbxDict, maDict, rcsbDict]
-    try:
-        adapter = IoAdapter(raiseExceptions=True)
-        containers = []
-        for path in paths:
-            containers += adapter.readFile(inputFilePath=path)
-        dictionaryApi = DictionaryApi(containerList=containers, consolidate=True)
-    except Exception as e:
-        raise FileNotFoundError("failed to create dictionary api: %s" % str(e)) from e
+    dictionaryApi = getDictionaryApi(pdbxDict, maDict, rcsbDict)
 
     # traverse sublist and send each input file to converter
     procs = []
     if batch == 1:
-        dtemp = tempfile.mkdtemp(dir=tempPath)
-        dtemps.append(dtemp)
+        temppath = tempfile.mkdtemp()
+        temppaths.append(temppath)
         # process one file at a time
         for line in files:
             args = (
@@ -117,7 +103,7 @@ def convertPrereleaseCifFiles(
                 outputHash,
                 contentType,
                 dictionaryApi,
-                dtemp,
+                temppath,
                 maxTempFiles,
             )
             singleTask(*args)
@@ -131,8 +117,8 @@ def convertPrereleaseCifFiles(
                 "split list returned %d files instead of %d", nresults, nfiles
             )
         for task in tasks:
-            dtemp = tempfile.mkdtemp(dir=tempPath)
-            dtemps.append(dtemp)
+            temppath = tempfile.mkdtemp()
+            temppaths.append(temppath)
             args = (
                 task,
                 remotePath,
@@ -142,7 +128,7 @@ def convertPrereleaseCifFiles(
                 outputHash,
                 contentType,
                 dictionaryApi,
-                dtemp,
+                temppath,
                 maxTempFiles,
             )
             procs.append(multiprocessing.Process(target=batchTask, args=args))
@@ -153,14 +139,26 @@ def convertPrereleaseCifFiles(
         procs.clear()
 
     try:
-        for dtemp in dtemps:
-            if os.path.exists(dtemp):
-                shutil.rmtree(dtemp)
-        shutil.rmtree(tempPath)
+        for temppath in temppaths:
+            if os.path.exists(temppath):
+                shutil.rmtree(temppath)
     except Exception as e:
         logger.error(str(e))
 
     return True
+
+
+def getDictionaryApi(pdbxDict, maDict, rcsbDict):
+    paths = [pdbxDict, maDict, rcsbDict]
+    try:
+        adapter = IoAdapter(raiseExceptions=True)
+        containers = []
+        for path in paths:
+            containers += adapter.readFile(inputFilePath=path)
+        dictionaryApi = DictionaryApi(containerList=containers, consolidate=True)
+    except Exception as e:
+        raise FileNotFoundError("failed to create dictionary api: %s" % str(e)) from e
+    return dictionaryApi
 
 
 def splitList(nfiles: int, subtasks: int, tasklist: List[str]) -> List[List[str]]:
@@ -191,7 +189,7 @@ def batchTask(
     outputHash,
     contentType,
     dictionaryApi,
-    dtemp,
+    temppath,
     maxTempFiles,
 ):
     logger.info("processing %d tasks", len(tasks))
@@ -205,7 +203,7 @@ def batchTask(
             outputHash,
             contentType,
             dictionaryApi,
-            dtemp,
+            temppath,
             maxTempFiles,
         )
 
@@ -219,11 +217,11 @@ def singleTask(
     outputHash,
     contentType,
     dictionaryApi,
-    dtemp,
+    temppath,
     maxTempFiles,
     counter=[0],
 ):
-    if contentType == "pdb":
+    if contentType in ["pdb", "ihm"]:
         pdbId = pdbId.lower()
     elif contentType == "csm":
         pdbId = pdbId.upper()
@@ -245,6 +243,10 @@ def singleTask(
             cifFilePath = os.path.join(
                 remotePath, pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2], remoteFileName
             )
+        elif contentType == "ihm":
+            cifFilePath = os.path.join(
+                remotePath, pdbId[-3:-1], pdbId, "structures", remoteFileName
+            )
 
     # form output bcifFilePath
     bcifFilePath = getBcifFilePath(
@@ -264,7 +266,7 @@ def singleTask(
         os.makedirs(dirs)
 
     # convert to bcif
-    result = convert(cifFilePath, bcifFilePath, dtemp, dictionaryApi)
+    result = convert(cifFilePath, bcifFilePath, temppath, dictionaryApi)
     if not result:
         raise Exception("failed to convert %s" % cifFilePath)
 
@@ -272,7 +274,7 @@ def singleTask(
 
     # remove temp files
     if counter[0] >= maxTempFiles:
-        removeTempFiles(tempPath=dtemp)
+        removeTempFiles(tempPath=temppath)
         counter[0] = 0
 
 
@@ -290,6 +292,17 @@ def getBcifFilePath(
             bcifFilePath = os.path.join(updateBase, contentType, bcifFileName)
         elif outputHash:
             bcifFilePath = os.path.join(updateBase, pdbId[-3:-1], bcifFileName)
+        else:
+            bcifFilePath = os.path.join(updateBase, bcifFileName)
+    elif contentType == "ihm":
+        if outputContentType and outputHash:
+            bcifFilePath = os.path.join(
+                updateBase, contentType, pdbId[-3:-1], pdbId, bcifFileName
+            )
+        elif outputContentType:
+            bcifFilePath = os.path.join(updateBase, contentType, bcifFileName)
+        elif outputHash:
+            bcifFilePath = os.path.join(updateBase, pdbId[-3:-1], pdbId, bcifFileName)
         else:
             bcifFilePath = os.path.join(updateBase, bcifFileName)
     elif contentType == "csm":

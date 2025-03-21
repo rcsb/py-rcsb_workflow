@@ -14,7 +14,6 @@ __email__ = "james.smith@rcsb.org"
 __license__ = "Apache 2.0"
 
 import os
-import re
 import logging
 from rcsb.workflow.bcif.task_functions import convertPrereleaseCifFiles
 
@@ -37,6 +36,7 @@ class BcifWorkflow:
         self.nfiles = int(args.nfiles)
         self.maxTempFiles = int(args.maxTempFiles)
         self.outfileSuffix = args.outfileSuffix
+        self.contentType = args.contentType
         self.outputContentType = bool(args.outputContentType)
         self.outputHash = bool(args.outputHash)
         # paths and files
@@ -53,14 +53,16 @@ class BcifWorkflow:
 
     # public method required by pylint
     def validate(self):
+
         assert (
             self.outfileSuffix == ".bcif" or self.outfileSuffix == ".bcif.gz"
         ), "error - require either .bcif or .bcif.gz output file"
-        assert re.match(
-            r"^pdbx_comp_model_core_ids-\d+\.txt$", self.listFileName
-        ) or re.match(
-            r"^pdbx_core_ids-\d+\.txt$", self.listFileName
-        ), "require pdbx_core_ids-1.txt or pdbx_comp_model_core_ids-1.txt"
+
+        assert self.contentType in [
+            "pdb",
+            "csm",
+            "ihm",
+        ], "error - content type must be pdb, csm, or ihm"
 
     def __call__(self):
 
@@ -76,6 +78,7 @@ class BcifWorkflow:
             self.remotePath,
             self.outputPath,
             self.outfileSuffix,
+            self.contentType,
             self.outputContentType,
             self.outputHash,
             self.batch,

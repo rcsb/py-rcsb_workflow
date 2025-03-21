@@ -57,6 +57,13 @@ def main():
         choices=[".bcif", ".bcif.gz"],
         help="whether to use additional gzip compression",
     )
+    parser.add_argument(
+        "--contentType",
+        default="pdb",
+        required=True,
+        choices=["pdb", "csm", "ihm"],
+        help="which type of experiment was performed",
+    )
     # output folder structure, default none (save all output files in one folder)
     parser.add_argument(
         "--outputContentType",
