@@ -33,22 +33,16 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     # settings
     parser.add_argument(
-        "--batch",
-        default=0,
+        "--batchSize",
+        default=1,
         required=False,
-        help="subdivisions of sublists for pdb list and csm list, if 0 will equal number of cpus",
+        help="subdivisions of sublists for pdb list and csm list",
     )
     parser.add_argument(
         "--nfiles",
         default=0,
         required=False,
         help="set 0 for all files, set less than N for a test run, will not produce exactly n files",
-    )
-    parser.add_argument(
-        "--maxTempFiles",
-        default=1000,
-        required=False,
-        help="max reads before clear out temp files",
     )
     parser.add_argument(
         "--outfileSuffix",

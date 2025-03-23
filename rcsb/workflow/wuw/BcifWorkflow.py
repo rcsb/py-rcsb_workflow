@@ -15,7 +15,7 @@ __license__ = "Apache 2.0"
 
 import os
 import logging
-from rcsb.workflow.bcif.task_functions import convertPrereleaseCifFiles
+from rcsb.workflow.bcif.task_functions import convertCifFilesToBcif
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -32,9 +32,8 @@ class BcifWorkflow:
     def __init__(self, args):
 
         # settings
-        self.batch = int(args.batch)
+        self.batchSize = int(args.batchSize)
         self.nfiles = int(args.nfiles)
-        self.maxTempFiles = int(args.maxTempFiles)
         self.outfileSuffix = args.outfileSuffix
         self.contentType = args.contentType
         self.outputContentType = bool(args.outputContentType)
@@ -72,7 +71,7 @@ class BcifWorkflow:
             self.remotePath,
         )
 
-        convertPrereleaseCifFiles(
+        convertCifFilesToBcif(
             self.listFileName,
             self.listFileBase,
             self.remotePath,
@@ -81,9 +80,8 @@ class BcifWorkflow:
             self.contentType,
             self.outputContentType,
             self.outputHash,
-            self.batch,
+            self.batchSize,
             self.nfiles,
-            self.maxTempFiles,
             self.pdbxDict,
             self.maDict,
             self.rcsbDict,

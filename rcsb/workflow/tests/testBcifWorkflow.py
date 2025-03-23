@@ -20,14 +20,12 @@ import gzip
 import tempfile
 import unittest
 from typing import List
-from itertools import chain
 import logging
 import time
 import requests  # noqa: F401 pylint: disable=W0611
 from rcsb.workflow.bcif.task_functions import (
     convert,
     deconvert,
-    splitList,
     getDictionaryApi,
 )
 
@@ -38,7 +36,7 @@ logging.basicConfig(
 )
 
 
-pdbTestPath = "http://prereleaseftp-external-east.rcsb.org/pdb/data/structures/divided/mmCIF/00/100d.cif.gz"
+ON_LOCAL_SERVER = False
 
 
 def getList(cifFilePath, outFilePath) -> List[str]:
@@ -67,9 +65,8 @@ def computeBcif(
     contentType,
     outputContentType,
     outputHash,
-    batch,
+    batchSize,
     nfiles,
-    maxTempFiles,
 ):
     outContentType = ""
     outHash = ""
@@ -79,9 +76,8 @@ def computeBcif(
         outHash = "--outputHash"
     options = [
         "python3 -m rcsb.workflow.cli.BcifExec",
-        f"--batch {batch}",
+        f"--batchSize {batchSize}",
         f"--nfiles {nfiles}",
-        f"--maxTempFiles {maxTempFiles}",
         f"--listFileBase {listFileBase}",
         f"--listFileName {listFileName}",
         f"--remotePath {remotePath}",
@@ -129,19 +125,18 @@ class TestBcif(unittest.TestCase):
         self.maDict = "https://raw.githubusercontent.com/ihmwg/ModelCIF/master/dist/mmcif_ma_ext.dic"
         self.rcsbDict = "https://raw.githubusercontent.com/rcsb/py-rcsb_exdb_assets/master/dictionary_files/dist/rcsb_mmcif_ext.dic"
         # settings
-        self.batch = 0
+        self.batchSize = 4
         self.nlists = 2
         self.nfiles = len(os.listdir(self.pdbLocalPath))
-        self.maxTempFiles = self.nfiles
         self.outfileSuffix = ".bcif.gz"
         self.outputContentType = False
         self.outputHash = False
         #
-        self.nresults = (
-            len(os.listdir(self.pdbLocalPath))
-            + len(os.listdir(self.csmLocalPath))
-            + len(os.listdir(self.ihmLocalPath))
+        self.nresults = len(os.listdir(self.pdbLocalPath)) + len(
+            os.listdir(self.csmLocalPath)
         )
+        if ON_LOCAL_SERVER:
+            self.nresults += len(os.listdir(self.ihmLocalPath))
         #
         logging.info("making temp dir %s", self.outputPath)
         logging.info("making temp dir %s", self.listFileBase)
@@ -155,7 +150,7 @@ class TestBcif(unittest.TestCase):
     def test_local_workflow(self):
         t = time.time()
 
-        batch = 1
+        batchSize = 1
         outfileSuffix = ".bcif.gz"
 
         contentType = "pdb"
@@ -173,9 +168,8 @@ class TestBcif(unittest.TestCase):
             contentType,
             self.outputContentType,
             self.outputHash,
-            batch,
+            batchSize,
             self.nfiles,
-            self.maxTempFiles,
         )
 
         contentType = "csm"
@@ -193,30 +187,29 @@ class TestBcif(unittest.TestCase):
             contentType,
             self.outputContentType,
             self.outputHash,
-            batch,
+            batchSize,
             self.nfiles,
-            self.maxTempFiles,
         )
 
-        contentType = "ihm"
-        listFileName = "pdbx_ihm_ids-1.txt"
-        ihmlist = getList(
-            self.ihmLocalPath,
-            os.path.join(self.listFileBase, listFileName),
-        )
-        computeBcif(
-            self.listFileBase,
-            listFileName,
-            self.ihmRemotePath,
-            self.outputPath,
-            outfileSuffix,
-            contentType,
-            self.outputContentType,
-            self.outputHash,
-            batch,
-            self.nfiles,
-            self.maxTempFiles,
-        )
+        if ON_LOCAL_SERVER:
+            contentType = "ihm"
+            listFileName = "pdbx_ihm_ids-1.txt"
+            ihmlist = getList(
+                self.ihmLocalPath,
+                os.path.join(self.listFileBase, listFileName),
+            )
+            computeBcif(
+                self.listFileBase,
+                listFileName,
+                self.ihmRemotePath,
+                self.outputPath,
+                outfileSuffix,
+                contentType,
+                self.outputContentType,
+                self.outputHash,
+                batchSize,
+                self.nfiles,
+            )
 
         self.assertTrue(len(os.listdir(self.outputPath)) == self.nresults)
 
@@ -232,21 +225,22 @@ class TestBcif(unittest.TestCase):
                 os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % csmid))
             )
 
-        for ihmid in ihmlist:
-            ihmid = ihmid.lower()
-            self.assertTrue(
-                os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % ihmid))
-            )
+        if ON_LOCAL_SERVER:
+            for ihmid in ihmlist:
+                ihmid = ihmid.lower()
+                self.assertTrue(
+                    os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % ihmid))
+                )
 
         logging.info("test local workflow completed in %.2f s", (time.time() - t))
 
         logging.info(str(os.listdir(self.outputPath)))
 
-    @unittest.skip("requires local server authorization")
+    @unittest.skipUnless(ON_LOCAL_SERVER, "requires local server authorization")
     def test_remote_workflow(self):
         t = time.time()
 
-        batch = 1
+        batchSize = 1
         outfileSuffix = ".bcif.gz"
 
         # get lists for local files but then download them
@@ -264,9 +258,8 @@ class TestBcif(unittest.TestCase):
             contentType,
             self.outputContentType,
             self.outputHash,
-            batch,
+            batchSize,
             self.nfiles,
-            self.maxTempFiles,
         )
 
         listFileName = "pdbx_comp_model_core_ids-1.txt"
@@ -283,29 +276,28 @@ class TestBcif(unittest.TestCase):
             contentType,
             self.outputContentType,
             self.outputHash,
-            batch,
+            batchSize,
             self.nfiles,
-            self.maxTempFiles,
         )
 
-        listFileName = "pdbx_ihm_ids-1.txt"
-        contentType = "ihm"
-        ihmlist = getList(
-            self.ihmLocalPath, os.path.join(self.listFileBase, listFileName)
-        )
-        computeBcif(
-            self.listFileBase,
-            listFileName,
-            self.ihmRemotePath,
-            self.outputPath,
-            outfileSuffix,
-            contentType,
-            self.outputContentType,
-            self.outputHash,
-            batch,
-            self.nfiles,
-            self.maxTempFiles,
-        )
+        if ON_LOCAL_SERVER:
+            listFileName = "pdbx_ihm_ids-1.txt"
+            contentType = "ihm"
+            ihmlist = getList(
+                self.ihmLocalPath, os.path.join(self.listFileBase, listFileName)
+            )
+            computeBcif(
+                self.listFileBase,
+                listFileName,
+                self.ihmRemotePath,
+                self.outputPath,
+                outfileSuffix,
+                contentType,
+                self.outputContentType,
+                self.outputHash,
+                batchSize,
+                self.nfiles,
+            )
 
         self.assertTrue(len(os.listdir(self.outputPath)) == self.nresults)
 
@@ -321,11 +313,12 @@ class TestBcif(unittest.TestCase):
                 os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % csmid))
             )
 
-        for ihmid in ihmlist:
-            ihmid = ihmid.lower()
-            self.assertTrue(
-                os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % ihmid))
-            )
+        if ON_LOCAL_SERVER:
+            for ihmid in ihmlist:
+                ihmid = ihmid.lower()
+                self.assertTrue(
+                    os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % ihmid))
+                )
 
         logging.info("test remote workflow completed in %.2f s", (time.time() - t))
 
@@ -334,12 +327,13 @@ class TestBcif(unittest.TestCase):
     def test_expanded_files(self):
         t = time.time()
 
-        batch = 1
+        batchSize = 1
         outfileSuffix = ".bcif"
 
         pdbdir = tempfile.mkdtemp()
         csmdir = tempfile.mkdtemp()
-        ihmdir = tempfile.mkdtemp()
+        if ON_LOCAL_SERVER:
+            ihmdir = tempfile.mkdtemp()
         for filename in os.listdir(self.pdbLocalPath):
             filepath = os.path.join(self.pdbLocalPath, filename)
             outpath = os.path.join(pdbdir, filename.replace(".gz", ""))
@@ -352,12 +346,13 @@ class TestBcif(unittest.TestCase):
             with gzip.open(filepath, "rb") as r:
                 with open(outpath, "wb") as w:
                     shutil.copyfileobj(r, w)
-        for filename in os.listdir(self.ihmLocalPath):
-            filepath = os.path.join(self.ihmLocalPath, filename)
-            outpath = os.path.join(ihmdir, filename.replace(".gz", ""))
-            with gzip.open(filepath, "rb") as r:
-                with open(outpath, "wb") as w:
-                    shutil.copyfileobj(r, w)
+        if ON_LOCAL_SERVER:
+            for filename in os.listdir(self.ihmLocalPath):
+                filepath = os.path.join(self.ihmLocalPath, filename)
+                outpath = os.path.join(ihmdir, filename.replace(".gz", ""))
+                with gzip.open(filepath, "rb") as r:
+                    with open(outpath, "wb") as w:
+                        shutil.copyfileobj(r, w)
 
         contentType = "pdb"
         listFileName = "pdbx_core_ids-1.txt"
@@ -374,9 +369,8 @@ class TestBcif(unittest.TestCase):
             contentType,
             self.outputContentType,
             self.outputHash,
-            batch,
+            batchSize,
             self.nfiles,
-            self.maxTempFiles,
         )
 
         contentType = "csm"
@@ -394,30 +388,29 @@ class TestBcif(unittest.TestCase):
             contentType,
             self.outputContentType,
             self.outputHash,
-            batch,
+            batchSize,
             self.nfiles,
-            self.maxTempFiles,
         )
 
-        contentType = "ihm"
-        listFileName = "pdbx_ihm_ids-1.txt"
-        ihmlist = getList(
-            ihmdir,
-            os.path.join(self.listFileBase, listFileName),
-        )
-        computeBcif(
-            self.listFileBase,
-            listFileName,
-            ihmdir,
-            self.outputPath,
-            outfileSuffix,
-            contentType,
-            self.outputContentType,
-            self.outputHash,
-            batch,
-            self.nfiles,
-            self.maxTempFiles,
-        )
+        if ON_LOCAL_SERVER:
+            contentType = "ihm"
+            listFileName = "pdbx_ihm_ids-1.txt"
+            ihmlist = getList(
+                ihmdir,
+                os.path.join(self.listFileBase, listFileName),
+            )
+            computeBcif(
+                self.listFileBase,
+                listFileName,
+                ihmdir,
+                self.outputPath,
+                outfileSuffix,
+                contentType,
+                self.outputContentType,
+                self.outputHash,
+                batchSize,
+                self.nfiles,
+            )
 
         self.assertTrue(len(os.listdir(self.outputPath)) == self.nresults)
 
@@ -433,11 +426,12 @@ class TestBcif(unittest.TestCase):
                 os.path.exists(os.path.join(self.outputPath, "%s.bcif" % csmid))
             )
 
-        for ihmid in ihmlist:
-            ihmid = ihmid.lower()
-            self.assertTrue(
-                os.path.exists(os.path.join(self.outputPath, "%s.bcif" % ihmid))
-            )
+        if ON_LOCAL_SERVER:
+            for ihmid in ihmlist:
+                ihmid = ihmid.lower()
+                self.assertTrue(
+                    os.path.exists(os.path.join(self.outputPath, "%s.bcif" % ihmid))
+                )
 
         logging.info("test expanded files completed in %.2f s", (time.time() - t))
 
@@ -445,12 +439,13 @@ class TestBcif(unittest.TestCase):
 
         shutil.rmtree(pdbdir)
         shutil.rmtree(csmdir)
-        shutil.rmtree(ihmdir)
+        if ON_LOCAL_SERVER:
+            shutil.rmtree(ihmdir)
 
     def test_hashed_storage(self):
         t = time.time()
 
-        batch = 1
+        batchSize = 1
         outfileSuffix = ".bcif.gz"
         outputContentType = True
         outputHash = True
@@ -470,9 +465,8 @@ class TestBcif(unittest.TestCase):
             contentType,
             outputContentType,
             outputHash,
-            batch,
+            batchSize,
             self.nfiles,
-            self.maxTempFiles,
         )
 
         contentType = "csm"
@@ -490,30 +484,29 @@ class TestBcif(unittest.TestCase):
             contentType,
             outputContentType,
             outputHash,
-            batch,
+            batchSize,
             self.nfiles,
-            self.maxTempFiles,
         )
 
-        contentType = "ihm"
-        listFileName = "pdbx_ihm_ids-1.txt"
-        ihmlist = getList(
-            self.ihmLocalPath,
-            os.path.join(self.listFileBase, listFileName),
-        )
-        computeBcif(
-            self.listFileBase,
-            listFileName,
-            self.ihmLocalPath,
-            self.outputPath,
-            outfileSuffix,
-            contentType,
-            outputContentType,
-            outputHash,
-            batch,
-            self.nfiles,
-            self.maxTempFiles,
-        )
+        if ON_LOCAL_SERVER:
+            contentType = "ihm"
+            listFileName = "pdbx_ihm_ids-1.txt"
+            ihmlist = getList(
+                self.ihmLocalPath,
+                os.path.join(self.listFileBase, listFileName),
+            )
+            computeBcif(
+                self.listFileBase,
+                listFileName,
+                self.ihmLocalPath,
+                self.outputPath,
+                outfileSuffix,
+                contentType,
+                outputContentType,
+                outputHash,
+                batchSize,
+                self.nfiles,
+            )
 
         self.assertFalse(len(os.listdir(self.outputPath)) == self.nresults)
 
@@ -542,15 +535,20 @@ class TestBcif(unittest.TestCase):
                 )
             )
 
-        for ihmid in ihmlist:
-            ihmid = ihmid.lower()
-            self.assertTrue(
-                os.path.exists(
-                    os.path.join(
-                        self.outputPath, "ihm", ihmid[1:3], ihmid, "%s.bcif.gz" % ihmid
+        if ON_LOCAL_SERVER:
+            for ihmid in ihmlist:
+                ihmid = ihmid.lower()
+                self.assertTrue(
+                    os.path.exists(
+                        os.path.join(
+                            self.outputPath,
+                            "ihm",
+                            ihmid[1:3],
+                            ihmid,
+                            "%s.bcif.gz" % ihmid,
+                        )
                     )
                 )
-            )
 
         logging.info(str(os.listdir(self.outputPath)))
 
@@ -564,7 +562,7 @@ class TestBcif(unittest.TestCase):
     def test_batch_workflow(self):
         t = time.time()
 
-        batch = 0
+        batchSize = 4
         outfileSuffix = ".bcif.gz"
 
         contentType = "pdb"
@@ -582,9 +580,8 @@ class TestBcif(unittest.TestCase):
             contentType,
             self.outputContentType,
             self.outputHash,
-            batch,
+            batchSize,
             self.nfiles,
-            self.maxTempFiles,
         )
 
         contentType = "csm"
@@ -602,30 +599,29 @@ class TestBcif(unittest.TestCase):
             contentType,
             self.outputContentType,
             self.outputHash,
-            batch,
+            batchSize,
             self.nfiles,
-            self.maxTempFiles,
         )
 
-        contentType = "ihm"
-        listFileName = "pdbx_ihm_ids-1.txt"
-        ihmlist = getList(
-            self.ihmLocalPath,
-            os.path.join(self.listFileBase, listFileName),
-        )
-        computeBcif(
-            self.listFileBase,
-            listFileName,
-            self.ihmLocalPath,
-            self.outputPath,
-            outfileSuffix,
-            contentType,
-            self.outputContentType,
-            self.outputHash,
-            batch,
-            self.nfiles,
-            self.maxTempFiles,
-        )
+        if ON_LOCAL_SERVER:
+            contentType = "ihm"
+            listFileName = "pdbx_ihm_ids-1.txt"
+            ihmlist = getList(
+                self.ihmLocalPath,
+                os.path.join(self.listFileBase, listFileName),
+            )
+            computeBcif(
+                self.listFileBase,
+                listFileName,
+                self.ihmLocalPath,
+                self.outputPath,
+                outfileSuffix,
+                contentType,
+                self.outputContentType,
+                self.outputHash,
+                batchSize,
+                self.nfiles,
+            )
 
         self.assertTrue(len(os.listdir(self.outputPath)) == self.nresults)
 
@@ -641,58 +637,16 @@ class TestBcif(unittest.TestCase):
                 os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % csmid))
             )
 
-        for ihmid in ihmlist:
-            ihmid = ihmid.lower()
-            self.assertTrue(
-                os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % ihmid))
-            )
+        if ON_LOCAL_SERVER:
+            for ihmid in ihmlist:
+                ihmid = ihmid.lower()
+                self.assertTrue(
+                    os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % ihmid))
+                )
 
         logging.info("test batch workflow completed in %.2f s", (time.time() - t))
 
         logging.info(str(os.listdir(self.outputPath)))
-
-    def test_split_list(self):
-        for subtasks in range(1, 10):
-            # read list of 230000
-            entries = []
-            r = open(self.pdbFullListFile, "r", encoding="utf-8")
-            for line in r:
-                entries.append(line.strip())
-            r.close()
-            print("%d entries" % len(entries))
-
-            # split into sublists
-            nfiles = len(entries)
-            sublists = splitList(nfiles, subtasks, entries)
-            print(
-                "%d sublists of lengths %s"
-                % (len(sublists), str([len(sublist) for sublist in sublists]))
-            )
-
-            # count results
-            flatlist = list(chain(*sublists))
-            resultcount = len(flatlist)
-            print("%d results" % resultcount)
-            self.assertTrue(
-                resultcount == nfiles,
-                "error - %d results %d files"
-                % (
-                    resultcount,
-                    nfiles,
-                ),
-            )
-
-            # verify unique
-            resultset = set(flatlist)
-            print("%d unique results" % len(resultset))
-            self.assertTrue(
-                len(resultset) == nfiles,
-                "error - %d unique results %d files"
-                % (
-                    len(resultset),
-                    nfiles,
-                ),
-            )
 
     def test_deconvert(self):
         infiles = []
