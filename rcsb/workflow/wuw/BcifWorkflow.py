@@ -38,6 +38,7 @@ class BcifWorkflow:
         self.contentType = args.contentType
         self.outputContentType = bool(args.outputContentType)
         self.outputHash = bool(args.outputHash)
+        self.inputHash = bool(args.inputHash)
         # paths and files
         self.listFileBase = args.listFileBase
         self.listFileName = args.listFileName
@@ -80,6 +81,7 @@ class BcifWorkflow:
             self.contentType,
             self.outputContentType,
             self.outputHash,
+            self.inputHash,
             self.batchSize,
             self.nfiles,
             self.pdbxDict,

@@ -73,6 +73,14 @@ def main():
         required=False,
         help="whether output paths should include the hash for the entry",
     )
+    # input folder structure, default none (read all input files from one folder)
+    parser.add_argument(
+        "--inputHash",
+        action="store_true",
+        default=False,
+        required=False,
+        help="whether local input paths should include the hash for the entry",
+    )
     # paths
     parser.add_argument(
         "--listFileBase",

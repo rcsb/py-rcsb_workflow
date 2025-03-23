@@ -42,6 +42,7 @@ def convertCifFilesToBcif(
     contentType: str,
     outputContentType: bool,
     outputHash: bool,
+    inputHash: bool,
     batchSize: int,
     maxFiles: int,
     pdbxDict: str,
@@ -92,6 +93,7 @@ def convertCifFilesToBcif(
                 outfileSuffix,
                 outputContentType,
                 outputHash,
+                inputHash,
                 contentType,
                 dictionaryApi,
                 temppath,
@@ -109,6 +111,7 @@ def convertCifFilesToBcif(
                 outfileSuffix,
                 outputContentType,
                 outputHash,
+                inputHash,
                 contentType,
                 dictionaryApi,
                 temppath,
@@ -146,6 +149,7 @@ def singleTask(
     outfileSuffix: str,
     outputContentType: bool,
     outputHash: bool,
+    inputHash: bool,
     contentType: str,
     dictionaryApi: DictionaryApi,
     temppath: str,
@@ -163,6 +167,10 @@ def singleTask(
     if not remotePath.startswith("http"):
         # local file
         cifFilePath = os.path.join(remotePath, remoteFileName)
+        if inputHash:
+            cifFilePath = os.path.join(
+                remotePath, getInputHash(pdbId, contentType), remoteFileName
+            )
         if not os.path.exists(cifFilePath):
             logger.warning("%s not found", cifFilePath)
             return
@@ -198,6 +206,12 @@ def singleTask(
         raise Exception("failed to convert %s" % cifFilePath)
 
 
+def getInputHash(pdbId: str, contentType: str) -> str:
+    if contentType == ModelType.COMPUTATIONAL:
+        return os.path.join(pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2])
+    return pdbId[-3:-1]
+
+
 def getBcifFilePath(
     pdbId: str,
     outfileSuffix: str,
@@ -207,7 +221,7 @@ def getBcifFilePath(
     outputHash: bool,
 ) -> str:
     bcifFileName = "%s%s" % (pdbId, outfileSuffix)
-    if contentType == ModelType.EXPERIMENTAL.value:
+    if contentType in [ModelType.EXPERIMENTAL.value, ModelType.INTEGRATIVE.value]:
         if outputContentType and outputHash:
             bcifFilePath = os.path.join(
                 updateBase, contentType, pdbId[-3:-1], bcifFileName
@@ -216,17 +230,6 @@ def getBcifFilePath(
             bcifFilePath = os.path.join(updateBase, contentType, bcifFileName)
         elif outputHash:
             bcifFilePath = os.path.join(updateBase, pdbId[-3:-1], bcifFileName)
-        else:
-            bcifFilePath = os.path.join(updateBase, bcifFileName)
-    elif contentType == ModelType.INTEGRATIVE.value:
-        if outputContentType and outputHash:
-            bcifFilePath = os.path.join(
-                updateBase, contentType, pdbId[-3:-1], pdbId, bcifFileName
-            )
-        elif outputContentType:
-            bcifFilePath = os.path.join(updateBase, contentType, bcifFileName)
-        elif outputHash:
-            bcifFilePath = os.path.join(updateBase, pdbId[-3:-1], pdbId, bcifFileName)
         else:
             bcifFilePath = os.path.join(updateBase, bcifFileName)
     elif contentType == ModelType.COMPUTATIONAL.value:

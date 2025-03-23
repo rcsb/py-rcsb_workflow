@@ -65,15 +65,19 @@ def computeBcif(
     contentType,
     outputContentType,
     outputHash,
+    inputHash,
     batchSize,
     nfiles,
 ):
     outContentType = ""
     outHash = ""
+    inHash = ""
     if outputContentType:
         outContentType = "--outputContentType"
     if outputHash:
         outHash = "--outputHash"
+    if inputHash:
+        inHash = "--inputHash"
     options = [
         "python3 -m rcsb.workflow.cli.BcifExec",
         f"--batchSize {batchSize}",
@@ -86,6 +90,7 @@ def computeBcif(
         f"--contentType {contentType}",
         f"{outContentType}",
         f"{outHash}",
+        f"{inHash}",
     ]
     cmd = " ".join(options)
     status = os.system(cmd)
@@ -131,6 +136,7 @@ class TestBcif(unittest.TestCase):
         self.outfileSuffix = ".bcif.gz"
         self.outputContentType = False
         self.outputHash = False
+        self.inputHash = False
         #
         self.nresults = len(os.listdir(self.pdbLocalPath)) + len(
             os.listdir(self.csmLocalPath)
@@ -168,6 +174,7 @@ class TestBcif(unittest.TestCase):
             contentType,
             self.outputContentType,
             self.outputHash,
+            self.inputHash,
             batchSize,
             self.nfiles,
         )
@@ -187,6 +194,7 @@ class TestBcif(unittest.TestCase):
             contentType,
             self.outputContentType,
             self.outputHash,
+            self.inputHash,
             batchSize,
             self.nfiles,
         )
@@ -207,6 +215,7 @@ class TestBcif(unittest.TestCase):
                 contentType,
                 self.outputContentType,
                 self.outputHash,
+                self.inputHash,
                 batchSize,
                 self.nfiles,
             )
@@ -258,6 +267,7 @@ class TestBcif(unittest.TestCase):
             contentType,
             self.outputContentType,
             self.outputHash,
+            self.inputHash,
             batchSize,
             self.nfiles,
         )
@@ -276,6 +286,7 @@ class TestBcif(unittest.TestCase):
             contentType,
             self.outputContentType,
             self.outputHash,
+            self.inputHash,
             batchSize,
             self.nfiles,
         )
@@ -295,6 +306,7 @@ class TestBcif(unittest.TestCase):
                 contentType,
                 self.outputContentType,
                 self.outputHash,
+                self.inputHash,
                 batchSize,
                 self.nfiles,
             )
@@ -369,6 +381,7 @@ class TestBcif(unittest.TestCase):
             contentType,
             self.outputContentType,
             self.outputHash,
+            self.inputHash,
             batchSize,
             self.nfiles,
         )
@@ -388,6 +401,7 @@ class TestBcif(unittest.TestCase):
             contentType,
             self.outputContentType,
             self.outputHash,
+            self.inputHash,
             batchSize,
             self.nfiles,
         )
@@ -408,6 +422,7 @@ class TestBcif(unittest.TestCase):
                 contentType,
                 self.outputContentType,
                 self.outputHash,
+                self.inputHash,
                 batchSize,
                 self.nfiles,
             )
@@ -465,6 +480,7 @@ class TestBcif(unittest.TestCase):
             contentType,
             outputContentType,
             outputHash,
+            self.inputHash,
             batchSize,
             self.nfiles,
         )
@@ -484,6 +500,7 @@ class TestBcif(unittest.TestCase):
             contentType,
             outputContentType,
             outputHash,
+            self.inputHash,
             batchSize,
             self.nfiles,
         )
@@ -504,6 +521,7 @@ class TestBcif(unittest.TestCase):
                 contentType,
                 outputContentType,
                 outputHash,
+                self.inputHash,
                 batchSize,
                 self.nfiles,
             )
@@ -545,6 +563,7 @@ class TestBcif(unittest.TestCase):
                             "ihm",
                             ihmid[1:3],
                             ihmid,
+                            "structures",
                             "%s.bcif.gz" % ihmid,
                         )
                     )
@@ -580,6 +599,7 @@ class TestBcif(unittest.TestCase):
             contentType,
             self.outputContentType,
             self.outputHash,
+            self.inputHash,
             batchSize,
             self.nfiles,
         )
@@ -599,6 +619,7 @@ class TestBcif(unittest.TestCase):
             contentType,
             self.outputContentType,
             self.outputHash,
+            self.inputHash,
             batchSize,
             self.nfiles,
         )
@@ -619,6 +640,7 @@ class TestBcif(unittest.TestCase):
                 contentType,
                 self.outputContentType,
                 self.outputHash,
+                self.inputHash,
                 batchSize,
                 self.nfiles,
             )
