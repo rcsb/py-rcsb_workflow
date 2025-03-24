@@ -115,11 +115,6 @@ class TestBcif(unittest.TestCase):
         self.ihmLocalPath = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "test-data", "bcif", "ihm")
         )
-        self.pdbFullListFile = os.path.abspath(
-            os.path.join(
-                os.path.dirname(__file__), "test-data", "bcif", "pdbx_core_ids-1.txt"
-            )
-        )
         # remote (from sandbox_config.py/MasterConfig)
         self.pdbRemotePath = "http://prereleaseftp-external-east.rcsb.org/pdb/data/structures/divided/mmCIF/"
         self.csmRemotePath = "http://computed-models-external-east.rcsb.org/staging"
@@ -168,7 +163,7 @@ class TestBcif(unittest.TestCase):
         computeBcif(
             self.listFileBase,
             listFileName,
-            self.pdbRemotePath,
+            self.pdbLocalPath,
             self.outputPath,
             outfileSuffix,
             contentType,
@@ -188,7 +183,7 @@ class TestBcif(unittest.TestCase):
         computeBcif(
             self.listFileBase,
             listFileName,
-            self.csmRemotePath,
+            self.csmLocalPath,
             self.outputPath,
             outfileSuffix,
             contentType,
@@ -209,7 +204,7 @@ class TestBcif(unittest.TestCase):
             computeBcif(
                 self.listFileBase,
                 listFileName,
-                self.ihmRemotePath,
+                self.ihmLocalPath,
                 self.outputPath,
                 outfileSuffix,
                 contentType,
