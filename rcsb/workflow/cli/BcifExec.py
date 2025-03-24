@@ -85,8 +85,8 @@ def main():
     parser.add_argument(
         "--listFileBase",
         default="/tmp",
-        required=False,
-        help="input lists, may be same as temp path",
+        required=True,
+        help="path for input lists",
     )
     parser.add_argument(
         "--listFileName",

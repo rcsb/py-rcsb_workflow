@@ -22,7 +22,6 @@ import unittest
 from typing import List
 import logging
 import time
-import requests  # noqa: F401 pylint: disable=W0611
 from rcsb.workflow.bcif.task_functions import (
     convert,
     deconvert,
@@ -557,8 +556,6 @@ class TestBcif(unittest.TestCase):
                             self.outputPath,
                             "ihm",
                             ihmid[1:3],
-                            ihmid,
-                            "structures",
                             "%s.bcif.gz" % ihmid,
                         )
                     )

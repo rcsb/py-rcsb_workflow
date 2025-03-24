@@ -55,7 +55,7 @@ def convertCifFilesToBcif(
     # read sublist
     listfilepath = os.path.join(listFileBase, listFileName)
     logger.info(
-        "convert prerelease cif files reading list file %s and remote path %s",
+        "reading list file %s and remote path %s",
         listfilepath,
         remotePath,
     )
