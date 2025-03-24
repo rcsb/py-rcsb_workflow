@@ -19,6 +19,7 @@ import shutil
 import tempfile
 import logging
 from enum import Enum
+from typing import Optional
 from mmcif.api.DictionaryApi import DictionaryApi
 from mmcif.io.IoAdapterPy import IoAdapterPy as IoAdapter
 from rcsb.utils.io.MarshalUtil import MarshalUtil
@@ -118,7 +119,7 @@ def convertCifFilesToBcif(
             )
             results.append(pool.apply_async(singleTask, args))
         for r in results:
-            result = r.get(timeout=60 * 5)
+            r.get(timeout=60 * 5)
         pool.close()
         results.clear()
 
@@ -189,6 +190,9 @@ def singleTask(
     bcifFilePath = getBcifFilePath(
         pdbId, outfileSuffix, updateBase, contentType, outputContentType, outputHash
     )
+    if not bcifFilePath:
+        raise ValueError("could not form bcif file path for %s" % pdbId)
+
     if os.path.exists(bcifFilePath):
         # earlier timestamp ... overwrite
         os.unlink(bcifFilePath)
@@ -219,8 +223,9 @@ def getBcifFilePath(
     contentType: str,
     outputContentType: bool,
     outputHash: bool,
-) -> str:
+) -> Optional[str]:
     bcifFileName = "%s%s" % (pdbId, outfileSuffix)
+    bcifFilePath = None
     if contentType in [ModelType.EXPERIMENTAL.value, ModelType.INTEGRATIVE.value]:
         if outputContentType and outputHash:
             bcifFilePath = os.path.join(
