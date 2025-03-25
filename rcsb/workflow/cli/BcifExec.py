@@ -31,56 +31,6 @@ logger.addHandler(handler)
 def main():
 
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-    # settings
-    parser.add_argument(
-        "--batchSize",
-        default=1,
-        required=False,
-        help="subdivisions of sublists for pdb list and csm list",
-    )
-    parser.add_argument(
-        "--nfiles",
-        default=0,
-        required=False,
-        help="set 0 for all files, set less than N for a test run, will not produce exactly n files",
-    )
-    parser.add_argument(
-        "--outfileSuffix",
-        default=".bcif.gz",
-        required=False,
-        choices=[".bcif", ".bcif.gz"],
-        help="whether to use additional gzip compression",
-    )
-    parser.add_argument(
-        "--contentType",
-        default="pdb",
-        required=True,
-        choices=["pdb", "csm", "ihm"],
-        help="which type of experiment was performed",
-    )
-    # output folder structure, default none (save all output files in one folder)
-    parser.add_argument(
-        "--outputContentType",
-        action="store_true",
-        default=False,
-        required=False,
-        help="whether output paths should include a directory for the content type (pdb, csm)",
-    )
-    parser.add_argument(
-        "--outputHash",
-        action="store_true",
-        default=False,
-        required=False,
-        help="whether output paths should include the hash for the entry",
-    )
-    # input folder structure, default none (read all input files from one folder)
-    parser.add_argument(
-        "--inputHash",
-        action="store_true",
-        default=False,
-        required=False,
-        help="whether local input paths should include the hash for the entry",
-    )
     # paths
     parser.add_argument(
         "--listFileBase",
@@ -106,6 +56,56 @@ def main():
         required=True,
         help="output directory for bcif files",
     )
+    # settings
+    parser.add_argument(
+        "--contentType",
+        default="pdb",
+        required=True,
+        choices=["pdb", "csm", "ihm"],
+        help="which type of experiment was performed",
+    )
+    parser.add_argument(
+        "--nfiles",
+        default=0,
+        required=False,
+        help="set 0 for all files, set less than N for a test run, will not produce exactly n files",
+    )
+    parser.add_argument(
+        "--outfileSuffix",
+        default=".bcif.gz",
+        required=False,
+        choices=[".bcif", ".bcif.gz"],
+        help="whether to use additional gzip compression",
+    )
+    parser.add_argument(
+        "--batchSize",
+        default=1,
+        required=False,
+        help="optional subdivisions of sublists for pdb list and csm list",
+    )
+    # output folder structure, default none (save all output files in one folder)
+    parser.add_argument(
+        "--outputContentType",
+        action="store_true",
+        default=False,
+        required=False,
+        help="whether output paths should include a directory for the content type (pdb, csm)",
+    )
+    parser.add_argument(
+        "--outputHash",
+        action="store_true",
+        default=False,
+        required=False,
+        help="whether output paths should include the hash for the entry",
+    )
+    # input folder structure, default none (read all input files from one folder)
+    parser.add_argument(
+        "--inputHash",
+        action="store_true",
+        default=False,
+        required=False,
+        help="whether local input paths should include the hash for the entry",
+    )
     # config
     parser.add_argument(
         "--pdbxDict",
@@ -120,6 +120,11 @@ def main():
     parser.add_argument(
         "--rcsbDict",
         default="https://raw.githubusercontent.com/rcsb/py-rcsb_exdb_assets/master/dictionary_files/dist/rcsb_mmcif_ext.dic",
+        required=False,
+    )
+    parser.add_argument(
+        "--ihmDict",
+        default="https://raw.githubusercontent.com/rcsb/py-rcsb_exdb_assets/pdb-ihm-2/dictionary_files/reference/mmcif_ihm_ext.dic",
         required=False,
     )
 

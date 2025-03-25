@@ -28,8 +28,8 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-ModelType = Enum(
-    "ModelType",
+ContentTypeEnum = Enum(
+    "ContentTypeEnum",
     [("EXPERIMENTAL", "pdb"), ("COMPUTATIONAL", "csm"), ("INTEGRATIVE", "ihm")],
 )
 
@@ -49,6 +49,7 @@ def convertCifFilesToBcif(
     pdbxDict: str,
     maDict: str,
     rcsbDict: str,
+    ihmDict: str,
 ) -> None:
     """runs once per list file"""
 
@@ -80,7 +81,7 @@ def convertCifFilesToBcif(
     logger.info("distributing %d files across %d sublists", len(files), batchSize)
 
     # form dictionary object
-    dictionaryApi = getDictionaryApi(pdbxDict, maDict, rcsbDict)
+    dictionaryApi = getDictionaryApi(pdbxDict, maDict, rcsbDict, ihmDict)
 
     # traverse sublist and send each input file to converter
     temppath = tempfile.mkdtemp()
@@ -130,8 +131,10 @@ def convertCifFilesToBcif(
         logger.error(str(e))
 
 
-def getDictionaryApi(pdbxDict: dict, maDict: dict, rcsbDict: dict) -> DictionaryApi:
-    paths = [pdbxDict, maDict, rcsbDict]
+def getDictionaryApi(
+    pdbxDict: str, maDict: str, rcsbDict: str, ihmDict: str
+) -> DictionaryApi:
+    paths = [pdbxDict, maDict, rcsbDict, ihmDict]
     try:
         adapter = IoAdapter(raiseExceptions=True)
         containers = []
@@ -155,9 +158,12 @@ def singleTask(
     dictionaryApi: DictionaryApi,
     temppath: str,
 ) -> None:
-    if contentType in [ModelType.EXPERIMENTAL.value, ModelType.INTEGRATIVE.value]:
+    if contentType in [
+        ContentTypeEnum.EXPERIMENTAL.value,
+        ContentTypeEnum.INTEGRATIVE.value,
+    ]:
         pdbId = pdbId.lower()
-    elif contentType == ModelType.COMPUTATIONAL.value:
+    elif contentType == ContentTypeEnum.COMPUTATIONAL.value:
         pdbId = pdbId.upper()
     remoteFileName = "%s%s" % (
         pdbId,
@@ -170,21 +176,13 @@ def singleTask(
         cifFilePath = os.path.join(remotePath, remoteFileName)
         if inputHash:
             cifFilePath = os.path.join(
-                remotePath, getInputHash(pdbId, contentType), remoteFileName
+                remotePath, getLocalHash(pdbId, contentType), remoteFileName
             )
         if not os.path.exists(cifFilePath):
             logger.warning("%s not found", cifFilePath)
             return
     else:
-        cifFilePath = os.path.join(remotePath, pdbId[-3:-1], remoteFileName)
-        if contentType == ModelType.COMPUTATIONAL.value:
-            cifFilePath = os.path.join(
-                remotePath, pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2], remoteFileName
-            )
-        elif contentType == ModelType.INTEGRATIVE.value:
-            cifFilePath = os.path.join(
-                remotePath, pdbId[-3:-1], pdbId, "structures", remoteFileName
-            )
+        cifFilePath = getRemoteHash(remotePath, remoteFileName, pdbId, contentType)
 
     # form output bcifFilePath
     bcifFilePath = getBcifFilePath(
@@ -210,8 +208,23 @@ def singleTask(
         raise Exception("failed to convert %s" % cifFilePath)
 
 
-def getInputHash(pdbId: str, contentType: str) -> str:
-    if contentType == ModelType.COMPUTATIONAL:
+def getRemoteHash(
+    remotePath: str, remoteFileName: str, pdbId: str, contentType: str
+) -> str:
+    cifFilePath = os.path.join(remotePath, pdbId[-3:-1], remoteFileName)
+    if contentType == ContentTypeEnum.COMPUTATIONAL.value:
+        cifFilePath = os.path.join(
+            remotePath, pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2], remoteFileName
+        )
+    elif contentType == ContentTypeEnum.INTEGRATIVE.value:
+        cifFilePath = os.path.join(
+            remotePath, pdbId[-3:-1], pdbId, "structures", remoteFileName
+        )
+    return cifFilePath
+
+
+def getLocalHash(pdbId: str, contentType: str) -> str:
+    if contentType == ContentTypeEnum.COMPUTATIONAL.value:
         return os.path.join(pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2])
     return pdbId[-3:-1]
 
@@ -226,25 +239,28 @@ def getBcifFilePath(
 ) -> Optional[str]:
     bcifFileName = "%s%s" % (pdbId, outfileSuffix)
     bcifFilePath = None
-    if contentType in [ModelType.EXPERIMENTAL.value, ModelType.INTEGRATIVE.value]:
+    if contentType in [
+        ContentTypeEnum.EXPERIMENTAL.value,
+        ContentTypeEnum.INTEGRATIVE.value,
+    ]:
         if outputContentType and outputHash:
             bcifFilePath = os.path.join(
-                updateBase, contentType, pdbId[-3:-1], bcifFileName
+                updateBase, contentType, getLocalHash(pdbId, contentType), bcifFileName
             )
         elif outputContentType:
             bcifFilePath = os.path.join(updateBase, contentType, bcifFileName)
         elif outputHash:
-            bcifFilePath = os.path.join(updateBase, pdbId[-3:-1], bcifFileName)
+            bcifFilePath = os.path.join(
+                updateBase, getLocalHash(pdbId, contentType), bcifFileName
+            )
         else:
             bcifFilePath = os.path.join(updateBase, bcifFileName)
-    elif contentType == ModelType.COMPUTATIONAL.value:
+    elif contentType == ContentTypeEnum.COMPUTATIONAL.value:
         if outputContentType and outputHash:
             bcifFilePath = os.path.join(
                 updateBase,
                 contentType,
-                pdbId[0:2],
-                pdbId[-6:-4],
-                pdbId[-4:-2],
+                getLocalHash(pdbId, contentType),
                 bcifFileName,
             )
         elif outputContentType:
@@ -256,9 +272,7 @@ def getBcifFilePath(
         elif outputHash:
             bcifFilePath = os.path.join(
                 updateBase,
-                pdbId[0:2],
-                pdbId[-6:-4],
-                pdbId[-4:-2],
+                getLocalHash(pdbId, contentType),
                 bcifFileName,
             )
         else:

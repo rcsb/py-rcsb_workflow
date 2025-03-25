@@ -31,23 +31,24 @@ class BcifWorkflow:
 
     def __init__(self, args):
 
-        # settings
-        self.batchSize = int(args.batchSize)
-        self.nfiles = int(args.nfiles)
-        self.outfileSuffix = args.outfileSuffix
-        self.contentType = args.contentType
-        self.outputContentType = bool(args.outputContentType)
-        self.outputHash = bool(args.outputHash)
-        self.inputHash = bool(args.inputHash)
         # paths and files
         self.listFileBase = args.listFileBase
         self.listFileName = args.listFileName
         self.remotePath = args.remotePath
         self.outputPath = args.outputPath
+        # settings
+        self.contentType = args.contentType
+        self.nfiles = int(args.nfiles)
+        self.outfileSuffix = args.outfileSuffix
+        self.outputContentType = bool(args.outputContentType)
+        self.outputHash = bool(args.outputHash)
+        self.inputHash = bool(args.inputHash)
+        self.batchSize = int(args.batchSize)
         # config
         self.pdbxDict = args.pdbxDict
         self.maDict = args.maDict
         self.rcsbDict = args.rcsbDict
+        self.ihmDict = args.ihmDict
         #
         self.validate()
 
@@ -87,4 +88,5 @@ class BcifWorkflow:
             self.pdbxDict,
             self.maDict,
             self.rcsbDict,
+            self.ihmDict,
         )
