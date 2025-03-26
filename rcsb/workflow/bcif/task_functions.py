@@ -176,13 +176,13 @@ def singleTask(
         cifFilePath = os.path.join(remotePath, remoteFileName)
         if inputHash:
             cifFilePath = os.path.join(
-                remotePath, getLocalHash(pdbId, contentType), remoteFileName
+                remotePath, getHash(pdbId, contentType), remoteFileName
             )
         if not os.path.exists(cifFilePath):
             logger.warning("%s not found", cifFilePath)
             return
     else:
-        cifFilePath = getRemoteHash(remotePath, remoteFileName, pdbId, contentType)
+        cifFilePath = getRemoteFilePath(pdbId, contentType, remotePath, remoteFileName)
 
     # form output bcifFilePath
     bcifFilePath = getBcifFilePath(
@@ -208,25 +208,26 @@ def singleTask(
         raise Exception("failed to convert %s" % cifFilePath)
 
 
-def getRemoteHash(
-    remotePath: str, remoteFileName: str, pdbId: str, contentType: str
+def getHash(pdbId: str, contentType: str) -> str:
+    if contentType == ContentTypeEnum.COMPUTATIONAL.value:
+        pdbId = pdbId.upper()
+    else:
+        pdbId = pdbId.lower()
+    result = pdbId[1:3]
+    if contentType == ContentTypeEnum.COMPUTATIONAL.value:
+        result = os.path.join(pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2])
+    return result
+
+
+def getRemoteFilePath(
+    pdbId: str, contentType: str, remotePath: str, remoteFileName: str
 ) -> str:
-    cifFilePath = os.path.join(remotePath, pdbId[-3:-1], remoteFileName)
-    if contentType == ContentTypeEnum.COMPUTATIONAL.value:
-        cifFilePath = os.path.join(
-            remotePath, pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2], remoteFileName
+    result = os.path.join(remotePath, getHash(pdbId, contentType), remoteFileName)
+    if contentType == ContentTypeEnum.INTEGRATIVE.value:
+        result = os.path.join(
+            remotePath, getHash(pdbId, contentType), pdbId, "structures", remoteFileName
         )
-    elif contentType == ContentTypeEnum.INTEGRATIVE.value:
-        cifFilePath = os.path.join(
-            remotePath, pdbId[-3:-1], pdbId, "structures", remoteFileName
-        )
-    return cifFilePath
-
-
-def getLocalHash(pdbId: str, contentType: str) -> str:
-    if contentType == ContentTypeEnum.COMPUTATIONAL.value:
-        return os.path.join(pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2])
-    return pdbId[-3:-1]
+    return result
 
 
 def getBcifFilePath(
@@ -245,13 +246,13 @@ def getBcifFilePath(
     ]:
         if outputContentType and outputHash:
             bcifFilePath = os.path.join(
-                updateBase, contentType, getLocalHash(pdbId, contentType), bcifFileName
+                updateBase, contentType, getHash(pdbId, contentType), bcifFileName
             )
         elif outputContentType:
             bcifFilePath = os.path.join(updateBase, contentType, bcifFileName)
         elif outputHash:
             bcifFilePath = os.path.join(
-                updateBase, getLocalHash(pdbId, contentType), bcifFileName
+                updateBase, getHash(pdbId, contentType), bcifFileName
             )
         else:
             bcifFilePath = os.path.join(updateBase, bcifFileName)
@@ -260,7 +261,7 @@ def getBcifFilePath(
             bcifFilePath = os.path.join(
                 updateBase,
                 contentType,
-                getLocalHash(pdbId, contentType),
+                getHash(pdbId, contentType),
                 bcifFileName,
             )
         elif outputContentType:
@@ -272,7 +273,7 @@ def getBcifFilePath(
         elif outputHash:
             bcifFilePath = os.path.join(
                 updateBase,
-                getLocalHash(pdbId, contentType),
+                getHash(pdbId, contentType),
                 bcifFileName,
             )
         else:
