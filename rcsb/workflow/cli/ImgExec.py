@@ -44,6 +44,7 @@ def main() -> None:
     parser.add_argument("--checkFileAppend", default="_model-1.jpeg", help="What jpg file do you want to check exists after the process runs.")
     parser.add_argument("--contentTypeDir", default="pdb", help="Is this list for pdb structures or csm?")
     parser.add_argument("--useIdSubdir", action="store_true", help="Is the bcif file in a subdir using it's own name?")
+    parser.add_argument("--numProcs", default=1, help="How many processors are available for parallel execution.")
 
     args = vars(parser.parse_args())
 
