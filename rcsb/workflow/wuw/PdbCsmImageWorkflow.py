@@ -115,12 +115,13 @@ class PdbCsmImageWorkflow:
                 args.append((cmd, outPath, name, checkFileAppend))
             else:
                 raise ValueError(f"Missing bcif file {bcifFilePath}")
-
-        # Execute commands in parallel with process-based execution
-        with ProcessPoolExecutor(max_workers=int(numProcs)) as executor:
-            results = executor.map(run_command, args)
-
-        # Print results
-        for result in results:
-            logger.info(result)
+        if numProcs == 1:
+            run_command(args[0])
+        else:
+            # Execute commands in parallel with process-based execution
+            with ProcessPoolExecutor(max_workers=int(numProcs)) as executor:
+                results = executor.map(run_command, args)
+            # Print results
+            for result in results:
+                logger.info(result)
 
