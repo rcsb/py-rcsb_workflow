@@ -17,9 +17,8 @@ __license__ = "Apache 2.0"
 from pathlib import Path
 import logging
 import subprocess
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import os
-
 from rcsb.utils.io.MarshalUtil import MarshalUtil
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
@@ -98,23 +97,23 @@ class PdbCsmImageWorkflow:
         if numProcs == 1:
             self.run_command(args[0])
         else:
-            # Execute commands in parallel with process-based execution
             with ProcessPoolExecutor(max_workers=int(numProcs)) as executor:
-                results = executor.map(self.run_command, args)
-            # Print results
-            for result in results:
-                logger.info(result)
+                futures = [executor.submit(self.run_command, arg) for arg in args]
+                for future in as_completed(futures):
+                    try:
+                        future.result()
+                    except Exception as e:
+                        logger.error("Subprocess failed: %s", str(e))
 
-    # For pickling reasons this command needs to not accept self
     def run_command(self, args):
         """Run a command and verify the output file."""
         cmd, outPath, name, checkFileAppend = args
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            logger.info(result.stdout)
+            print(f"[{name}] STDOUT:\n{result.stdout}")
+            print(f"[{name}] STDERR:\n{result.stderr}")
         except subprocess.CalledProcessError as e:
-            logger.error("Error: %s", e)
-            logger.error("Stderr: %s", e.stderr)
+            print(f"[{name}] ERROR:\n{e.stderr}")
             raise
 
         # Verify output file
@@ -123,4 +122,4 @@ class PdbCsmImageWorkflow:
         if not (outFileObj.is_file() and outFileObj.stat().st_size > 0):
             raise ValueError(f"No image file generated: {outJpgFile}")
 
-        return f"Success: {cmd}"
+        logger.info("Success: %r", cmd)
