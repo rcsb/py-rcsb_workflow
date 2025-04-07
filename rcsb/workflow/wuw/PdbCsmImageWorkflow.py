@@ -25,6 +25,7 @@ from rcsb.utils.io.MarshalUtil import MarshalUtil
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
 logger = logging.getLogger()
 
+
 # For pickling reasons this command needs to not accept self
 def run_command(args):
     """Run a command and verify the output file."""
@@ -124,4 +125,3 @@ class PdbCsmImageWorkflow:
             # Print results
             for result in results:
                 logger.info(result)
-
