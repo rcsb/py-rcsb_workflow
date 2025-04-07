@@ -59,7 +59,7 @@ class PdbCsmImageWorkflow:
             raise TypeError("idList not a list or is empty.")
 
         # generate list of commands
-        args = []
+        argsL = []
         for line in idList:
             name = line.lower()
             if useIdSubdir:
@@ -76,12 +76,12 @@ class PdbCsmImageWorkflow:
             outPath = os.path.join(jpgsOutDir, contentTypeDir)
             Path(outPath).mkdir(parents=True, exist_ok=True)
 
-            bcifFileObj = Path(bcifFilePath)
+            bcifFileObj = Path(bcifFilePath + ".gz")
             if bcifFileObj.is_file() and bcifFileObj.stat().st_size > 0:
                 cmd = [
                     jpgXvfbExecutable,
                     "-a",
-                    "-s", f"-ac -screen 0 {jpgScreen}",
+                    "-s", f"'-ac -screen 0 {jpgScreen}'",
                     molrenderExe,
                     jpgRender,
                     bcifFilePath,
@@ -90,15 +90,20 @@ class PdbCsmImageWorkflow:
                     "--width", jpgWidth,
                     "--format", jpgFormat,
                 ]
+                # prepend an unzip step of the .bcif.gz file
+                cmd = ["gzip", "-dkf", bcifFilePath + ".gz","&&", *cmd]
+                # append a delete step to remove the .bcif file
+                cmd = [*cmd, "&&", "rm", bcifFilePath]
                 # passing in args this way is due to a pickling issue with multiple subprocesses
-                args.append((cmd, outPath, name, checkFileAppend))
+                argsL.append((" ".join(cmd), outPath, name, checkFileAppend))
             else:
                 raise ValueError(f"Missing bcif file {bcifFilePath}")
         if numProcs == 1:
-            self.run_command(args[0])
+            for args in argsL:
+                self.run_command(args)
         else:
             with ProcessPoolExecutor(max_workers=int(numProcs)) as executor:
-                futures = [executor.submit(self.run_command, arg) for arg in args]
+                futures = [executor.submit(self.run_command, args) for args in argsL]
                 for future in as_completed(futures):
                     try:
                         future.result()
@@ -109,7 +114,7 @@ class PdbCsmImageWorkflow:
         """Run a command and verify the output file."""
         cmd, outPath, name, checkFileAppend = args
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True, shell=True)
             print(f"[{name}] STDOUT:\n{result.stdout}")
             print(f"[{name}] STDERR:\n{result.stderr}")
         except subprocess.CalledProcessError as e:
