@@ -26,7 +26,6 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(mo
 logger = logging.getLogger()
 
 
-
 class PdbCsmImageWorkflow:
 
     def imagesGenJpgs(self, **kwargs: dict) -> None:
