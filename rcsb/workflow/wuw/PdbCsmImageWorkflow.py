@@ -91,7 +91,7 @@ class PdbCsmImageWorkflow:
                     "--format", jpgFormat,
                 ]
                 # prepend an unzip step of the .bcif.gz file
-                cmd = ["gzip", "-dkf", bcifFilePath + ".gz","&&", *cmd]
+                cmd = ["gzip", "-dkf", bcifFilePath + ".gz", "&&", *cmd]
                 # append a delete step to remove the .bcif file
                 cmd = [*cmd, "&&", "rm", bcifFilePath]
                 # passing in args this way is due to a pickling issue with multiple subprocesses
