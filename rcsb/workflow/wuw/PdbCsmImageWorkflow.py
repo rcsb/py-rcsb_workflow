@@ -65,7 +65,7 @@ class PdbCsmImageWorkflow:
             if useIdSubdir:
                 name = os.path.join(name[1:3], name)
 
-            bcifFileName = name + ".bcif"
+            bcifFileName = name + ".bcif.gz"
             logger.info("Running %s %s %s", name, bcifFileName, contentTypeDir)
 
             if contentTypeDir == "pdb":
@@ -76,12 +76,12 @@ class PdbCsmImageWorkflow:
             outPath = os.path.join(jpgsOutDir, contentTypeDir)
             Path(outPath).mkdir(parents=True, exist_ok=True)
 
-            bcifFileObj = Path(bcifFilePath + ".gz")
+            bcifFileObj = Path(bcifFilePath)
             if bcifFileObj.is_file() and bcifFileObj.stat().st_size > 0:
                 cmd = [
                     jpgXvfbExecutable,
                     "-a",
-                    "-s", f"'-ac -screen 0 {jpgScreen}'",
+                    "-s", f"-ac -screen 0 {jpgScreen}",
                     molrenderExe,
                     jpgRender,
                     bcifFilePath,
@@ -90,12 +90,7 @@ class PdbCsmImageWorkflow:
                     "--width", jpgWidth,
                     "--format", jpgFormat,
                 ]
-                # prepend an unzip step of the .bcif.gz file
-                cmd = ["gzip", "-dkf", bcifFilePath + ".gz", "&&", *cmd]
-                # append a delete step to remove the .bcif file
-                cmd = [*cmd, "&&", "rm", bcifFilePath]
-                # passing in args this way is due to a pickling issue with multiple subprocesses
-                argsL.append((" ".join(cmd), outPath, name, checkFileAppend))
+                argsL.append((cmd, outPath, name, checkFileAppend))
             else:
                 raise ValueError(f"Missing bcif file {bcifFilePath}")
         if numProcs == 1:
@@ -114,7 +109,7 @@ class PdbCsmImageWorkflow:
         """Run a command and verify the output file."""
         cmd, outPath, name, checkFileAppend = args
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True, shell=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             print(f"[{name}] STDOUT:\n{result.stdout}")
             print(f"[{name}] STDERR:\n{result.stderr}")
         except subprocess.CalledProcessError as e:
