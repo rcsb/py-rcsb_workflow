@@ -17,8 +17,8 @@ __license__ = "Apache 2.0"
 from pathlib import Path
 import logging
 import subprocess
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import os
-
 from rcsb.utils.io.MarshalUtil import MarshalUtil
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
@@ -44,6 +44,7 @@ class PdbCsmImageWorkflow:
         jpgsOutDir = kwargs.get("jpgsOutDir")
         contentTypeDir = kwargs.get("contentTypeDir")
         useIdSubdir = kwargs.get("useIdSubdir")
+        numProcs = kwargs.get("numProcs")
 
         logger.info("using id file %s", idListFile)
 
@@ -57,12 +58,14 @@ class PdbCsmImageWorkflow:
         if not isinstance(idList, list) and not idList:
             raise TypeError("idList not a list or is empty.")
 
+        # generate list of commands
+        argsL = []
         for line in idList:
             name = line.lower()
             if useIdSubdir:
                 name = os.path.join(name[1:3], name)
 
-            bcifFileName = name + ".bcif"
+            bcifFileName = name + ".bcif.gz"
             logger.info("Running %s %s %s", name, bcifFileName, contentTypeDir)
 
             if contentTypeDir == "pdb":
@@ -73,33 +76,50 @@ class PdbCsmImageWorkflow:
             outPath = os.path.join(jpgsOutDir, contentTypeDir)
             Path(outPath).mkdir(parents=True, exist_ok=True)
 
-            # runMolrender
-            cmd = [
-                jpgXvfbExecutable,
-                "-a",
-                "-s", f"-ac -screen 0 {jpgScreen}",
-                molrenderExe,
-                jpgRender,
-                bcifFilePath,
-                outPath,
-                "--height", jpgHeight,
-                "--width", jpgWidth,
-                "--format", jpgFormat,
-            ]
             bcifFileObj = Path(bcifFilePath)
             if bcifFileObj.is_file() and bcifFileObj.stat().st_size > 0:
-                try:
-                    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-                    logger.info(result.stdout)
-                except subprocess.CalledProcessError as e:
-                    logger.error("Error: %s", e)
-                    logger.error("Stderr: %s", e.stderr)
-                    raise
-
-                # check result
-                outJpgFile = os.path.join(outPath, name + checkFileAppend)
-                outFileObj = Path(outJpgFile)
-                if not (outFileObj.is_file() and outFileObj.stat().st_size > 0):
-                    raise ValueError(f"No image file: {outJpgFile}")
+                cmd = [
+                    jpgXvfbExecutable,
+                    "-a",
+                    "-s", f"-ac -screen 0 {jpgScreen}",
+                    molrenderExe,
+                    jpgRender,
+                    bcifFilePath,
+                    outPath,
+                    "--height", jpgHeight,
+                    "--width", jpgWidth,
+                    "--format", jpgFormat,
+                ]
+                argsL.append((cmd, outPath, name, checkFileAppend))
             else:
                 raise ValueError(f"Missing bcif file {bcifFilePath}")
+        if numProcs == 1:
+            for args in argsL:
+                self.run_command(args)
+        else:
+            with ProcessPoolExecutor(max_workers=int(numProcs)) as executor:
+                futures = [executor.submit(self.run_command, args) for args in argsL]
+                for future in as_completed(futures):
+                    try:
+                        future.result()
+                    except Exception as e:
+                        logger.error("Subprocess failed: %s", str(e))
+
+    def run_command(self, args):
+        """Run a command and verify the output file."""
+        cmd, outPath, name, checkFileAppend = args
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            print(f"[{name}] STDOUT:\n{result.stdout}")
+            print(f"[{name}] STDERR:\n{result.stderr}")
+        except subprocess.CalledProcessError as e:
+            print(f"[{name}] ERROR:\n{e.stderr}")
+            raise
+
+        # Verify output file
+        outJpgFile = os.path.join(outPath, name + checkFileAppend)
+        outFileObj = Path(outJpgFile)
+        if not (outFileObj.is_file() and outFileObj.stat().st_size > 0):
+            raise ValueError(f"No image file generated: {outJpgFile}")
+
+        logger.info("Success: %r", cmd)
