@@ -67,7 +67,7 @@ def computeBcif(
     inputHash,
     batchSize,
     nfiles,
-):
+) -> bool:
     outContentType = ""
     outHash = ""
     inHash = ""
@@ -105,16 +105,12 @@ class TestBcif(unittest.TestCase):
         self.outputPath = tempfile.mkdtemp()
         self.listFileBase = tempfile.mkdtemp()
         # local
-        testPath = os.path.join(os.path.dirname(__file__), "../../mock-data/MOCK_CIF_FILES")
-        self.pdbLocalPath = os.path.abspath(
-            os.path.join(testPath, "pdb")
+        testPath = os.path.join(
+            os.path.dirname(__file__), "../../mock-data/MOCK_CIF_FILES"
         )
-        self.csmLocalPath = os.path.abspath(
-            os.path.join(testPath, "csm")
-        )
-        self.ihmLocalPath = os.path.abspath(
-            os.path.join(testPath, "ihm")
-        )
+        self.pdbLocalPath = os.path.abspath(os.path.join(testPath, "pdb"))
+        self.csmLocalPath = os.path.abspath(os.path.join(testPath, "csm"))
+        self.ihmLocalPath = os.path.abspath(os.path.join(testPath, "ihm"))
         # remote
         self.pdbRemotePath = "http://prereleaseftp-external-east.rcsb.org/pdb/data/structures/divided/mmCIF/"
         self.csmRemotePath = "http://computed-models-external-east.rcsb.org/staging"
@@ -161,7 +157,7 @@ class TestBcif(unittest.TestCase):
             self.pdbLocalPath,
             os.path.join(self.listFileBase, listFileName),
         )
-        computeBcif(
+        ok = computeBcif(
             self.listFileBase,
             listFileName,
             self.pdbLocalPath,
@@ -174,6 +170,7 @@ class TestBcif(unittest.TestCase):
             batchSize,
             self.nfiles,
         )
+        self.assertTrue(ok)
 
         contentType = "csm"
         listFileName = "pdbx_comp_model_core_ids-1.txt"
@@ -181,7 +178,7 @@ class TestBcif(unittest.TestCase):
             self.csmLocalPath,
             os.path.join(self.listFileBase, listFileName),
         )
-        computeBcif(
+        ok = computeBcif(
             self.listFileBase,
             listFileName,
             self.csmLocalPath,
@@ -194,6 +191,7 @@ class TestBcif(unittest.TestCase):
             batchSize,
             self.nfiles,
         )
+        self.assertTrue(ok)
 
         contentType = "ihm"
         listFileName = "pdbx_ihm_ids-1.txt"
@@ -201,7 +199,7 @@ class TestBcif(unittest.TestCase):
             self.ihmLocalPath,
             os.path.join(self.listFileBase, listFileName),
         )
-        computeBcif(
+        ok = computeBcif(
             self.listFileBase,
             listFileName,
             self.ihmLocalPath,
@@ -214,6 +212,7 @@ class TestBcif(unittest.TestCase):
             batchSize,
             self.nfiles,
         )
+        self.assertTrue(ok)
 
         self.assertTrue(len(os.listdir(self.outputPath)) == self.nresults)
 
@@ -252,7 +251,7 @@ class TestBcif(unittest.TestCase):
         pdblist = getList(
             self.pdbLocalPath, os.path.join(self.listFileBase, listFileName)
         )
-        computeBcif(
+        ok = computeBcif(
             self.listFileBase,
             listFileName,
             self.pdbRemotePath,
@@ -265,13 +264,14 @@ class TestBcif(unittest.TestCase):
             batchSize,
             self.nfiles,
         )
+        self.assertTrue(ok)
 
         listFileName = "pdbx_comp_model_core_ids-1.txt"
         contentType = "csm"
         csmlist = getList(
             self.csmLocalPath, os.path.join(self.listFileBase, listFileName)
         )
-        computeBcif(
+        ok = computeBcif(
             self.listFileBase,
             listFileName,
             self.csmRemotePath,
@@ -284,13 +284,14 @@ class TestBcif(unittest.TestCase):
             batchSize,
             self.nfiles,
         )
+        self.assertTrue(ok)
 
         listFileName = "pdbx_ihm_ids-1.txt"
         contentType = "ihm"
         ihmlist = getList(
             self.ihmLocalPath, os.path.join(self.listFileBase, listFileName)
         )
-        computeBcif(
+        ok = computeBcif(
             self.listFileBase,
             listFileName,
             self.ihmRemotePath,
@@ -303,6 +304,7 @@ class TestBcif(unittest.TestCase):
             batchSize,
             self.nfiles,
         )
+        self.assertTrue(ok)
 
         self.assertTrue(len(os.listdir(self.outputPath)) == self.nresults)
 
@@ -362,7 +364,7 @@ class TestBcif(unittest.TestCase):
             pdbdir,
             os.path.join(self.listFileBase, listFileName),
         )
-        computeBcif(
+        ok = computeBcif(
             self.listFileBase,
             listFileName,
             pdbdir,
@@ -375,6 +377,7 @@ class TestBcif(unittest.TestCase):
             batchSize,
             self.nfiles,
         )
+        self.assertTrue(ok)
 
         contentType = "csm"
         listFileName = "pdbx_comp_model_core_ids-1.txt"
@@ -382,7 +385,7 @@ class TestBcif(unittest.TestCase):
             csmdir,
             os.path.join(self.listFileBase, listFileName),
         )
-        computeBcif(
+        ok = computeBcif(
             self.listFileBase,
             listFileName,
             csmdir,
@@ -395,6 +398,7 @@ class TestBcif(unittest.TestCase):
             batchSize,
             self.nfiles,
         )
+        self.assertTrue(ok)
 
         contentType = "ihm"
         listFileName = "pdbx_ihm_ids-1.txt"
@@ -402,7 +406,7 @@ class TestBcif(unittest.TestCase):
             ihmdir,
             os.path.join(self.listFileBase, listFileName),
         )
-        computeBcif(
+        ok = computeBcif(
             self.listFileBase,
             listFileName,
             ihmdir,
@@ -415,6 +419,7 @@ class TestBcif(unittest.TestCase):
             batchSize,
             self.nfiles,
         )
+        self.assertTrue(ok)
 
         self.assertTrue(len(os.listdir(self.outputPath)) == self.nresults)
 
@@ -458,7 +463,7 @@ class TestBcif(unittest.TestCase):
             self.pdbLocalPath,
             os.path.join(self.listFileBase, listFileName),
         )
-        computeBcif(
+        ok = computeBcif(
             self.listFileBase,
             listFileName,
             self.pdbLocalPath,
@@ -471,6 +476,7 @@ class TestBcif(unittest.TestCase):
             batchSize,
             self.nfiles,
         )
+        self.assertTrue(ok)
 
         contentType = "csm"
         listFileName = "pdbx_comp_model_core_ids-1.txt"
@@ -478,7 +484,7 @@ class TestBcif(unittest.TestCase):
             self.csmLocalPath,
             os.path.join(self.listFileBase, listFileName),
         )
-        computeBcif(
+        ok = computeBcif(
             self.listFileBase,
             listFileName,
             self.csmLocalPath,
@@ -491,6 +497,7 @@ class TestBcif(unittest.TestCase):
             batchSize,
             self.nfiles,
         )
+        self.assertTrue(ok)
 
         contentType = "ihm"
         listFileName = "pdbx_ihm_ids-1.txt"
@@ -498,7 +505,7 @@ class TestBcif(unittest.TestCase):
             self.ihmLocalPath,
             os.path.join(self.listFileBase, listFileName),
         )
-        computeBcif(
+        ok = computeBcif(
             self.listFileBase,
             listFileName,
             self.ihmLocalPath,
@@ -511,6 +518,7 @@ class TestBcif(unittest.TestCase):
             batchSize,
             self.nfiles,
         )
+        self.assertTrue(ok)
 
         self.assertFalse(len(os.listdir(self.outputPath)) == self.nresults)
 
@@ -573,7 +581,7 @@ class TestBcif(unittest.TestCase):
             self.pdbLocalPath,
             os.path.join(self.listFileBase, listFileName),
         )
-        computeBcif(
+        ok = computeBcif(
             self.listFileBase,
             listFileName,
             self.pdbLocalPath,
@@ -586,6 +594,7 @@ class TestBcif(unittest.TestCase):
             batchSize,
             self.nfiles,
         )
+        self.assertTrue(ok)
 
         contentType = "csm"
         listFileName = "pdbx_comp_model_core_ids-1.txt"
@@ -593,7 +602,7 @@ class TestBcif(unittest.TestCase):
             self.csmLocalPath,
             os.path.join(self.listFileBase, listFileName),
         )
-        computeBcif(
+        ok = computeBcif(
             self.listFileBase,
             listFileName,
             self.csmLocalPath,
@@ -606,6 +615,7 @@ class TestBcif(unittest.TestCase):
             batchSize,
             self.nfiles,
         )
+        self.assertTrue(ok)
 
         contentType = "ihm"
         listFileName = "pdbx_ihm_ids-1.txt"
@@ -613,7 +623,7 @@ class TestBcif(unittest.TestCase):
             self.ihmLocalPath,
             os.path.join(self.listFileBase, listFileName),
         )
-        computeBcif(
+        ok = computeBcif(
             self.listFileBase,
             listFileName,
             self.ihmLocalPath,
@@ -626,6 +636,7 @@ class TestBcif(unittest.TestCase):
             batchSize,
             self.nfiles,
         )
+        self.assertTrue(ok)
 
         self.assertTrue(len(os.listdir(self.outputPath)) == self.nresults)
 

@@ -73,7 +73,7 @@ class BcifWorkflow:
             self.remotePath,
         )
 
-        convertCifFilesToBcif(
+        ok = convertCifFilesToBcif(
             self.listFileName,
             self.listFileBase,
             self.remotePath,
@@ -90,3 +90,4 @@ class BcifWorkflow:
             self.rcsbDict,
             self.ihmDict,
         )
+        logger.info("Conversion completed with status %r", ok)

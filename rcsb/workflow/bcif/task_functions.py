@@ -50,7 +50,7 @@ def convertCifFilesToBcif(
     maDict: str,
     rcsbDict: str,
     ihmDict: str,
-) -> None:
+) -> bool:
     """runs once per list file"""
 
     # read sublist
@@ -129,6 +129,8 @@ def convertCifFilesToBcif(
             shutil.rmtree(temppath)
     except Exception as e:
         logger.error(str(e))
+
+    return True
 
 
 def getDictionaryApi(
