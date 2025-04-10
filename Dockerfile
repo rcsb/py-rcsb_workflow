@@ -43,7 +43,6 @@ RUN apt-get update \
 WORKDIR /app
 COPY . /app/
 RUN pip install --no-cache-dir . \
-    && pip install --no-cache-dir git+https://github.com/rcsb/py-rcsb_utils_repository.git@dev-dwp-ihm \
     && pip install --no-cache-dir git+https://github.com/rcsb/py-rcsb_utils_dictionary.git@pdb-ihm-2 \
     && pip install --no-cache-dir git+https://github.com/rcsb/py-rcsb_db.git@dev-dwp-ihm \
     && pip freeze
