@@ -105,14 +105,15 @@ class TestBcif(unittest.TestCase):
         self.outputPath = tempfile.mkdtemp()
         self.listFileBase = tempfile.mkdtemp()
         # local
+        testPath = os.path.join(os.path.dirname(__file__), "../../mock-data/MOCK_CIF_FILES")
         self.pdbLocalPath = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "test-data", "bcif", "pdb")
+            os.path.join(testPath, "pdb")
         )
         self.csmLocalPath = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "test-data", "bcif", "csm")
+            os.path.join(testPath, "csm")
         )
         self.ihmLocalPath = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "test-data", "bcif", "ihm")
+            os.path.join(testPath, "ihm")
         )
         # remote
         self.pdbRemotePath = "http://prereleaseftp-external-east.rcsb.org/pdb/data/structures/divided/mmCIF/"
