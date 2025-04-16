@@ -14,18 +14,12 @@ __email__ = "james.smith@rcsb.org"
 __license__ = "Apache 2.0"
 
 import argparse
+import os
 import logging
 import time
 from rcsb.workflow.wuw.BcifWorkflow import BcifWorkflow
 
-logger = logging.getLogger("bcif")
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-formatter = logging.Formatter(
-    fmt="%(asctime)s @%(process)s [%(levelname)s]-%(module)s: %(message)s"
-)
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+logger = logging.getLogger()
 
 
 def main():
@@ -127,8 +121,39 @@ def main():
         default="https://raw.githubusercontent.com/rcsb/py-rcsb_exdb_assets/pdb-ihm-2/dictionary_files/reference/mmcif_ihm_ext.dic",
         required=False,
     )
+    # logging
+    parser.add_argument("--log_file_path", required=False)
+    parser.add_argument("--debug", action="store_true", default=False, required=False)
 
     args = parser.parse_args()
+
+    logFilePath = args.log_file_path
+    debugFlag = args.debug
+    if debugFlag:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
+    if logFilePath:
+        logDir = os.path.dirname(logFilePath)
+        if not os.path.isdir(logDir):
+            os.makedirs(logDir)
+        handler = logging.FileHandler(logFilePath, mode="a")
+        if debugFlag:
+            handler.setLevel(logging.DEBUG)
+        else:
+            handler.setLevel(logging.INFO)
+        formatter = logging.Formatter(
+            fmt="%(asctime)s @%(process)s [%(levelname)s]-%(module)s: %(message)s"
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+    else:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter(
+            fmt="%(asctime)s @%(process)s [%(levelname)s]-%(module)s: %(message)s"
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
     logger.info("bcif workflow initialized")
 

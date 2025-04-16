@@ -50,8 +50,15 @@ def convertCifFilesToBcif(
     maDict: str,
     rcsbDict: str,
     ihmDict: str,
-) -> bool:
-    """runs once per list file"""
+):
+    """
+    Converts CIF files to BCIF format based on a given list file.
+
+    Raises:
+        FileNotFoundError: If the specified list file does not exist.
+        ValueError: If the list file is empty.
+        RuntimeError: If processing fails for some files.
+    """
 
     # read sublist
     listfilepath = os.path.join(listFileBase, listFileName)
@@ -130,7 +137,7 @@ def convertCifFilesToBcif(
     except Exception as e:
         logger.error(str(e))
 
-    return True
+    logger.info("Done with CIF to BCIF conversion")
 
 
 def getDictionaryApi(

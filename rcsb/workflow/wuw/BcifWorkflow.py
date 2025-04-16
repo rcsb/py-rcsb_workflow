@@ -18,13 +18,6 @@ import logging
 from rcsb.workflow.bcif.task_functions import convertCifFilesToBcif
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-formatter = logging.Formatter(
-    fmt="%(asctime)s @%(process)s [%(levelname)s]-%(module)s: %(message)s"
-)
-handler.setFormatter(formatter)
-logger.addHandler(handler)
 
 
 class BcifWorkflow:
@@ -73,7 +66,7 @@ class BcifWorkflow:
             self.remotePath,
         )
 
-        ok = convertCifFilesToBcif(
+        convertCifFilesToBcif(
             self.listFileName,
             self.listFileBase,
             self.remotePath,
@@ -90,4 +83,3 @@ class BcifWorkflow:
             self.rcsbDict,
             self.ihmDict,
         )
-        logger.info("Conversion completed with status %r", ok)

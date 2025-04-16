@@ -33,6 +33,8 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s",
 )
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 
 ON_LOCAL_SERVER = False
@@ -136,8 +138,8 @@ class TestBcif(unittest.TestCase):
             + len(os.listdir(self.ihmLocalPath))
         )
         #
-        logging.info("making temp dir %s", self.outputPath)
-        logging.info("making temp dir %s", self.listFileBase)
+        logger.info("making temp dir %s", self.outputPath)
+        logger.info("making temp dir %s", self.listFileBase)
 
     def tearDown(self):
         if os.path.exists(self.listFileBase):
@@ -234,9 +236,9 @@ class TestBcif(unittest.TestCase):
                 os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % ihmid))
             )
 
-        logging.info("test local workflow completed in %.2f s", (time.time() - t))
+        logger.info("test local workflow completed in %.2f s", (time.time() - t))
 
-        logging.info(str(os.listdir(self.outputPath)))
+        logger.info(str(os.listdir(self.outputPath)))
 
     @unittest.skipUnless(ON_LOCAL_SERVER, "requires local server authorization")
     def test_remote_workflow(self):
@@ -326,9 +328,9 @@ class TestBcif(unittest.TestCase):
                 os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % ihmid))
             )
 
-        logging.info("test remote workflow completed in %.2f s", (time.time() - t))
+        logger.info("test remote workflow completed in %.2f s", (time.time() - t))
 
-        logging.info(str(os.listdir(self.outputPath)))
+        logger.info(str(os.listdir(self.outputPath)))
 
     def test_expanded_files(self):
         t = time.time()
@@ -441,9 +443,9 @@ class TestBcif(unittest.TestCase):
                 os.path.exists(os.path.join(self.outputPath, "%s.bcif" % ihmid))
             )
 
-        logging.info("test expanded files completed in %.2f s", (time.time() - t))
+        logger.info("test expanded files completed in %.2f s", (time.time() - t))
 
-        logging.info(str(os.listdir(self.outputPath)))
+        logger.info(str(os.listdir(self.outputPath)))
 
         shutil.rmtree(pdbdir)
         shutil.rmtree(csmdir)
@@ -560,14 +562,14 @@ class TestBcif(unittest.TestCase):
                 )
             )
 
-        logging.info(str(os.listdir(self.outputPath)))
+        logger.info(str(os.listdir(self.outputPath)))
 
         for root, _, files in os.walk(self.outputPath):
-            logging.info("%s %s", root, _)
+            logger.info("%s %s", root, _)
             for f in files:
-                logging.info(f)
+                logger.info(f)
 
-        logging.info("test hashed storage completed in %.2f s", (time.time() - t))
+        logger.info("test hashed storage completed in %.2f s", (time.time() - t))
 
     def test_batch_workflow(self):
         t = time.time()
@@ -658,9 +660,9 @@ class TestBcif(unittest.TestCase):
                 os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % ihmid))
             )
 
-        logging.info("test batch workflow completed in %.2f s", (time.time() - t))
+        logger.info("test batch workflow completed in %.2f s", (time.time() - t))
 
-        logging.info(str(os.listdir(self.outputPath)))
+        logger.info(str(os.listdir(self.outputPath)))
 
     def test_deconvert(self):
         infiles = []
@@ -691,7 +693,7 @@ class TestBcif(unittest.TestCase):
             self.assertTrue(os.path.exists(ciffile))
         shutil.rmtree(out)
         shutil.rmtree(tmp)
-        logging.info("deconverted %d bcif files", maxfiles)
+        logger.info("deconverted %d bcif files", maxfiles)
 
 
 if __name__ == "__main__":
