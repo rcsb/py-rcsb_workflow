@@ -47,3 +47,4 @@
 19-Feb-2025 - V0.51 Bring back IMGT
  4-Apr-2025 - V0.52 Add multi cpu execution to jpg generation
 10-Apr-2025 - V0.53 Add BCIF conversion CLI
+14-May-2025 - V0.54 Update requirements for IHM loading support
