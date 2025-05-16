@@ -118,7 +118,7 @@ def main():
     )
     parser.add_argument(
         "--ihmDict",
-        default="https://raw.githubusercontent.com/rcsb/py-rcsb_exdb_assets/pdb-ihm-2/dictionary_files/reference/mmcif_ihm_ext.dic",
+        default="https://raw.githubusercontent.com/rcsb/py-rcsb_exdb_assets/master/dictionary_files/reference/mmcif_ihm_ext.dic",
         required=False,
     )
     # logging
