@@ -94,7 +94,7 @@ def computeBcif(
         f"{inHash}",
     ]
     cmd = " ".join(options)
-    time.sleep(10)
+    time.sleep(3)
     status = os.system(cmd)
     if status == 0:
         return True
