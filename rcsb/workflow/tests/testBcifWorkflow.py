@@ -94,6 +94,7 @@ def computeBcif(
         f"{inHash}",
     ]
     cmd = " ".join(options)
+    time.sleep(3)
     status = os.system(cmd)
     if status == 0:
         return True
@@ -122,7 +123,7 @@ class TestBcif(unittest.TestCase):
         self.pdbxDict = "https://raw.githubusercontent.com/wwpdb-dictionaries/mmcif_pdbx/master/dist/mmcif_pdbx_v5_next.dic"
         self.maDict = "https://raw.githubusercontent.com/ihmwg/ModelCIF/master/dist/mmcif_ma_ext.dic"
         self.rcsbDict = "https://raw.githubusercontent.com/rcsb/py-rcsb_exdb_assets/master/dictionary_files/dist/rcsb_mmcif_ext.dic"
-        self.ihmDict = "https://raw.githubusercontent.com/rcsb/py-rcsb_exdb_assets/pdb-ihm-2/dictionary_files/reference/mmcif_ihm_ext.dic"
+        self.ihmDict = "https://raw.githubusercontent.com/rcsb/py-rcsb_exdb_assets/master/dictionary_files/reference/mmcif_ihm_ext.dic"
         # settings
         self.batchSize = 4
         self.nlists = 2
