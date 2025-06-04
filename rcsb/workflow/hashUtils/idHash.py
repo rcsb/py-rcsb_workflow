@@ -16,4 +16,6 @@ __license__ = "Apache 2.0"
 
 
 def idhash(name):
-    return name[1:3]
+    if "_" in name:
+        return "%s/%s/%s/" % (name[0:2], name[-6:-4], name[-4:-2])
+    return name[-3:-1]
