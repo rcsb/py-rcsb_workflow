@@ -60,6 +60,7 @@ class PdbCsmImageWorkflow:
 
         # generate list of commands
         argsL = []
+        logger.info("Id list contains %s entries", len(idList))
         for i, line in enumerate(idList):
             name = line.lower()
 
