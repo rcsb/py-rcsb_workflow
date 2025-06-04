@@ -15,5 +15,5 @@ __email__ = "michael.trumbull@rcsb.org"
 __license__ = "Apache 2.0"
 
 
-def hash(id):
-    return id[1:3]
+def idhash(name):
+    return name[1:3]
