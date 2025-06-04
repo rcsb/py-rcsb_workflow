@@ -14,5 +14,6 @@ __author__ = "Michael Trumbull"
 __email__ = "michael.trumbull@rcsb.org"
 __license__ = "Apache 2.0"
 
+
 def hash(id):
     return id[1:3]
