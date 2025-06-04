@@ -20,7 +20,7 @@ import subprocess
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import os
 from rcsb.utils.io.MarshalUtil import MarshalUtil
-from rcsb.workflow.utils.hashDirectories import hash
+from rcsb.workflow.hashUtils.idHash import hash
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
 logger = logging.getLogger()
