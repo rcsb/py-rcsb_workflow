@@ -15,7 +15,7 @@ __email__ = "michael.trumbull@rcsb.org"
 __license__ = "Apache 2.0"
 
 
-def idhash(name):
+def idHash(name):
     if "_" in name:
         return f"{name[0:2]}/{name[-6:-4]}/{name[-4:-2]}/"
-    return f"name[-3:-1]/"
+    return f"{name[-3:-1]}/"

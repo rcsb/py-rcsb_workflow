@@ -20,7 +20,7 @@ import subprocess
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import os
 from rcsb.utils.io.MarshalUtil import MarshalUtil
-from rcsb.workflow.hashUtils.idhash import idhash
+from rcsb.workflow.wuw.WuwUtils import idHash
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
 logger = logging.getLogger()
@@ -64,7 +64,7 @@ class PdbCsmImageWorkflow:
         for i, line in enumerate(idList):
             name = line.lower()
 
-            bcifFileName = os.path.join(idhash(name), name) + ".bcif.gz"
+            bcifFileName = os.path.join(idHash(name), name) + ".bcif.gz"
             logger.info("%s running %s %s %s", i, name, bcifFileName, contentTypeDir)
 
             if contentTypeDir == "pdb":
@@ -72,7 +72,7 @@ class PdbCsmImageWorkflow:
             else:
                 bcifFilePath = os.path.join(csmBaseDir, bcifFileName)
 
-            outPath = os.path.join(jpgsOutDir, contentTypeDir, idhash(name), name)
+            outPath = os.path.join(jpgsOutDir, contentTypeDir, idHash(name), name)
             Path(outPath).mkdir(parents=True, exist_ok=True)
 
             bcifFileObj = Path(bcifFilePath)
