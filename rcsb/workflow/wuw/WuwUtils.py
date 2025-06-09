@@ -1,6 +1,6 @@
 """Hashing functions for file storage."""
 ##
-# File: hashDirectories.py
+# File: WuwUtils.py
 # Date: 04-Jun-2025  mjt
 #
 #  Shared hashing function  - for file generation
@@ -16,6 +16,6 @@ __license__ = "Apache 2.0"
 
 
 def idHash(name):
-    if "_" in name:
+    if name.lower().startswith("af_") or name.lower().startswith("ma_"):
         return f"{name[0:2]}/{name[-6:-4]}/{name[-4:-2]}/"
     return f"{name[-3:-1]}/"

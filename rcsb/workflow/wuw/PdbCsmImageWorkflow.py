@@ -63,8 +63,9 @@ class PdbCsmImageWorkflow:
         logger.info("Id list contains %s entries", len(idList))
         for i, line in enumerate(idList):
             name = line.lower()
+            nameHash = idHash(name)
 
-            bcifFileName = os.path.join(idHash(name), name) + ".bcif.gz"
+            bcifFileName = os.path.join(nameHash, name) + ".bcif.gz"
             logger.info("%s running %s %s %s", i, name, bcifFileName, contentTypeDir)
 
             if contentTypeDir == "pdb":
@@ -72,7 +73,7 @@ class PdbCsmImageWorkflow:
             else:
                 bcifFilePath = os.path.join(csmBaseDir, bcifFileName)
 
-            outPath = os.path.join(jpgsOutDir, contentTypeDir, idHash(name), name)
+            outPath = os.path.join(jpgsOutDir, contentTypeDir, nameHash, name)
             Path(outPath).mkdir(parents=True, exist_ok=True)
 
             bcifFileObj = Path(bcifFilePath)
