@@ -15,7 +15,9 @@ __email__ = "michael.trumbull@rcsb.org"
 __license__ = "Apache 2.0"
 
 
-def idHash(name):
-    if name.lower().startswith("af_") or name.lower().startswith("ma_"):
-        return f"{name[0:2]}/{name[-6:-4]}/{name[-4:-2]}/"
-    return f"{name[-3:-1]}/"
+def idHash(structure_id):
+    if structure_id.lower().startswith("af_") or structure_id.lower().startswith("ma_"):
+        return f"{structure_id[0:2]}/{structure_id[-6:-4]}/{structure_id[-4:-2]}/"
+    if structure_id.lower().startswith("pdb_") or len(structure_id) == 4:
+        return f"{structure_id[-3:-1]}/"
+    raise RuntimeError("Unsupported structure id.")
