@@ -20,6 +20,7 @@ import subprocess
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import os
 from rcsb.utils.io.MarshalUtil import MarshalUtil
+from rcsb.workflow.wuw.WuwUtils import idHash
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
 logger = logging.getLogger()
@@ -43,7 +44,6 @@ class PdbCsmImageWorkflow:
         csmBaseDir = kwargs.get("csmBaseDir")
         jpgsOutDir = kwargs.get("jpgsOutDir")
         contentTypeDir = kwargs.get("contentTypeDir")
-        useIdSubdir = kwargs.get("useIdSubdir")
         numProcs = kwargs.get("numProcs")
 
         logger.info("using id file %s", idListFile)
@@ -60,20 +60,20 @@ class PdbCsmImageWorkflow:
 
         # generate list of commands
         argsL = []
-        for line in idList:
+        logger.info("Id list contains %s entries", len(idList))
+        for i, line in enumerate(idList):
             name = line.lower()
-            if useIdSubdir:
-                name = os.path.join(name[1:3], name)
+            nameHash = idHash(name)
 
-            bcifFileName = name + ".bcif.gz"
-            logger.info("Running %s %s %s", name, bcifFileName, contentTypeDir)
+            bcifFileName = os.path.join(nameHash, name) + ".bcif.gz"
+            logger.info("%s running %s %s %s", i, name, bcifFileName, contentTypeDir)
 
             if contentTypeDir == "pdb":
                 bcifFilePath = os.path.join(pdbBaseDir, bcifFileName)
             else:
                 bcifFilePath = os.path.join(csmBaseDir, bcifFileName)
 
-            outPath = os.path.join(jpgsOutDir, contentTypeDir)
+            outPath = os.path.join(jpgsOutDir, contentTypeDir, nameHash, name)
             Path(outPath).mkdir(parents=True, exist_ok=True)
 
             bcifFileObj = Path(bcifFilePath)
