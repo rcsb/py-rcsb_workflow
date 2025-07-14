@@ -51,7 +51,7 @@ class PdbCsmImageWorkflow:
         listFileObj = Path(idListFile)
         if not (listFileObj.is_file() and listFileObj.stat().st_size > 0):
             logger.error("Missing idList file %s", idListFile)
-            return
+            raise
 
         mU = MarshalUtil()
         idList = mU.doImport(idListFile, fmt="list")
@@ -67,7 +67,7 @@ class PdbCsmImageWorkflow:
             nameHash = idHash(name)
 
             bcifFileName = os.path.join(nameHash, name) + ".bcif.gz"
-            logger.info("%s running %s %s %s", i, name, bcifFileName, contentTypeDir)
+            logger.info("%s checking %s %s %s", i, name, bcifFileName, contentTypeDir)
 
             if contentTypeDir == "pdb":
                 bcifFilePath = os.path.join(pdbBaseDir, bcifFileName)
@@ -120,7 +120,8 @@ class PdbCsmImageWorkflow:
                         failedIds.append(name)
 
         if failedIds:
-            logger.error("The following IDs failed to generate jpgs: %s", failedIds)
+            logger.error("The following IDs failed to generate jpgs and will overwrite %s for later rerunning: %s", idListFile, failedIds)
+            mU.doExport(idListFile, failedIds, fmt="list")
             raise RuntimeError(f"JPG generation failed for {len(failedIds)} IDs.")
 
     def run_command(self, args):
