@@ -60,6 +60,7 @@ class PdbCsmImageWorkflow:
 
         # generate list of commands
         argsL = []
+        failedIds = []
         logger.info("Id list contains %s entries", len(idList))
         for i, line in enumerate(idList):
             name = line.lower()
@@ -92,18 +93,35 @@ class PdbCsmImageWorkflow:
                 ]
                 argsL.append((cmd, outPath, name, checkFileAppend))
             else:
-                raise ValueError(f"Missing bcif file {bcifFilePath}")
+                logger.error("Missing bcif file %s", bcifFilePath)
+                failedIds.append(name)
+
         if numProcs == 1:
             for args in argsL:
-                self.run_command(args)
+                try:
+                    self.run_command(args)
+                except Exception as e:
+                    logger.error("Failed to generate jpg for ID %s: %s", name, str(e))
+                    failedIds.append(name)
         else:
             with ProcessPoolExecutor(max_workers=int(numProcs)) as executor:
-                futures = [executor.submit(self.run_command, args) for args in argsL]
-                for future in as_completed(futures):
+                future_to_name = {}
+                for args in argsL:
+                    name = args[2]
+                    future = executor.submit(self.run_command, args)
+                    future_to_name[future] = name
+
+                for future in as_completed(future_to_name):
+                    name = future_to_name[future]
                     try:
                         future.result()
                     except Exception as e:
-                        logger.error("Subprocess failed: %s", str(e))
+                        logger.error("Subprocess failed for ID %s: %s", name, str(e))
+                        failedIds.append(name)
+
+        if failedIds:
+            logger.error("The following IDs failed to generate jpgs: %s", failedIds)
+            raise RuntimeError(f"JPG generation failed for {len(failedIds)} IDs.")
 
     def run_command(self, args):
         """Run a command and verify the output file."""
