@@ -42,8 +42,8 @@ def main() -> None:
     parser.add_argument("--checkFileAppend", default="_model-1.jpeg", help="What jpg file do you want to check exists after the process runs.")
     parser.add_argument("--contentTypeDir", default="pdb", help="Is this list for pdb structures or csm?")
     parser.add_argument("--numProcs", default=1, help="How many processors are available for parallel execution.")
-    parser.add_argument("holdingsFilePath", help="Path (including filename) to holdings file .json file (csm, pdb, ihm)")
-    parser.add_argument("targetFileSuffix", default="_model-1.jpg", help="string that follows the ID in the jpg file name for comparing timestamps.")
+    parser.add_argument("--holdingsFilePath", help="Path (including filename) to holdings file .json file (csm, pdb, ihm)")
+    parser.add_argument("--targetFileSuffix", default="_model-1.jpeg", help="string that follows the ID in the jpg file name for comparing timestamps.")
     args = vars(parser.parse_args())
 
     imgWF = PdbCsmImageWorkflow()

@@ -64,12 +64,12 @@ class PdbCsmImageWorkflow:
         if "computed-models-holdings-list" in str(holdingsFilePath):
             # the csm holdings file points to the actual holdings file
             holdingsFileDict = {}
-            pointerDict = mU.doImport(holdingsFilePath, fmt="json")
+            pointerDict = mU.doImport(str(holdingsFilePath), fmt="json")
             for key in pointerDict:
                 holdingsFileDict.update(mU.doImport(str(holdingsFilePath.parent / key), fmt="json"))
         else:
             # pdb and ihm holdings file simply contain everything
-            holdingsFileDict = mU.doImport(holdingsFilePath, fmt="json")
+            holdingsFileDict = mU.doImport(str(holdingsFilePath), fmt="json")
 
         ########################
 
@@ -88,35 +88,45 @@ class PdbCsmImageWorkflow:
             outPath = os.path.join(jpgsOutDir, contentTypeDir, nameHash, name)
             Path(outPath).mkdir(parents=True, exist_ok=True)
 
-            if Path(outPath + targetFileSuffix).exists():
-                ### get timestamp of 'line' from holdingsFileDict
-                if isinstance(holdingsFileDict[line.upper()], dict):
+            needNewFileGen = True
+            target = Path(outPath) / (name + targetFileSuffix)
+            logger.warning(target)
+            logger.warning(f'exists: {target.exists()}')
+            if target.exists():
+                ### get timestamp of 'name' from holdingsFileDict
+                if isinstance(holdingsFileDict[name.upper()], dict):
                     # csm
-                    timeStamp = holdingsFileDict[line.upper()]["lastModifiedDate"]
+                    logger.warning("is csm?")
+                    timeStamp = holdingsFileDict[name.upper()]["lastModifiedDate"]
                 else:
-                    timeStamp = holdingsFileDict[line.upper()]
+                    logger.warning(name.upper())
+                    timeStamp = holdingsFileDict[name.upper()]
+                    logger.warning(timeStamp)
                 # compare timestamps
-                t1 = Path(outPath + targetFileSuffix).stat().st_mtime
+                t1 = target.stat().st_mtime
                 t2 = datetime.datetime.strptime(timeStamp, "%Y-%m-%dT%H:%M:%S%z").timestamp()
-                if t1 < t2:
-                    bcifFileObj = Path(bcifFilePath)
-                    if bcifFileObj.is_file() and bcifFileObj.stat().st_size > 0:
-                        cmd = [
-                            jpgXvfbExecutable,
-                            "-a",
-                            "-s", f"-ac -screen 0 {jpgScreen}",
-                            molrenderExe,
-                            jpgRender,
-                            bcifFilePath,
-                            outPath,
-                            "--height", jpgHeight,
-                            "--width", jpgWidth,
-                            "--format", jpgFormat,
-                        ]
-                        argsL.append((cmd, outPath, name, checkFileAppend))
-                    else:
-                        logger.error("Missing bcif file %s", bcifFilePath)
-                        failedIds.append(name)
+                if t1 >= t2:
+                    needNewFileGen = False
+            logger.warning(needNewFileGen)
+            if needNewFileGen:
+                bcifFileObj = Path(bcifFilePath)
+                if bcifFileObj.is_file() and bcifFileObj.stat().st_size > 0:
+                    cmd = [
+                        jpgXvfbExecutable,
+                        "-a",
+                        "-s", f"-ac -screen 0 {jpgScreen}",
+                        molrenderExe,
+                        jpgRender,
+                        bcifFilePath,
+                        outPath,
+                        "--height", jpgHeight,
+                        "--width", jpgWidth,
+                        "--format", jpgFormat,
+                    ]
+                    argsL.append((cmd, outPath, name, checkFileAppend))
+                else:
+                    logger.error("Missing bcif file %s", bcifFilePath)
+                    failedIds.append(name)
 
         # run on single cpu
         if numProcs == 1:
@@ -144,9 +154,8 @@ class PdbCsmImageWorkflow:
                         failedIds.append(name)
 
         # raise if anything failed earlier
-        if failedIds:
+        if len(failedIds)>0:
             logger.error("The following IDs failed to generate jpgs and will overwrite %s for later rerunning: %s", idListFile, failedIds)
-            mU.doExport(idListFile, failedIds, fmt="list")
             raise RuntimeError(f"JPG generation failed for {len(failedIds)} IDs.")
 
     def run_command(self, args):
@@ -154,9 +163,9 @@ class PdbCsmImageWorkflow:
         cmd, outPath, name, checkFileAppend = args
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            logger.info(f"[{name}] STDOUT:\n{result.stdout}\n[{name}] STDERR:\n{result.stderr}")
+            logger.info(f"{name}: {result.stdout} {result.stderr}")
         except subprocess.CalledProcessError as e:
-            print(f"[{name}] ERROR:\n{e.stderr}")
+            logger.error(f"{name}: {e.stderr}")
             raise
 
         # Verify output file
