@@ -21,6 +21,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import os
 from rcsb.utils.io.MarshalUtil import MarshalUtil
 from rcsb.workflow.wuw.WuwUtils import idHash
+import datetime
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
 logger = logging.getLogger()
@@ -40,23 +41,37 @@ class PdbCsmImageWorkflow:
         jpgWidth = str(kwargs.get("jpgWidth"))
         jpgFormat = kwargs.get("jpgFormat")
         checkFileAppend = kwargs.get("checkFileAppend", "_model-1.jpeg")
-        pdbBaseDir = kwargs.get("pdbBaseDir")
-        csmBaseDir = kwargs.get("csmBaseDir")
+        baseDir = kwargs.get("baseDir")
         jpgsOutDir = kwargs.get("jpgsOutDir")
         contentTypeDir = kwargs.get("contentTypeDir")
         numProcs = kwargs.get("numProcs")
 
-        logger.info("using id file %s", idListFile)
+        holdingsFilePath = Path(kwargs.get("holdingsFilePath"))
+        targetFileSuffix = kwargs.get("targetFileSuffix")
 
+        # load id list file
+        logger.info("using id file %s", idListFile)
         listFileObj = Path(idListFile)
         if not (listFileObj.is_file() and listFileObj.stat().st_size > 0):
             logger.error("Missing idList file %s", idListFile)
             raise
-
         mU = MarshalUtil()
         idList = mU.doImport(idListFile, fmt="list")
         if not isinstance(idList, list) and not idList:
             raise TypeError("idList not a list or is empty.")
+
+        # get holdings file dict for their timestamps
+        if "computed-models-holdings-list" in str(holdingsFilePath):
+            # the csm holdings file points to the actual holdings file
+            holdingsFileDict = {}
+            pointerDict = mU.doImport(holdingsFilePath, fmt="json")
+            for key in pointerDict:
+                holdingsFileDict.update(mU.doImport(str(holdingsFilePath.parent / key), fmt="json"))
+        else:
+            # pdb and ihm holdings file simply contain everything
+            holdingsFileDict = mU.doImport(holdingsFilePath, fmt="json")
+
+        ########################
 
         # generate list of commands
         argsL = []
@@ -69,33 +84,41 @@ class PdbCsmImageWorkflow:
             bcifFileName = os.path.join(nameHash, name) + ".bcif.gz"
             logger.info("%s checking %s %s %s", i, name, bcifFileName, contentTypeDir)
 
-            if contentTypeDir == "pdb":
-                bcifFilePath = os.path.join(pdbBaseDir, bcifFileName)
-            else:
-                bcifFilePath = os.path.join(csmBaseDir, bcifFileName)
-
+            bcifFilePath = os.path.join(baseDir, bcifFileName)
             outPath = os.path.join(jpgsOutDir, contentTypeDir, nameHash, name)
             Path(outPath).mkdir(parents=True, exist_ok=True)
 
-            bcifFileObj = Path(bcifFilePath)
-            if bcifFileObj.is_file() and bcifFileObj.stat().st_size > 0:
-                cmd = [
-                    jpgXvfbExecutable,
-                    "-a",
-                    "-s", f"-ac -screen 0 {jpgScreen}",
-                    molrenderExe,
-                    jpgRender,
-                    bcifFilePath,
-                    outPath,
-                    "--height", jpgHeight,
-                    "--width", jpgWidth,
-                    "--format", jpgFormat,
-                ]
-                argsL.append((cmd, outPath, name, checkFileAppend))
-            else:
-                logger.error("Missing bcif file %s", bcifFilePath)
-                failedIds.append(name)
+            if Path(outPath + targetFileSuffix).exists():
+                ### get timestamp of 'line' from holdingsFileDict
+                if isinstance(holdingsFileDict[line.upper()], dict):
+                    # csm
+                    timeStamp = holdingsFileDict[line.upper()]["lastModifiedDate"]
+                else:
+                    timeStamp = holdingsFileDict[line.upper()]
+                # compare timestamps
+                t1 = Path(outPath + targetFileSuffix).stat().st_mtime
+                t2 = datetime.datetime.strptime(timeStamp, "%Y-%m-%dT%H:%M:%S%z").timestamp()
+                if t1 < t2:
+                    bcifFileObj = Path(bcifFilePath)
+                    if bcifFileObj.is_file() and bcifFileObj.stat().st_size > 0:
+                        cmd = [
+                            jpgXvfbExecutable,
+                            "-a",
+                            "-s", f"-ac -screen 0 {jpgScreen}",
+                            molrenderExe,
+                            jpgRender,
+                            bcifFilePath,
+                            outPath,
+                            "--height", jpgHeight,
+                            "--width", jpgWidth,
+                            "--format", jpgFormat,
+                        ]
+                        argsL.append((cmd, outPath, name, checkFileAppend))
+                    else:
+                        logger.error("Missing bcif file %s", bcifFilePath)
+                        failedIds.append(name)
 
+        # run on single cpu
         if numProcs == 1:
             for args in argsL:
                 try:
@@ -104,6 +127,7 @@ class PdbCsmImageWorkflow:
                     logger.error("Failed to generate jpg for ID %s: %s", name, str(e))
                     failedIds.append(name)
         else:
+            # run in parallel
             with ProcessPoolExecutor(max_workers=int(numProcs)) as executor:
                 future_to_name = {}
                 for args in argsL:
@@ -119,6 +143,7 @@ class PdbCsmImageWorkflow:
                         logger.error("Subprocess failed for ID %s: %s", name, str(e))
                         failedIds.append(name)
 
+        # raise if anything failed earlier
         if failedIds:
             logger.error("The following IDs failed to generate jpgs and will overwrite %s for later rerunning: %s", idListFile, failedIds)
             mU.doExport(idListFile, failedIds, fmt="list")
@@ -129,8 +154,7 @@ class PdbCsmImageWorkflow:
         cmd, outPath, name, checkFileAppend = args
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            print(f"[{name}] STDOUT:\n{result.stdout}")
-            print(f"[{name}] STDERR:\n{result.stderr}")
+            logger.info(f"[{name}] STDOUT:\n{result.stdout}\n[{name}] STDERR:\n{result.stderr}")
         except subprocess.CalledProcessError as e:
             print(f"[{name}] ERROR:\n{e.stderr}")
             raise
