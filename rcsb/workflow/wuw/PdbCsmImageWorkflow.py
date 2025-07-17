@@ -70,45 +70,44 @@ class PdbCsmImageWorkflow:
             # pdb and ihm holdings file simply contain everything
             holdingsFileDict = mU.doImport(str(holdingsFilePath), fmt="json")
 
-        ########################
-
         # generate list of commands
         argsL = []
         failedIds = []
         logger.info("Id list contains %s entries", len(idList))
-        for i, line in enumerate(idList):
+        for line in idList:
             name = line.lower()
             nameHash = idHash(name)
 
             bcifFileName = os.path.join(nameHash, name) + ".bcif.gz"
-            logger.info("%s checking %s %s", i, name, bcifFileName)
-
             bcifFilePath = os.path.join(baseDir, bcifFileName)
             outPath = os.path.join(jpgsOutDir, nameHash, name)
             Path(outPath).mkdir(parents=True, exist_ok=True)
 
+            # check if we need a 
             needNewFileGen = True
             target = Path(outPath) / (name + targetFileSuffix)
-            logger.warning(target)
-            logger.warning(f'exists: {target.exists()}')
             if target.exists():
-                ### get timestamp of 'name' from holdingsFileDict
+                # get timestamp of 'name' from holdingsFileDict
                 if isinstance(holdingsFileDict[name.upper()], dict):
-                    # csm
-                    logger.warning("is csm?")
+                    # csm holdings file format
                     timeStamp = holdingsFileDict[name.upper()]["lastModifiedDate"]
                 else:
-                    logger.warning(name.upper())
+                    # pdb / ihm holdings file format
                     timeStamp = holdingsFileDict[name.upper()]
-                    logger.warning(timeStamp)
                 # compare timestamps
                 t1 = target.stat().st_mtime
                 t2 = datetime.datetime.strptime(timeStamp, "%Y-%m-%dT%H:%M:%S%z").timestamp()
                 if t1 >= t2:
                     needNewFileGen = False
-            logger.warning(needNewFileGen)
+                    logger.info("Skipping %s. File %s is up to date.", name, str(target))
+                else:
+                    logger.info("Will run %s. File %s is old.", name, str(target))
+            else:
+                logger.info("Will run %s. File %s not found.", name, str(target))
+            # if it needs to be run then add command and data to argL list
             if needNewFileGen:
                 bcifFileObj = Path(bcifFilePath)
+                # make sure a bcif file exists for this run
                 if bcifFileObj.is_file() and bcifFileObj.stat().st_size > 0:
                     cmd = [
                         jpgXvfbExecutable,
@@ -172,5 +171,3 @@ class PdbCsmImageWorkflow:
         outFileObj = Path(outJpgFile)
         if not (outFileObj.is_file() and outFileObj.stat().st_size > 0):
             raise ValueError(f"No image file generated: {outJpgFile}")
-
-        logger.info("Success: %r", cmd)
