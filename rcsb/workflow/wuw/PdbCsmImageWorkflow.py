@@ -43,7 +43,6 @@ class PdbCsmImageWorkflow:
         checkFileAppend = kwargs.get("checkFileAppend", "_model-1.jpeg")
         baseDir = kwargs.get("baseDir")
         jpgsOutDir = kwargs.get("jpgsOutDir")
-        contentTypeDir = kwargs.get("contentTypeDir")
         numProcs = kwargs.get("numProcs")
 
         holdingsFilePath = Path(kwargs.get("holdingsFilePath"))
@@ -82,10 +81,10 @@ class PdbCsmImageWorkflow:
             nameHash = idHash(name)
 
             bcifFileName = os.path.join(nameHash, name) + ".bcif.gz"
-            logger.info("%s checking %s %s %s", i, name, bcifFileName, contentTypeDir)
+            logger.info("%s checking %s %s", i, name, bcifFileName)
 
             bcifFilePath = os.path.join(baseDir, bcifFileName)
-            outPath = os.path.join(jpgsOutDir, contentTypeDir, nameHash, name)
+            outPath = os.path.join(jpgsOutDir, nameHash, name)
             Path(outPath).mkdir(parents=True, exist_ok=True)
 
             needNewFileGen = True

@@ -40,7 +40,6 @@ def main() -> None:
     parser.add_argument("--jpgScreen", default="1280x1024x24", help="Screen dimensions image will be rendered for.")
     parser.add_argument("--jpgRender", default="all", help="Which elements of the potein do you want to render.")
     parser.add_argument("--checkFileAppend", default="_model-1.jpeg", help="What jpg file do you want to check exists after the process runs.")
-    parser.add_argument("--contentTypeDir", default="pdb", help="Is this list for pdb structures or csm?")
     parser.add_argument("--numProcs", default=1, help="How many processors are available for parallel execution.")
     parser.add_argument("--holdingsFilePath", help="Path (including filename) to holdings file .json file (csm, pdb, ihm)")
     parser.add_argument("--targetFileSuffix", default="_model-1.jpeg", help="string that follows the ID in the jpg file name for comparing timestamps.")
