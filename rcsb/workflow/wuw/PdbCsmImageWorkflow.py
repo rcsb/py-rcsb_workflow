@@ -66,7 +66,7 @@ class PdbCsmImageWorkflow:
             holdingsFileDict = {}
             pointerDict = mU.doImport(str(holdingsFilePath), fmt="json")
             for key in pointerDict:
-                holdingsFileDict.update(mU.doImport(str(holdingsFilePath.parent / key), fmt="json"))
+                holdingsFileDict.update(mU.doImport(str(holdingsFilePath.parent / Path(key).name), fmt="json"))
         else:
             # pdb and ihm holdings file simply contain everything
             holdingsFileDict = mU.doImport(str(holdingsFilePath), fmt="json")
