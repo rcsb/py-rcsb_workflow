@@ -83,7 +83,7 @@ class PdbCsmImageWorkflow:
             outPath = os.path.join(jpgsOutDir, nameHash, name)
             Path(outPath).mkdir(parents=True, exist_ok=True)
 
-            # check if we need a 
+            # check if we output already exists and if it's old
             needNewFileGen = True
             target = Path(outPath) / (name + targetFileSuffix)
             if target.exists():
@@ -152,7 +152,7 @@ class PdbCsmImageWorkflow:
                         failedIds.append(name)
 
         # raise if anything failed earlier
-        if len(failedIds)>0:
+        if len(failedIds) > 0:
             logger.error("The following IDs failed to generate jpgs and will overwrite %s for later rerunning: %s", idListFile, failedIds)
             raise RuntimeError(f"JPG generation failed for {len(failedIds)} IDs.")
 
