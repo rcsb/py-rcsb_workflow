@@ -52,8 +52,7 @@ class PdbCsmImageWorkflow:
         logger.info("using id file %s", idListFile)
         listFileObj = Path(idListFile)
         if not (listFileObj.is_file() and listFileObj.stat().st_size > 0):
-            logger.error("Missing idList file %s", idListFile)
-            raise
+            raise RuntimeError(f"Missing idList file {idListFile}")
         mU = MarshalUtil()
         idList = mU.doImport(idListFile, fmt="list")
         if not isinstance(idList, list) and not idList:
@@ -161,9 +160,9 @@ class PdbCsmImageWorkflow:
         cmd, outPath, name, checkFileAppend = args
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            logger.info(f"{name}: {result.stdout} {result.stderr}")
+            logger.info("%s: %s %s", name, result.stdout, result.stderr)
         except subprocess.CalledProcessError as e:
-            logger.error(f"{name}: {e.stderr}")
+            logger.error("%s: %s", name, e.stderr)
             raise
 
         # Verify output file
