@@ -47,6 +47,7 @@ class PdbCsmImageWorkflow:
 
         holdingsFilePath = Path(kwargs.get("holdingsFilePath"))
         targetFileSuffix = kwargs.get("targetFileSuffix")
+        csmHoldingsFileName = kwargs.get("csmHoldingsFileName")
 
         # load id list file
         logger.info("using id file %s", idListFile)
@@ -59,7 +60,7 @@ class PdbCsmImageWorkflow:
             raise TypeError("idList not a list or is empty.")
 
         # get holdings file dict for their timestamps
-        if "computed-models-holdings-list" in str(holdingsFilePath):
+        if csmHoldingsFileName in str(holdingsFilePath):
             # the csm holdings file points to the actual holdings file
             holdingsFileDict = {}
             pointerDict = mU.doImport(str(holdingsFilePath), fmt="json")
