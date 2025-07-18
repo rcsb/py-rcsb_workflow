@@ -31,8 +31,10 @@ class PdbCsmImageWorkflow:
 
     def imagesGenJpgs(self, **kwargs: dict) -> None:
         """Generate jpgs for given pdb/csm list."""
-        idListFile = kwargs.get("idListFilePath", None)
 
+        ### kwargs ###
+
+        idListFile = kwargs.get("idListFilePath", None)
         jpgXvfbExecutable = kwargs.get("jpgXvfbExecutable")
         jpgScreen = kwargs.get("jpgScreen")
         molrenderExe = kwargs.get("molrenderExe")
@@ -44,12 +46,12 @@ class PdbCsmImageWorkflow:
         baseDir = kwargs.get("baseDir")
         jpgsOutDir = kwargs.get("jpgsOutDir")
         numProcs = kwargs.get("numProcs")
-
         holdingsFilePath = Path(kwargs.get("holdingsFilePath"))
         targetFileSuffix = kwargs.get("targetFileSuffix")
         csmHoldingsFileName = kwargs.get("csmHoldingsFileName")
 
-        # load id list file
+        ### load ID list file into memory ###
+
         logger.info("using id file %s", idListFile)
         listFileObj = Path(idListFile)
         if not (listFileObj.is_file() and listFileObj.stat().st_size > 0):
@@ -58,8 +60,10 @@ class PdbCsmImageWorkflow:
         idList = mU.doImport(idListFile, fmt="list")
         if not isinstance(idList, list) and not idList:
             raise TypeError("idList not a list or is empty.")
+        logger.info("Id list contains %s entries", len(idList))
 
-        # get holdings file dict for their timestamps
+        ### get holdings file dict for timestamps ###
+
         if csmHoldingsFileName in str(holdingsFilePath):
             # the csm holdings file points to the actual holdings file
             holdingsFileDict = {}
@@ -70,22 +74,14 @@ class PdbCsmImageWorkflow:
             # pdb and ihm holdings file simply contain everything
             holdingsFileDict = mU.doImport(str(holdingsFilePath), fmt="json")
 
-        # generate list of commands
-        argsL = []
-        failedIds = []
-        logger.info("Id list contains %s entries", len(idList))
+        ### verify output is MISSING or OLD before including ID ###
+
+        idListToDo = []
         for line in idList:
             name = line.lower()
             nameHash = idHash(name)
-
-            bcifFileName = os.path.join(nameHash, name) + ".bcif.gz"
-            bcifFilePath = os.path.join(baseDir, bcifFileName)
-            outPath = os.path.join(jpgsOutDir, nameHash, name)
-            Path(outPath).mkdir(parents=True, exist_ok=True)
-
-            # check if we output already exists and if it's old
-            needNewFileGen = True
-            target = Path(outPath) / (name + targetFileSuffix)
+            outPath = Path(jpgsOutDir) / nameHash / name
+            target = outPath / (name + targetFileSuffix)
             if target.exists():
                 # get timestamp of 'name' from holdingsFileDict
                 if isinstance(holdingsFileDict[name.upper()], dict):
@@ -98,35 +94,45 @@ class PdbCsmImageWorkflow:
                 t1 = target.stat().st_mtime
                 t2 = datetime.datetime.strptime(timeStamp, "%Y-%m-%dT%H:%M:%S%z").timestamp()
                 if t1 >= t2:
-                    needNewFileGen = False
                     logger.info("Skipping %s. File %s is up to date.", name, str(target))
                 else:
                     logger.info("Will run %s. File %s is old.", name, str(target))
+                    idListToDo = [*idListToDo, name]
             else:
                 logger.info("Will run %s. File %s not found.", name, str(target))
-            # if it needs to be run then add command and data to argL list
-            if needNewFileGen:
-                bcifFileObj = Path(bcifFilePath)
-                # make sure a bcif file exists for this run
-                if bcifFileObj.is_file() and bcifFileObj.stat().st_size > 0:
-                    cmd = [
-                        jpgXvfbExecutable,
-                        "-a",
-                        "-s", f"-ac -screen 0 {jpgScreen}",
-                        molrenderExe,
-                        jpgRender,
-                        bcifFilePath,
-                        outPath,
-                        "--height", jpgHeight,
-                        "--width", jpgWidth,
-                        "--format", jpgFormat,
-                    ]
-                    argsL.append((cmd, outPath, name, checkFileAppend))
-                else:
-                    logger.error("Missing bcif file %s", bcifFilePath)
-                    failedIds.append(name)
+                idListToDo = [*idListToDo, name]
 
-        # run on single cpu
+        ### Generate commands tuple in form ProcessPoolExecutor accepts ###
+
+        argsL = []
+        failedIds = []
+        for line in idListToDo:
+            name = line.lower()
+            nameHash = idHash(name)
+            bcifFilePath = Path(baseDir) / nameHash / (name + ".bcif.gz") # bcif files are directly under the namehash
+            outPath = Path(jpgsOutDir) / nameHash / name # jpg files are in a subdir of the name under the name hash
+            outPath.mkdir(parents=True, exist_ok=True)
+            # make sure a bcif file exists for this run
+            if bcifFilePath.is_file() and bcifFilePath.stat().st_size > 0:
+                cmd = [
+                    jpgXvfbExecutable,
+                    "-a",
+                    "-s", f"-ac -screen 0 {jpgScreen}",
+                    molrenderExe,
+                    jpgRender,
+                    str(bcifFilePath),
+                    outPath,
+                    "--height", jpgHeight,
+                    "--width", jpgWidth,
+                    "--format", jpgFormat,
+                ]
+                argsL.append((cmd, outPath, name, checkFileAppend))
+            else:
+                logger.error("Missing bcif file %s", bcifFilePath)
+                failedIds.append(name)
+
+        ### run commands ###
+
         if numProcs == 1:
             for args in argsL:
                 try:
@@ -135,7 +141,6 @@ class PdbCsmImageWorkflow:
                     logger.error("Failed to generate jpg for ID %s: %s", name, str(e))
                     failedIds.append(name)
         else:
-            # run in parallel
             with ProcessPoolExecutor(max_workers=int(numProcs)) as executor:
                 future_to_name = {}
                 for args in argsL:
@@ -151,7 +156,8 @@ class PdbCsmImageWorkflow:
                         logger.error("Subprocess failed for ID %s: %s", name, str(e))
                         failedIds.append(name)
 
-        # raise if anything failed earlier
+        ### check for failures ###
+
         if len(failedIds) > 0:
             logger.error("The following IDs failed to generate jpgs and will overwrite %s for later rerunning: %s", idListFile, failedIds)
             raise RuntimeError(f"JPG generation failed for {len(failedIds)} IDs.")
