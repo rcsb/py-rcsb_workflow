@@ -32,7 +32,7 @@ class PdbCsmImageWorkflow:
     def imagesGenJpgs(self, **kwargs: dict) -> None:
         """Generate jpgs for given pdb/csm list."""
 
-        ### kwargs ###
+        # kwargs #
 
         idListFile = kwargs.get("idListFilePath", None)
         jpgXvfbExecutable = kwargs.get("jpgXvfbExecutable")
@@ -48,9 +48,9 @@ class PdbCsmImageWorkflow:
         numProcs = kwargs.get("numProcs")
         holdingsFilePath = Path(kwargs.get("holdingsFilePath"))
         targetFileSuffix = kwargs.get("targetFileSuffix")
-        csmHoldingsFileName = kwargs.get("csmHoldingsFileName")
+        csmHoldingsFileSubstring = kwargs.get("csmHoldingsFileSubstring")
 
-        ### load ID list file into memory ###
+        # load ID list file into memory #
 
         logger.info("using id file %s", idListFile)
         listFileObj = Path(idListFile)
@@ -60,11 +60,11 @@ class PdbCsmImageWorkflow:
         idList = mU.doImport(idListFile, fmt="list")
         if not isinstance(idList, list) and not idList:
             raise TypeError("idList not a list or is empty.")
-        logger.info("Id list contains %s entries", len(idList))
+        logger.info("Full id list contains %s entries", len(idList))
 
-        ### get holdings file dict for timestamps ###
+        # get holdings file dict for timestamps #
 
-        if csmHoldingsFileName in str(holdingsFilePath):
+        if csmHoldingsFileSubstring in str(holdingsFilePath):
             # the csm holdings file points to the actual holdings file
             holdingsFileDict = {}
             pointerDict = mU.doImport(str(holdingsFilePath), fmt="json")
@@ -74,8 +74,7 @@ class PdbCsmImageWorkflow:
             # pdb and ihm holdings file simply contain everything
             holdingsFileDict = mU.doImport(str(holdingsFilePath), fmt="json")
 
-        ### verify output is MISSING or OLD before including ID ###
-
+        # verify output is MISSING or OLD before including ID #
         idListToDo = []
         for line in idList:
             name = line.lower()
@@ -93,24 +92,20 @@ class PdbCsmImageWorkflow:
                 # compare timestamps
                 t1 = target.stat().st_mtime
                 t2 = datetime.datetime.strptime(timeStamp, "%Y-%m-%dT%H:%M:%S%z").timestamp()
-                if t1 >= t2:
-                    logger.info("Skipping %s. File %s is up to date.", name, str(target))
-                else:
-                    logger.info("Will run %s. File %s is old.", name, str(target))
+                if t1 < t2:
                     idListToDo = [*idListToDo, name]
             else:
-                logger.info("Will run %s. File %s not found.", name, str(target))
                 idListToDo = [*idListToDo, name]
+        logger.info("Delta ids (%s entries): %s", len(idListToDo), " ".join(idListToDo))
 
-        ### Generate commands tuple in form ProcessPoolExecutor accepts ###
-
+        # Generate commands tuple in form ProcessPoolExecutor accepts #
         argsL = []
         failedIds = []
         for line in idListToDo:
             name = line.lower()
             nameHash = idHash(name)
-            bcifFilePath = Path(baseDir) / nameHash / (name + ".bcif.gz") # bcif files are directly under the namehash
-            outPath = Path(jpgsOutDir) / nameHash / name # jpg files are in a subdir of the name under the name hash
+            bcifFilePath = Path(baseDir) / nameHash / (name + ".bcif.gz")  # bcif files are directly under the namehash
+            outPath = Path(jpgsOutDir) / nameHash / name  # jpg files are in a subdir of the name under the name hash
             outPath.mkdir(parents=True, exist_ok=True)
             # make sure a bcif file exists for this run
             if bcifFilePath.is_file() and bcifFilePath.stat().st_size > 0:
@@ -131,8 +126,7 @@ class PdbCsmImageWorkflow:
                 logger.error("Missing bcif file %s", bcifFilePath)
                 failedIds.append(name)
 
-        ### run commands ###
-
+        # run commands #
         if numProcs == 1:
             for args in argsL:
                 try:
@@ -156,8 +150,7 @@ class PdbCsmImageWorkflow:
                         logger.error("Subprocess failed for ID %s: %s", name, str(e))
                         failedIds.append(name)
 
-        ### check for failures ###
-
+        # check for failures #
         if len(failedIds) > 0:
             logger.error("The following IDs failed to generate jpgs and will overwrite %s for later rerunning: %s", idListFile, failedIds)
             raise RuntimeError(f"JPG generation failed for {len(failedIds)} IDs.")

@@ -43,7 +43,7 @@ def main() -> None:
     parser.add_argument("--numProcs", default=1, help="How many processors are available for parallel execution.")
     parser.add_argument("--holdingsFilePath", help="Path (including filename) to holdings file .json file (csm, pdb, ihm)")
     parser.add_argument("--targetFileSuffix", default="_model-1.jpeg", help="string that follows the ID in the jpg file name for comparing timestamps.")
-    parser.add_argument("--csmHoldingsFileName", default="computed-models-holdings-list", help="substring in csm holdings file path to determine if we are working with CSMs."
+    parser.add_argument("--csmHoldingsFileSubstring", default="computed-models-holdings-list", help="substring in csm holdings file path to determine if we are working with CSMs.")
     args = vars(parser.parse_args())
 
     imgWF = PdbCsmImageWorkflow()
