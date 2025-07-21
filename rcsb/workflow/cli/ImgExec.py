@@ -25,13 +25,11 @@ def main() -> None:
         required=True,
         help="which function to call",
         choices=[
-            "genLists",
             "genJpgs",
         ],
     )
 
-    parser.add_argument("--pdbBaseDir", help="Base path for experimental bcif file.")
-    parser.add_argument("--csmBaseDir", help="Base path for computational bcif file.")
+    parser.add_argument("--baseDir", help="Base path for experimental or computational bcif file.")
     parser.add_argument("--idListFilePath", help="List of ids to generate images for.")
     parser.add_argument("--molrenderExe", default="/opt/modules/node_modules/molrender/build/bin/molrender.js", help="Molrender executable location.")
     parser.add_argument("--jpgsOutDir", help="Where to put the complete jpg images.")
@@ -42,9 +40,10 @@ def main() -> None:
     parser.add_argument("--jpgScreen", default="1280x1024x24", help="Screen dimensions image will be rendered for.")
     parser.add_argument("--jpgRender", default="all", help="Which elements of the potein do you want to render.")
     parser.add_argument("--checkFileAppend", default="_model-1.jpeg", help="What jpg file do you want to check exists after the process runs.")
-    parser.add_argument("--contentTypeDir", default="pdb", help="Is this list for pdb structures or csm?")
     parser.add_argument("--numProcs", default=1, help="How many processors are available for parallel execution.")
-
+    parser.add_argument("--holdingsFilePath", help="Path (including filename) to holdings file .json file (csm, pdb, ihm)")
+    parser.add_argument("--targetFileSuffix", default="_model-1.jpeg", help="string that follows the ID in the jpg file name for comparing timestamps.")
+    parser.add_argument("--csmHoldingsFileSubstring", default="computed-models-holdings-list", help="substring in csm holdings file path to determine if we are working with CSMs.")
     args = vars(parser.parse_args())
 
     imgWF = PdbCsmImageWorkflow()
