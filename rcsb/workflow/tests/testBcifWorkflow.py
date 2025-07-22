@@ -124,6 +124,7 @@ class TestBcif(unittest.TestCase):
         self.maDict = "https://raw.githubusercontent.com/ihmwg/ModelCIF/master/dist/mmcif_ma_ext.dic"
         self.rcsbDict = "https://raw.githubusercontent.com/rcsb/py-rcsb_exdb_assets/master/dictionary_files/dist/rcsb_mmcif_ext.dic"
         self.ihmDict = "https://raw.githubusercontent.com/rcsb/py-rcsb_exdb_assets/master/dictionary_files/reference/mmcif_ihm_ext.dic"
+        self.flrDict = "https://raw.githubusercontent.com/ihmwg/flrCIF/refs/heads/master/dist/mmcif_ihm_flr_ext.dic"
         # settings
         self.batchSize = 4
         self.nlists = 2
@@ -681,7 +682,7 @@ class TestBcif(unittest.TestCase):
                 )
             )
         tmp = tempfile.mkdtemp()
-        api = getDictionaryApi(self.pdbxDict, self.maDict, self.rcsbDict, self.ihmDict)
+        api = getDictionaryApi(self.pdbxDict, self.maDict, self.rcsbDict, self.ihmDict, self.flrDict)
         for index in range(0, len(infiles)):
             convert(infiles[index], outfiles[index], tmp, api)
         for filename in os.listdir(out):
