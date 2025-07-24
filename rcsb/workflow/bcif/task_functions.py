@@ -168,13 +168,7 @@ def singleTask(
     dictionaryApi: DictionaryApi,
     temppath: str,
 ) -> None:
-    if contentType in [
-        ContentTypeEnum.EXPERIMENTAL.value,
-        ContentTypeEnum.INTEGRATIVE.value,
-    ]:
-        pdbId = pdbId.lower()
-    elif contentType == ContentTypeEnum.COMPUTATIONAL.value:
-        pdbId = pdbId.upper()
+    pdbId = pdbId.lower()
     remoteFileName = "%s%s" % (
         pdbId,
         outfileSuffix.replace(".bcif.gz", ".cif.gz").replace(".bcif", ".cif"),
@@ -219,10 +213,7 @@ def singleTask(
 
 
 def getHash(pdbId: str, contentType: str) -> str:
-    if contentType == ContentTypeEnum.COMPUTATIONAL.value:
-        pdbId = pdbId.upper()
-    else:
-        pdbId = pdbId.lower()
+    pdbId = pdbId.lower()
     result = pdbId[1:3]
     if contentType == ContentTypeEnum.COMPUTATIONAL.value:
         result = os.path.join(pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2])
