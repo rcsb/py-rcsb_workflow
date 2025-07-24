@@ -27,7 +27,6 @@ from rcsb.utils.io.MarshalUtil import MarshalUtil
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-
 ContentTypeEnum = Enum(
     "ContentTypeEnum",
     [("EXPERIMENTAL", "pdb"), ("COMPUTATIONAL", "csm"), ("INTEGRATIVE", "ihm")],
@@ -35,22 +34,22 @@ ContentTypeEnum = Enum(
 
 
 def convertCifFilesToBcif(
-    listFileName: str,
-    listFileBase: str,
-    remotePath: str,
-    updateBase: str,
-    outfileSuffix: str,
-    contentType: str,
-    outputContentType: bool,
-    outputHash: bool,
-    inputHash: bool,
-    batchSize: int,
-    maxFiles: int,
-    pdbxDict: str,
-    maDict: str,
-    rcsbDict: str,
-    ihmDict: str,
-    flrDict: str
+        listFileName: str,
+        listFileBase: str,
+        remotePath: str,
+        updateBase: str,
+        outfileSuffix: str,
+        contentType: str,
+        outputContentType: bool,
+        outputHash: bool,
+        inputHash: bool,
+        batchSize: int,
+        maxFiles: int,
+        pdbxDict: str,
+        maDict: str,
+        rcsbDict: str,
+        ihmDict: str,
+        flrDict: str
 ):
     """
     Converts CIF files to BCIF format based on a given list file.
@@ -142,7 +141,7 @@ def convertCifFilesToBcif(
 
 
 def getDictionaryApi(
-    pdbxDict: str, maDict: str, rcsbDict: str, ihmDict: str, flrDict: str
+        pdbxDict: str, maDict: str, rcsbDict: str, ihmDict: str, flrDict: str
 ) -> DictionaryApi:
     paths = [pdbxDict, maDict, rcsbDict, ihmDict, flrDict]
     try:
@@ -157,26 +156,19 @@ def getDictionaryApi(
 
 
 def singleTask(
-    pdbId: str,
-    remotePath: str,
-    updateBase: str,
-    outfileSuffix: str,
-    outputContentType: bool,
-    outputHash: bool,
-    inputHash: bool,
-    contentType: str,
-    dictionaryApi: DictionaryApi,
-    temppath: str,
+        pdbId: str,
+        remotePath: str,
+        updateBase: str,
+        outfileSuffix: str,
+        outputContentType: bool,
+        outputHash: bool,
+        inputHash: bool,
+        contentType: str,
+        dictionaryApi: DictionaryApi,
+        temppath: str,
 ) -> None:
-    if contentType in [
-        ContentTypeEnum.EXPERIMENTAL.value,
-        ContentTypeEnum.INTEGRATIVE.value,
-    ]:
-        pdbId = pdbId.lower()
-    elif contentType == ContentTypeEnum.COMPUTATIONAL.value:
-        pdbId = pdbId.upper()
     remoteFileName = "%s%s" % (
-        pdbId,
+        getInputPdbId(pdbId, contentType),
         outfileSuffix.replace(".bcif.gz", ".cif.gz").replace(".bcif", ".cif"),
     )
 
@@ -186,13 +178,13 @@ def singleTask(
         cifFilePath = os.path.join(remotePath, remoteFileName)
         if inputHash:
             cifFilePath = os.path.join(
-                remotePath, getHash(pdbId, contentType), remoteFileName
+                remotePath, getHash(getInputPdbId(pdbId, contentType), contentType), remoteFileName
             )
         if not os.path.exists(cifFilePath):
             logger.warning("%s not found", cifFilePath)
             return
     else:
-        cifFilePath = getRemoteFilePath(pdbId, contentType, remotePath, remoteFileName)
+        cifFilePath = getRemoteFilePath(getInputPdbId(pdbId, contentType), contentType, remotePath, remoteFileName)
 
     # form output bcifFilePath
     bcifFilePath = getBcifFilePath(
@@ -218,11 +210,20 @@ def singleTask(
         raise Exception("failed to convert %s" % cifFilePath)
 
 
-def getHash(pdbId: str, contentType: str) -> str:
+def getInputPdbId(pdbId: str, contentType: str) -> str:
+    """ remote and local .cif files """
     if contentType == ContentTypeEnum.COMPUTATIONAL.value:
-        pdbId = pdbId.upper()
-    else:
-        pdbId = pdbId.lower()
+        return pdbId.upper()
+    return pdbId.lower()
+
+
+def getOutputPdbId(pdbId: str) -> str:
+    """ local .bcif.gz files """
+    return pdbId.lower()
+
+
+def getHash(pdbId: str, contentType: str) -> str:
+    """ get upper/lower-case pdb id prior to getting hash """
     result = pdbId[1:3]
     if contentType == ContentTypeEnum.COMPUTATIONAL.value:
         result = os.path.join(pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2])
@@ -230,8 +231,10 @@ def getHash(pdbId: str, contentType: str) -> str:
 
 
 def getRemoteFilePath(
-    pdbId: str, contentType: str, remotePath: str, remoteFileName: str
+        pdbId: str, contentType: str, remotePath: str, remoteFileName: str
 ) -> str:
+    """ only for input files """
+    pdbId = getInputPdbId(pdbId, contentType)
     result = os.path.join(remotePath, getHash(pdbId, contentType), remoteFileName)
     if contentType == ContentTypeEnum.INTEGRATIVE.value:
         result = os.path.join(
@@ -241,13 +244,15 @@ def getRemoteFilePath(
 
 
 def getBcifFilePath(
-    pdbId: str,
-    outfileSuffix: str,
-    updateBase: str,
-    contentType: str,
-    outputContentType: bool,
-    outputHash: bool,
+        pdbId: str,
+        outfileSuffix: str,
+        updateBase: str,
+        contentType: str,
+        outputContentType: bool,
+        outputHash: bool,
 ) -> Optional[str]:
+    """ only for output files """
+    pdbId = getOutputPdbId(pdbId)
     bcifFileName = "%s%s" % (pdbId, outfileSuffix)
     bcifFilePath = None
     if contentType in [
@@ -295,7 +300,7 @@ def getBcifFilePath(
 
 
 def convert(
-    infile: str, outfile: str, workpath: str, dictionaryApi: DictionaryApi
+        infile: str, outfile: str, workpath: str, dictionaryApi: DictionaryApi
 ) -> bool:
     mu = MarshalUtil(workPath=workpath)
     data = mu.doImport(infile, fmt="mmcif")
@@ -306,7 +311,7 @@ def convert(
 
 
 def deconvert(
-    infile: str, outfile: str, workpath: str, dictionaryApi: DictionaryApi
+        infile: str, outfile: str, workpath: str, dictionaryApi: DictionaryApi
 ) -> bool:
     mu = MarshalUtil(workPath=workpath)
     data = mu.doImport(infile, fmt="bcif")

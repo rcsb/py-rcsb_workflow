@@ -28,14 +28,12 @@ from rcsb.workflow.bcif.task_functions import (
     getDictionaryApi,
 )
 
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s",
 )
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
 
 ON_LOCAL_SERVER = False
 
@@ -58,17 +56,17 @@ def getList(cifFilePath, outFilePath) -> List[str]:
 
 
 def computeBcif(
-    listFileBase,
-    listFileName,
-    remotePath,
-    outputPath,
-    outfileSuffix,
-    contentType,
-    outputContentType,
-    outputHash,
-    inputHash,
-    batchSize,
-    nfiles,
+        listFileBase,
+        listFileName,
+        remotePath,
+        outputPath,
+        outfileSuffix,
+        contentType,
+        outputContentType,
+        outputHash,
+        inputHash,
+        batchSize,
+        nfiles,
 ) -> bool:
     outContentType = ""
     outHash = ""
@@ -135,9 +133,9 @@ class TestBcif(unittest.TestCase):
         self.inputHash = False
         #
         self.nresults = (
-            len(os.listdir(self.pdbLocalPath))
-            + len(os.listdir(self.csmLocalPath))
-            + len(os.listdir(self.ihmLocalPath))
+                len(os.listdir(self.pdbLocalPath))
+                + len(os.listdir(self.csmLocalPath))
+                + len(os.listdir(self.ihmLocalPath))
         )
         #
         logger.info("making temp dir %s", self.outputPath)
@@ -227,10 +225,20 @@ class TestBcif(unittest.TestCase):
             )
 
         for csmid in csmlist:
-            csmid = csmid.upper()
+            csmid = csmid.lower()
+            # on mac the following test is case-insensitive and will pass regardless of upper-case/lower-case
             self.assertTrue(
                 os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % csmid))
             )
+
+        for filename in os.listdir(self.outputPath):
+            if filename.startswith("af_") or filename.startswith("AF_") or filename.startswith(
+                    "ma_") or filename.startswith("MA_"):
+                filename = filename.replace(".bcif.gz", "").replace(".bcif", "")
+                # on mac the following test will fail if this line is commented out
+                filename = filename.upper()
+                # case-sensitive on any computer
+                self.assertTrue(filename in csmlist)
 
         for ihmid in ihmlist:
             ihmid = ihmid.lower()
@@ -319,7 +327,7 @@ class TestBcif(unittest.TestCase):
             )
 
         for csmid in csmlist:
-            csmid = csmid.upper()
+            csmid = csmid.lower()
             self.assertTrue(
                 os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % csmid))
             )
@@ -434,7 +442,7 @@ class TestBcif(unittest.TestCase):
             )
 
         for csmid in csmlist:
-            csmid = csmid.upper()
+            csmid = csmid.lower()
             self.assertTrue(
                 os.path.exists(os.path.join(self.outputPath, "%s.bcif" % csmid))
             )
@@ -537,7 +545,7 @@ class TestBcif(unittest.TestCase):
             )
 
         for csmid in csmlist:
-            csmid = csmid.upper()
+            csmid = csmid.lower()
             self.assertTrue(
                 os.path.exists(
                     os.path.join(
@@ -651,7 +659,7 @@ class TestBcif(unittest.TestCase):
             )
 
         for csmid in csmlist:
-            csmid = csmid.upper()
+            csmid = csmid.lower()
             self.assertTrue(
                 os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % csmid))
             )

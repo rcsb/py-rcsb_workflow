@@ -52,3 +52,4 @@
 04-Jun-2025 - V0.56 Update jpg gen to using hashing subpaths for input and output
 14-Jul-2025 - V0.57 Update jpg gen to to log errors but fail at the end
 22-Jul-2025 - V0.58 Add flr dictionary to bcif module
+24-Jul-2025 - V0.59 Switch to lower-case for csm output bcif files
