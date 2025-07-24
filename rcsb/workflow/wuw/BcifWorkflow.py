@@ -42,6 +42,7 @@ class BcifWorkflow:
         self.maDict = args.maDict
         self.rcsbDict = args.rcsbDict
         self.ihmDict = args.ihmDict
+        self.flrDict = args.flrDict
         #
         self.validate()
 
@@ -82,4 +83,5 @@ class BcifWorkflow:
             self.maDict,
             self.rcsbDict,
             self.ihmDict,
+            self.flrDict
         )

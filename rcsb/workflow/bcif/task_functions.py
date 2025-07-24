@@ -50,6 +50,7 @@ def convertCifFilesToBcif(
     maDict: str,
     rcsbDict: str,
     ihmDict: str,
+    flrDict: str
 ):
     """
     Converts CIF files to BCIF format based on a given list file.
@@ -88,7 +89,7 @@ def convertCifFilesToBcif(
     logger.info("distributing %d files across %d sublists", len(files), batchSize)
 
     # form dictionary object
-    dictionaryApi = getDictionaryApi(pdbxDict, maDict, rcsbDict, ihmDict)
+    dictionaryApi = getDictionaryApi(pdbxDict, maDict, rcsbDict, ihmDict, flrDict)
 
     # traverse sublist and send each input file to converter
     temppath = tempfile.mkdtemp()
@@ -141,9 +142,9 @@ def convertCifFilesToBcif(
 
 
 def getDictionaryApi(
-    pdbxDict: str, maDict: str, rcsbDict: str, ihmDict: str
+    pdbxDict: str, maDict: str, rcsbDict: str, ihmDict: str, flrDict: str
 ) -> DictionaryApi:
-    paths = [pdbxDict, maDict, rcsbDict, ihmDict]
+    paths = [pdbxDict, maDict, rcsbDict, ihmDict, flrDict]
     try:
         adapter = IoAdapter(raiseExceptions=True)
         containers = []

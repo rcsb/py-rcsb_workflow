@@ -121,6 +121,11 @@ def main():
         default="https://raw.githubusercontent.com/rcsb/py-rcsb_exdb_assets/master/dictionary_files/reference/mmcif_ihm_ext.dic",
         required=False,
     )
+    parser.add_argument(
+        "--flrDict",
+        default="https://raw.githubusercontent.com/ihmwg/flrCIF/refs/heads/master/dist/mmcif_ihm_flr_ext.dic",
+        required=False,
+    )
     # logging
     parser.add_argument("--log_file_path", required=False)
     parser.add_argument("--debug", action="store_true", default=False, required=False)
