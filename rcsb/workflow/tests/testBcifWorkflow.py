@@ -56,17 +56,17 @@ def getList(cifFilePath, outFilePath) -> List[str]:
 
 
 def computeBcif(
-        listFileBase,
-        listFileName,
-        remotePath,
-        outputPath,
-        outfileSuffix,
-        contentType,
-        outputContentType,
-        outputHash,
-        inputHash,
-        batchSize,
-        nfiles,
+    listFileBase,
+    listFileName,
+    remotePath,
+    outputPath,
+    outfileSuffix,
+    contentType,
+    outputContentType,
+    outputHash,
+    inputHash,
+    batchSize,
+    nfiles,
 ) -> bool:
     outContentType = ""
     outHash = ""
@@ -133,9 +133,9 @@ class TestBcif(unittest.TestCase):
         self.inputHash = False
         #
         self.nresults = (
-                len(os.listdir(self.pdbLocalPath))
-                + len(os.listdir(self.csmLocalPath))
-                + len(os.listdir(self.ihmLocalPath))
+            len(os.listdir(self.pdbLocalPath))
+            + len(os.listdir(self.csmLocalPath))
+            + len(os.listdir(self.ihmLocalPath))
         )
         #
         logger.info("making temp dir %s", self.outputPath)
@@ -226,17 +226,16 @@ class TestBcif(unittest.TestCase):
 
         for csmid in csmlist:
             csmid = csmid.lower()
-            # on mac the following test is case-insensitive and will pass regardless of upper-case/lower-case
+            # on mac the following test is case-insensitive and will pass regardless of upper-case/lower-case pdb id
             self.assertTrue(
                 os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % csmid))
             )
 
         for filename in os.listdir(self.outputPath):
-            if filename.startswith("af_") or filename.startswith("AF_") or filename.startswith(
-                    "ma_") or filename.startswith("MA_"):
-                filename = filename.replace(".bcif.gz", "").replace(".bcif", "")
-                # on mac the following test will fail if this line is commented out
-                filename = filename.upper()
+            filename = filename.replace(".bcif.gz", "").replace(".bcif", "")
+            # on mac the following test will fail if this line is commented out
+            filename = filename.upper()
+            if filename.startswith("AF_") or filename.startswith("MA_"):
                 # case-sensitive on any computer
                 self.assertTrue(filename in csmlist)
 
@@ -690,7 +689,9 @@ class TestBcif(unittest.TestCase):
                 )
             )
         tmp = tempfile.mkdtemp()
-        api = getDictionaryApi(self.pdbxDict, self.maDict, self.rcsbDict, self.ihmDict, self.flrDict)
+        api = getDictionaryApi(
+            self.pdbxDict, self.maDict, self.rcsbDict, self.ihmDict, self.flrDict
+        )
         for index in range(0, len(infiles)):
             convert(infiles[index], outfiles[index], tmp, api)
         for filename in os.listdir(out):
