@@ -28,14 +28,12 @@ from rcsb.workflow.bcif.task_functions import (
     getDictionaryApi,
 )
 
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s",
 )
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
 
 ON_LOCAL_SERVER = False
 
@@ -227,10 +225,19 @@ class TestBcif(unittest.TestCase):
             )
 
         for csmid in csmlist:
-            csmid = csmid.upper()
+            csmid = csmid.lower()
+            # on mac the following test is case-insensitive and will pass regardless of upper-case/lower-case pdb id
             self.assertTrue(
                 os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % csmid))
             )
+
+        for filename in os.listdir(self.outputPath):
+            filename = filename.replace(".bcif.gz", "").replace(".bcif", "")
+            # on mac the following test will fail if this line is commented out
+            filename = filename.upper()
+            if filename.startswith("AF_") or filename.startswith("MA_"):
+                # case-sensitive on any computer
+                self.assertTrue(filename in csmlist)
 
         for ihmid in ihmlist:
             ihmid = ihmid.lower()
@@ -319,7 +326,7 @@ class TestBcif(unittest.TestCase):
             )
 
         for csmid in csmlist:
-            csmid = csmid.upper()
+            csmid = csmid.lower()
             self.assertTrue(
                 os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % csmid))
             )
@@ -434,7 +441,7 @@ class TestBcif(unittest.TestCase):
             )
 
         for csmid in csmlist:
-            csmid = csmid.upper()
+            csmid = csmid.lower()
             self.assertTrue(
                 os.path.exists(os.path.join(self.outputPath, "%s.bcif" % csmid))
             )
@@ -537,7 +544,7 @@ class TestBcif(unittest.TestCase):
             )
 
         for csmid in csmlist:
-            csmid = csmid.upper()
+            csmid = csmid.lower()
             self.assertTrue(
                 os.path.exists(
                     os.path.join(
@@ -651,7 +658,7 @@ class TestBcif(unittest.TestCase):
             )
 
         for csmid in csmlist:
-            csmid = csmid.upper()
+            csmid = csmid.lower()
             self.assertTrue(
                 os.path.exists(os.path.join(self.outputPath, "%s.bcif.gz" % csmid))
             )
@@ -682,7 +689,9 @@ class TestBcif(unittest.TestCase):
                 )
             )
         tmp = tempfile.mkdtemp()
-        api = getDictionaryApi(self.pdbxDict, self.maDict, self.rcsbDict, self.ihmDict, self.flrDict)
+        api = getDictionaryApi(
+            self.pdbxDict, self.maDict, self.rcsbDict, self.ihmDict, self.flrDict
+        )
         for index in range(0, len(infiles)):
             convert(infiles[index], outfiles[index], tmp, api)
         for filename in os.listdir(out):
