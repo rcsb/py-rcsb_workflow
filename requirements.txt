@@ -6,6 +6,6 @@ rcsb.utils.targets >= 0.83
 rcsb.utils.seqalign >= 0.31
 rcsb.utils.io >= 1.49
 rcsb.exdb >= 1.29  # v1.28 is when circular dependency was removed
-rcsb.db >= 1.804
+rcsb.db >= 1.805
 requests >= 2.32.3
 mmcif >= 0.91.0
