@@ -2,7 +2,7 @@
 # and packages needed for running ETL workflow
 
 # Use an official Python image as a base image
-FROM python:3.10-slim
+FROM python:3.10-slim-bookworm
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -14,7 +14,7 @@ COPY ./requirements.txt /app/requirements.txt
 # Install system dependencies
 RUN apt-get update \
     # Confirmed versions that work: build-essential=12.9 pkg-config=1.8.1-1 default-libmysqlclient-dev=1.1.0
-    && apt-get install -y --no-install-recommends build-essential=12.* pkg-config=1.8.* default-libmysqlclient-dev=1.1.* wget=1.21.* libcairo2=1.16.* \
+    && apt-get install -y --no-install-recommends build-essential=12.* pkg-config=1.8.* default-libmysqlclient-dev=1.1.* wget=1.* libcairo2=1.* cmake=3.* flex=* bison=* \
     && rm -rf /var/lib/apt/lists/*
 
 # Install mmseqs2
@@ -36,6 +36,7 @@ RUN apt-get -y install --no-install-recommends --reinstall tzdata=*
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install --no-install-recommends -y nodejs=18.* npm=9.* \
+    libx11-dev libxi-dev libxext-dev mesa-common-dev \
     && npm i molrender@0.9.0 \
     && apt-get -yqq install --no-install-recommends libgl1-mesa-dev=* xvfb=* xauth=* \
     && rm -rf /var/lib/apt/lists/*
