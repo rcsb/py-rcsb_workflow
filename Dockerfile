@@ -14,7 +14,7 @@ COPY ./requirements.txt /app/requirements.txt
 # Install system dependencies
 RUN apt-get update \
     # Confirmed versions that work: build-essential=12.9 pkg-config=1.8.1-1 default-libmysqlclient-dev=1.1.0
-    && apt-get install -y --no-install-recommends build-essential=12.* pkg-config=1.8.* default-libmysqlclient-dev=1.1.* wget=1.* libcairo2=1.* cmake=3.* flex=* bison=* \
+    && apt-get install -y --no-install-recommends build-essential=12.9 pkg-config=1.8.1-1 default-libmysqlclient-dev=1.1.0 wget=1.21.3-1+deb12u1 libcairo2=1.16.0-7 cmake=3.25.1-1 flex=2.6.4-8.2 bison=2:3.8.2+dfsg-1+b1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install mmseqs2
@@ -35,10 +35,10 @@ WORKDIR /opt/modules/node_modules
 RUN apt-get -y install --no-install-recommends --reinstall tzdata=*
 RUN apt-get update \
     && apt-get upgrade -y \
-    && apt-get install --no-install-recommends -y nodejs=18.* npm=9.* \
-    libx11-dev libxi-dev libxext-dev mesa-common-dev \
+    && apt-get install --no-install-recommends -y nodejs=18.19.0+dfsg-6~deb12u2 npm=9.2.0~ds1-1 \
+    libx11-dev=2:1.8.4-2+deb12u2 libxi-dev=2:1.8-1+b1 libxext-dev=2:1.3.4-1+b1 mesa-common-dev=22.3.6-1+deb12u1 \
     && npm i molrender@0.9.0 \
-    && apt-get -yqq install --no-install-recommends libgl1-mesa-dev=* xvfb=* xauth=* \
+    && apt-get -yqq install --no-install-recommends libgl1-mesa-dev=22.3.6-1+deb12u1 xvfb=2:21.1.7-3+deb12u10 xauth=1:1.1.2-1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install the local code
