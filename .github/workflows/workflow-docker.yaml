@@ -28,6 +28,7 @@ on:
   push:
     branches:
       - master
+      - ro-4643-dev
 
 jobs:
   run-workflow:

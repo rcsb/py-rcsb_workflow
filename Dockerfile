@@ -14,7 +14,7 @@ COPY ./requirements.txt /app/requirements.txt
 # Install system dependencies
 RUN apt-get update \
     # Confirmed versions that work: build-essential=12.9 pkg-config=1.8.1-1 default-libmysqlclient-dev=1.1.0
-    && apt-get install -y --no-install-recommends build-essential=12.* pkg-config=1.8.* default-libmysqlclient-dev=1.1.* wget=1.21.* libcairo2=1.16.* \
+    && apt-get install -y --no-install-recommends build-essential=12.* pkg-config=1.8.* default-libmysqlclient-dev=1.1.* wget=1.21.* libcairo2=1.16.* git=1:2.* \
     && rm -rf /var/lib/apt/lists/*
 
 # Install mmseqs2
@@ -43,4 +43,7 @@ RUN apt-get update \
 # Install the local code
 WORKDIR /app
 COPY . /app/
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir . \
+    && pip install --no-cache-dir git+https://github.com/rcsb/py-rcsb_db.git@ro-4643 \
+    && pip install --no-cache-dir git+https://github.com/rcsb/py-rcsb_exdb.git@ro-4643 \
+    && pip freeze
