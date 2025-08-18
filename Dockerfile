@@ -28,8 +28,6 @@ RUN mkdir -p /opt/mmseqs2 \
 
 # Install the required Python packages
 RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "setuptools>=40.8.0" "wheel>=0.43.0" \
-    && pip install --no-cache-dir git+https://github.com/rcsb/py-rcsb_db.git@ro-4643 \
-    && pip install --no-cache-dir git+https://github.com/rcsb/py-rcsb_exdb.git@ro-4643 \
     && pip install --no-cache-dir --user -r /app/requirements.txt \
     && pip install --no-cache-dir "pymongo>=4.10.1"
 
