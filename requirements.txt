@@ -1,6 +1,6 @@
 --extra-index-url https://pypi.anaconda.org/OpenEye/simple
 # Above line may be needed despite the OpenEye package not being a direct requirement of this package (it's used by rcsb.utils.chem)
-rcsb.utils.chem >= 0.83
+rcsb.utils.chem >= 0.82
 rcsb.utils.seq >= 0.84
 rcsb.utils.targets >= 0.83
 rcsb.utils.seqalign >= 0.31
