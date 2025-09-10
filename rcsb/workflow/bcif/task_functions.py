@@ -227,6 +227,13 @@ def getOutputPdbId(pdbId: str) -> str:
     return pdbId.lower()
 
 
+def getOutputContentType(contentType: str) -> str:
+    """prepended output folder name for local .bcif output files"""
+    if contentType in [ContentTypeEnum.EXPERIMENTAL.value, ContentTypeEnum.INTEGRATIVE.value]:
+        return "pdb"
+    return "csm"
+
+
 def getHash(pdbId: str, contentType: str) -> str:
     """get upper/lowercase pdb id prior to getting hash"""
     result = pdbId[1:3]
@@ -266,10 +273,10 @@ def getBcifFilePath(
     ]:
         if outputContentType and outputHash:
             bcifFilePath = os.path.join(
-                updateBase, contentType, getHash(pdbId, contentType), bcifFileName
+                updateBase, getOutputContentType(contentType), getHash(pdbId, contentType), bcifFileName
             )
         elif outputContentType:
-            bcifFilePath = os.path.join(updateBase, contentType, bcifFileName)
+            bcifFilePath = os.path.join(updateBase, getOutputContentType(contentType), bcifFileName)
         elif outputHash:
             bcifFilePath = os.path.join(
                 updateBase, getHash(pdbId, contentType), bcifFileName
@@ -280,14 +287,14 @@ def getBcifFilePath(
         if outputContentType and outputHash:
             bcifFilePath = os.path.join(
                 updateBase,
-                contentType,
+                getOutputContentType(contentType),
                 getHash(pdbId, contentType),
                 bcifFileName,
             )
         elif outputContentType:
             bcifFilePath = os.path.join(
                 updateBase,
-                contentType,
+                getOutputContentType(contentType),
                 bcifFileName,
             )
         elif outputHash:
