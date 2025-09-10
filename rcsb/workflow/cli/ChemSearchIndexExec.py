@@ -48,8 +48,8 @@ def main():
     #
 
     if not okS:
-        msg = "Failed to stash chemical search index data"
-        raise ValueError(msg)
+        error_msg = "Failed to stash chemical search index data"
+        raise ValueError(error_msg)
 
     message = "Chemical Search Index completed with status %r stash status %r" % (okI, okS)
     logger.info("Completion message is %s", message)
@@ -59,5 +59,5 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as err:
-        msg = f"Run failed {err}"
-        raise RuntimeError(msg)
+        fail_msg = f"Run failed {err}"
+        raise RuntimeError(fail_msg) from err
