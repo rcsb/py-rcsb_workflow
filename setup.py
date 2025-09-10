@@ -50,13 +50,11 @@ setup(
     ],
     # entry_points={"console_scripts": ["cactvs_annotate_mol=rcsb.workflow.cactvsAnnotateMol:main"]},
     entry_points={
-        "console_scripts":[
+        "console_scripts": [
             "exdb_wf_cli=rcsb.workflow.cli.ExDbExec:main",
             "imgs_exec_cli=rcsb.workflow.cli.ImgExec:main",
             "bcif_exec_cli=rcsb.workflow.cli.BcifExec:main",
-            "chem_search_index_cli=rcsb.workflow.cli.ChemSearchIndexExec:main"
-            ]
-            },
+            "chem_search_index_cli=rcsb.workflow.cli.ChemSearchIndexExec:main"]},
     #  The following is somewhat flakey --
     # dependency_links=[],
     install_requires=packagesRequired[1:],
