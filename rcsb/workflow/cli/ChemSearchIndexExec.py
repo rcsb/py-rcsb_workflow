@@ -5,6 +5,7 @@ import logging
 
 logger = logging.getLogger()
 
+
 def main():
     """Build indices and configuration files required to support the chemical search service."""
     parser = argparse.ArgumentParser()
@@ -59,4 +60,4 @@ if __name__ == "__main__":
         main()
     except Exception as err:
         msg = f"Run failed {err}"
-        raise RuntimeError(msg) from err
+        raise RuntimeError(msg)
