@@ -69,7 +69,7 @@ def convertCifFilesToBcif(
     )
     files = []
     if not os.path.exists(listfilepath):
-        logger.warning("No list file found at %s" % listfilepath)
+        logger.warning("No list file found at %s", listfilepath)
         return
     f = open(listfilepath, "r", encoding="utf-8")
     for line in f:
