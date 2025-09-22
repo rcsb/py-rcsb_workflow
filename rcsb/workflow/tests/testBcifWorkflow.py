@@ -564,7 +564,7 @@ class TestBcif(unittest.TestCase):
                 os.path.exists(
                     os.path.join(
                         self.outputPath,
-                        "ihm",
+                        "pdb",
                         ihmid[1:3],
                         "%s.bcif.gz" % ihmid,
                     )

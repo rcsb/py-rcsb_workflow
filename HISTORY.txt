@@ -53,4 +53,5 @@
 14-Jul-2025 - V0.57 Update jpg gen to to log errors but fail at the end
 22-Jul-2025 - V0.58 Add flr dictionary to bcif module
 24-Jul-2025 - V0.59 Switch to lower-case for csm output bcif files
-18-Aug-2025 - V0.60 Update tests and requirements to make use of updated rcsb.db and rcsb.exdb packages
+ 4-Sep-2025 - V0.60 Update requirements and docker file
+10-Sep-2025 - V0.61 Return without error in bcif task functions, update content prefixes
