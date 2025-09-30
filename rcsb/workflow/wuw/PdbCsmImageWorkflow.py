@@ -23,6 +23,7 @@ import requests
 from rcsb.utils.io.MarshalUtil import MarshalUtil
 from rcsb.workflow.wuw.WuwUtils import idHash
 import datetime
+import urllib
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
 logger = logging.getLogger()
@@ -51,7 +52,7 @@ class PdbCsmImageWorkflow:
         holdingsFilePath = Path(kwargs.get("holdingsFilePath")) if kwargs.get("holdingsFilePath") else None
         targetFileSuffix = kwargs.get("targetFileSuffix")
         csmHoldingsFileSubstring = kwargs.get("csmHoldingsFileSubstring")
-        modelFileType = kwargs.get("modelFileType")
+        modelFileExtension = kwargs.get("modelFileExtension")
         tmpDir = kwargs.get("tmpDir")
 
         # load ID list file into memory #
@@ -113,10 +114,10 @@ class PdbCsmImageWorkflow:
             # Handle optional hashing for input path
             if baseUrl:
                 # URL-based source
-                bcifSource = Path(tmpDir) / (name + modelFileType)
-                bcifRemote = f"{baseUrl}/{name}{modelFileType}"
+                bcifSource = Path(tmpDir) / (name + modelFileExtension)
+                bcifRemote = urllib.parse.urljoin(baseUrl, name + modelFileExtension)
             else:
-                bcifSource = Path(baseDir) / nameHash / (name + modelFileType)
+                bcifSource = Path(baseDir) / nameHash / (name + modelFileExtension)
                 bcifRemote = None
             outPath.mkdir(parents=True, exist_ok=True)
             # make sure a bcif file exists for this run (only for local files)
@@ -140,19 +141,19 @@ class PdbCsmImageWorkflow:
 
         # run commands #
         if numProcs == 1:
-            for args in argsL:
+            for argsTup in argsL:
                 try:
-                    self.run_command_with_url(args)
+                    self.run_command_with_url(argsTup)
                 except Exception as e:
-                    name = args[2]
+                    name = argsTup[2]
                     logger.error("Failed to generate jpg for ID %s: %s", name, str(e))
                     failedIds.append(name)
         else:
             with ProcessPoolExecutor(max_workers=int(numProcs)) as executor:
                 future_to_name = {}
-                for args in argsL:
-                    name = args[2]
-                    future = executor.submit(self.run_command_with_url, args)
+                for argsTup in argsL:
+                    name = argsTup[2]
+                    future = executor.submit(self.run_command_with_url, argsTup)
                     future_to_name[future] = name
 
                 for future in as_completed(future_to_name):
@@ -168,9 +169,9 @@ class PdbCsmImageWorkflow:
             logger.error("The following IDs failed to generate jpgs and will overwrite %s for later rerunning: %s", idListFile, failedIds)
             raise RuntimeError(f"JPG generation failed for {len(failedIds)} IDs.")
 
-    def run_command_with_url(self, args):
+    def run_command_with_url(self, argsTup):
         """Run a command with URL support, downloading files to temp location if needed."""
-        cmd, outPath, name, checkFileAppend, bcifSource, bcifRemote = args
+        cmd, outPath, name, checkFileAppend, bcifSource, bcifRemote = argsTup
         try:
             # download to tmp dir if remote bcif file
             if bcifRemote:

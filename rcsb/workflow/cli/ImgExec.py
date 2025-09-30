@@ -45,7 +45,7 @@ def main() -> None:
     parser.add_argument("--targetFileSuffix", default="_model-1.jpeg", help="string that follows the ID in the jpg file name for comparing timestamps.")
     parser.add_argument("--csmHoldingsFileSubstring", default="computed-models-holdings-list", help="substring in csm holdings file path to determine if we are working with CSMs.")
     parser.add_argument("--baseUrl", help="Base url for model file. This will supercede any local bcif.")
-    parser.add_argument("--modelFileType", default=".bcif.gz", help="Model file type (.bcif.gz, .bcif, .cif).")
+    parser.add_argument("--modelFileExtension", default=".bcif.gz", help="Model file type (.bcif.gz, .bcif, .cif).")
     parser.add_argument("--tmpDir", default="/tmp", help="Temporary dir for downloading model file over url.")
     args = vars(parser.parse_args())
 
