@@ -81,7 +81,7 @@ class PdbCsmImageWorkflow:
         # verify output is MISSING or OLD before including ID #
         idListToDo = []
         for line in idList:
-            name = line.lower() # for local jpg file
+            name = line.lower()  # for local jpg file
             nameHash = idHash(name)
             outPath = Path(jpgsOutDir) / nameHash / name
             target = outPath / (name + targetFileSuffix)
@@ -107,10 +107,9 @@ class PdbCsmImageWorkflow:
         argsL = []
         failedIds = []
         for line in idListToDo:
-            name = line.lower() # for local bcif file
+            name = line.lower()  # for local bcif file
             nameHash = idHash(name)
             outPath = Path(jpgsOutDir) / nameHash / name  # jpg files are in a subdir of the name under the name hash
-            
             # Handle optional hashing for input path
             if baseUrl:
                 # URL-based source
@@ -119,9 +118,7 @@ class PdbCsmImageWorkflow:
             else:
                 bcifSource = Path(baseDir) / nameHash / (name + modelFileType)
                 bcifRemote = None
-
             outPath.mkdir(parents=True, exist_ok=True)
-            
             # make sure a bcif file exists for this run (only for local files)
             if baseUrl or (bcifSource.is_file() and bcifSource.stat().st_size > 0):
                 cmd = [
