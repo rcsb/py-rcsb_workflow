@@ -117,6 +117,7 @@ class PdbCsmImageWorkflow:
                 bcifRemote = f"{baseUrl.rstrip('/')}/{name}{modelFileType}"
             else:
                 bcifSource = Path(baseDir) / (name + modelFileType)
+                print(f"{baseDir}, {name}, {modelFileType}")
                 bcifRemote = None
 
             outPath.mkdir(parents=True, exist_ok=True)
