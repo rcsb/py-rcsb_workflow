@@ -45,14 +45,14 @@ class PdbCsmImageWorkflow:
         jpgFormat = kwargs.get("jpgFormat")
         checkFileAppend = kwargs.get("checkFileAppend", "_model-1.jpeg")
         baseDir = kwargs.get("baseDir")
-        baseUrl = kwargs.get("baseUrl", None)  # New: URL base for remote files
+        baseUrl = kwargs.get("baseUrl")  # New: URL base for remote files
         jpgsOutDir = kwargs.get("jpgsOutDir")
         numProcs = kwargs.get("numProcs")
         holdingsFilePath = Path(kwargs.get("holdingsFilePath")) if kwargs.get("holdingsFilePath") else None
         targetFileSuffix = kwargs.get("targetFileSuffix")
         csmHoldingsFileSubstring = kwargs.get("csmHoldingsFileSubstring")
-        modelFileType = kwargs.get("modelFileType", ".bcif.gz")
-        tmpDir = kwargs.get("tmpDir", "/tmp")
+        modelFileType = kwargs.get("modelFileType")
+        tmpDir = kwargs.get("tmpDir")
 
         # load ID list file into memory #
 
@@ -108,16 +108,16 @@ class PdbCsmImageWorkflow:
         failedIds = []
         for line in idListToDo:
             name = line.lower() # for local bcif file
-            outPath = Path(jpgsOutDir) / idHash(name) / name  # jpg files are in a subdir of the name under the name hash
+            nameHash = idHash(name)
+            outPath = Path(jpgsOutDir) / nameHash / name  # jpg files are in a subdir of the name under the name hash
             
             # Handle optional hashing for input path
             if baseUrl:
                 # URL-based source
-                bcifSource = f"{tmpDir}/{name}{modelFileType}"
-                bcifRemote = f"{baseUrl.rstrip('/')}/{name}{modelFileType}"
+                bcifSource = Path(tmpDir) / (name + modelFileType)
+                bcifRemote = f"{baseUrl}/{name}{modelFileType}"
             else:
-                bcifSource = Path(baseDir) / (name + modelFileType)
-                print(f"{baseDir}, {name}, {modelFileType}")
+                bcifSource = Path(baseDir) / nameHash / (name + modelFileType)
                 bcifRemote = None
 
             outPath.mkdir(parents=True, exist_ok=True)
@@ -177,7 +177,7 @@ class PdbCsmImageWorkflow:
         try:
             # download to tmp dir if remote bcif file
             if bcifRemote:
-                response = requests.get(bcifRemote, stream=True)
+                response = requests.get(bcifRemote)
                 response.raise_for_status()
                 tmpfile = Path(bcifSource)
                 tmpfile.write_bytes(response.content)
