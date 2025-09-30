@@ -177,7 +177,7 @@ class PdbCsmImageWorkflow:
         try:
             # download to tmp dir if remote bcif file
             if bcifRemote:
-                response = requests.get(bcifRemote)
+                response = requests.get(bcifRemote, timeout=5)
                 response.raise_for_status()
                 tmpfile = Path(bcifSource)
                 tmpfile.write_bytes(response.content)
@@ -189,7 +189,7 @@ class PdbCsmImageWorkflow:
             if bcifRemote:
                 tmpfile.unlink()
 
-        except Exception as e:
+        except subprocess.CalledProcessError as e:
             logger.error("%s: %s", name, str(e))
             raise
 
