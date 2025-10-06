@@ -14,7 +14,7 @@ COPY ./requirements.txt /app/requirements.txt
 # Install system dependencies
 RUN apt-get update \
     # Confirmed versions that work: build-essential=12.9 pkg-config=1.8.1-1 default-libmysqlclient-dev=1.1.0
-    && apt-get install -y --no-install-recommends build-essential=12.9 pkg-config=1.8.1-1 default-libmysqlclient-dev=1.1.0 wget=1.21.3-1+deb12u1 libcairo2=1.16.0-7 cmake=3.25.1-1 flex=2.6.4-8.2 bison=2:3.8.2+dfsg-1+b1 \
+    && apt-get install -y --no-install-recommends build-essential=12.* pkg-config=1.8.* default-libmysqlclient-dev=1.1.* wget=1.21.* libcairo2=1.16.* git=1:2.* \
     && rm -rf /var/lib/apt/lists/*
 
 # Install mmseqs2

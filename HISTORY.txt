@@ -54,5 +54,7 @@
 22-Jul-2025 - V0.58 Add flr dictionary to bcif module
 24-Jul-2025 - V0.59 Switch to lower-case for csm output bcif files
  4-Sep-2025 - V0.60 Update requirements and docker file
- 9-Sep-2025 - V0.61 Add ChemSearchIndex from weekly-update-workflow so it can be a cli call instead
+10-Sep-2025 - V0.61 Return without error in bcif task functions, update content prefixes
+30-Sep-2025 - V0.62 Let jpg gen use model file over URL
+ 9-Sep-2025 - V0.63 Add ChemSearchIndex from weekly-update-workflow so it can be a cli call instead
  
