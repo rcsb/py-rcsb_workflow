@@ -3,8 +3,8 @@ from rcsb.workflow.chem.ChemCompSearchIndexWorkflow import ChemCompSearchIndexWo
 import argparse
 import logging
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
 
 def main():
     """Build indices and configuration files required to support the chemical search service."""
