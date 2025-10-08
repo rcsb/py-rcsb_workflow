@@ -4,7 +4,7 @@ import argparse
 import logging
 
 logger = logging.getLogger()
-
+logger.setLevel(logging.INFO)
 
 def main():
     """Build indices and configuration files required to support the chemical search service."""
