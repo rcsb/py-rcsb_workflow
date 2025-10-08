@@ -13,7 +13,7 @@ def main():
     parser.add_argument("--ccUrlTarget", required=True, help="Chem comp url target.")
     parser.add_argument("--birdUrlTarget", required=True, help="Bird url target.")
     parser.add_argument("--channel", required=True, help="Channel.")
-    parser.add_argument("--useCache", required=True, help="Should it use the cache.")
+    parser.add_argument("--useCache", action="store_true", default=False required=True, help="Should it use the cache.")
     parser.add_argument("--ccFileNamePrefix", required=True, help="Chem comp file name prefix.")
     parser.add_argument("--numProc", required=True, help="Number of procs for makeIndices.")
     parser.add_argument("--blHostName", required=True, help="Build locker host name.")
