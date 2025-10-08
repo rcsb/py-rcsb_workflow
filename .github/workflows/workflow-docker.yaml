@@ -28,7 +28,7 @@ on:
   push:
     branches:
       - master
-      - dev-mjt-ChemSearchIndex
+      - dev-mjt-chemsearchindex2
 
 jobs:
   run-workflow:
