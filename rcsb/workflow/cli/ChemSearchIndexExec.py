@@ -26,7 +26,7 @@ def main():
     logger.debug("Using cache path %r", args.cachePath)
     ccidxWf = ChemCompSearchIndexWorkflow(cachePath=args.cachePath, ccFileNamePrefix=args.ccFileNamePrefix)
     okI = ccidxWf.makeIndices(
-        args.ccUrlTarget, args.birdUrlTarget, numProc=args.numProc, useCache=args.useCache
+        args.ccUrlTarget, args.birdUrlTarget, numProc=int(args.numProc), useCache=args.useCache
     )
     logger.info("Chemical search index build completed with status %r", okI)
     #
