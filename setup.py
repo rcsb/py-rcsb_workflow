@@ -55,7 +55,7 @@ setup(
             "imgs_exec_cli=rcsb.workflow.cli.ImgExec:main",
             "bcif_exec_cli=rcsb.workflow.cli.BcifExec:main",
             "chem_search_index_cli=rcsb.workflow.cli.ChemSearchIndexExec:main"
-            ]
+        ]
     },
     #  The following is somewhat flakey --
     # dependency_links=[],
