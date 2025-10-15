@@ -24,7 +24,8 @@ def main():
     args = parser.parse_args()
 
     # Build chemical indices -
-    logger.debug("Using cache path %r", args.cachePath)
+    logger.info("Using cache path %r", args.cachePath)
+    logger.info("Using ccFileNamePrefix %s", args.ccFileNamePrefix)
     ccidxWf = ChemCompSearchIndexWorkflow(cachePath=args.cachePath, ccFileNamePrefix=args.ccFileNamePrefix)
     okI = ccidxWf.makeIndices(
         args.ccUrlTarget, args.birdUrlTarget, numProc=int(args.numProc), useCache=args.useCache
