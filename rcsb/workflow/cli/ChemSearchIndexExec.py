@@ -6,6 +6,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
 logger = logging.getLogger()
 
+
 def main():
     """Build indices and configuration files required to support the chemical search service."""
     parser = argparse.ArgumentParser()
