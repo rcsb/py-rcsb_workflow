@@ -56,5 +56,5 @@
  4-Sep-2025 - V0.60 Update requirements and docker file
 10-Sep-2025 - V0.61 Return without error in bcif task functions, update content prefixes
 30-Sep-2025 - V0.62 Let jpg gen use model file over URL
- 9-Sep-2025 - V0.63 Add ChemSearchIndex from weekly-update-workflow so it can be a cli call instead
+15-Oct-2025 - V0.63 Add ChemSearchIndex from weekly-update-workflow so it can be a cli call instead
  
