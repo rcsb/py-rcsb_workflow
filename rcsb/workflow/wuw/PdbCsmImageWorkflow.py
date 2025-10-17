@@ -175,7 +175,7 @@ class PdbCsmImageWorkflow:
         try:
             # download to tmp dir if remote bcif file
             if bcifRemote:
-                response = requests.get(bcifRemote, timeout=5)
+                response = requests.get(bcifRemote, timeout=60)
                 response.raise_for_status()
                 tmpfile = Path(bcifSource)
                 tmpfile.write_bytes(response.content)
