@@ -172,27 +172,46 @@ class PdbCsmImageWorkflow:
     def run_command_with_url(self, argsTup):
         """Run a command with URL support, downloading files to temp location if needed."""
         cmd, outPath, name, checkFileAppend, bcifSource, bcifRemote = argsTup
+        tmpfile = None
+        
         try:
+            logger.info("%s: Executing command: %s", name, ' '.join(cmd))
+            
             # download to tmp dir if remote bcif file
             if bcifRemote:
+                logger.info("%s: Downloading from %s", name, bcifRemote)
                 response = requests.get(bcifRemote, timeout=60)
                 response.raise_for_status()
                 tmpfile = Path(bcifSource)
                 tmpfile.write_bytes(response.content)
-            # run command
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            logger.info("%s: %s %s", name, result.stdout, result.stderr)
-
-            # cleanup
-            if bcifRemote:
-                tmpfile.unlink()
+            
+            # run command with timeout
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=300)
+            
+            if result.stdout.strip():
+                logger.info("%s: STDOUT: %s", name, result.stdout.strip())
+            if result.stderr.strip():
+                logger.warning("%s: STDERR: %s", name, result.stderr.strip())
 
         except subprocess.CalledProcessError as e:
-            logger.error("%s: %s", name, str(e))
+            logger.error("%s: Command failed (exit code %d): %s", name, e.returncode, ' '.join(cmd))
+            logger.error("%s: STDOUT: %s", name, e.stdout or "(empty)")
+            logger.error("%s: STDERR: %s", name, e.stderr or "(empty)")
             raise
+        
+        except Exception as e:
+            logger.error("%s: Failed - %s: %s", name, type(e).__name__, str(e))
+            logger.error("%s: Command was: %s", name, ' '.join(cmd))
+            raise
+        
+        finally:
+            # cleanup tmp file
+            if tmpfile and tmpfile.exists():
+                tmpfile.unlink()
 
         # Verify output file
         outJpgFile = os.path.join(outPath, name + checkFileAppend)
         outFileObj = Path(outJpgFile)
         if not (outFileObj.is_file() and outFileObj.stat().st_size > 0):
+            logger.error("%s: Output missing or empty: %s", name, outJpgFile)
             raise ValueError(f"No image file generated: {outJpgFile}")
