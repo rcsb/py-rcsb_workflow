@@ -123,16 +123,16 @@ class PdbCsmImageWorkflow:
             # make sure a bcif file exists for this run (only for local files)
             if baseUrl or (bcifSource.is_file() and bcifSource.stat().st_size > 0):
                 cmd = [
-                    jpgXvfbExecutable,
+                    str(jpgXvfbExecutable),
                     "-a",
                     "-s", f"-ac -screen 0 {jpgScreen}",
-                    molrenderExe,
-                    jpgRender,
+                    str(molrenderExe),
+                    str(jpgRender),
                     str(bcifSource),
-                    outPath,
-                    "--height", jpgHeight,
-                    "--width", jpgWidth,
-                    "--format", jpgFormat,
+                    str(outPath),
+                    "--height", str(jpgHeight),
+                    "--width", str(jpgWidth),
+                    "--format", str(jpgFormat),
                 ]
                 argsL.append((cmd, outPath, name, checkFileAppend, bcifSource, bcifRemote))
             else:
