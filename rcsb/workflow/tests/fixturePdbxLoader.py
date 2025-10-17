@@ -163,8 +163,9 @@ class PdbxLoaderFixture(unittest.TestCase):
         self.__ldList = [
             {
                 # "databaseName": "dw",
-                # "collectionNameList": ["core_chem_comp"],
                 "collectionGroupName": "core_chem_comp",
+                "contentType": "bird_chem_comp_core",
+                "collectionNameList": None,
                 "loadType": "full",
                 "mergeContentTypes": None,
                 "validationLevel": "min",
@@ -230,6 +231,7 @@ class PdbxLoaderFixture(unittest.TestCase):
             ok = mw.load(
                 collectionGroupName=kwargs["collectionGroupName"],
                 collectionLoadList=kwargs["collectionNameList"],
+                contentType=kwargs["contentType"],
                 loadType=kwargs["loadType"],
                 inputPathList=None,
                 inputIdCodeList=kwargs["inputIdCodeList"],
