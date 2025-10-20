@@ -17,7 +17,7 @@ __license__ = "Apache 2.0"
 from pathlib import Path
 import logging
 import subprocess
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import requests
 from rcsb.utils.io.MarshalUtil import MarshalUtil
@@ -149,7 +149,7 @@ class PdbCsmImageWorkflow:
                     logger.error("Failed to generate jpg for ID %s: %s", name, str(e))
                     failedIds.append(name)
         else:
-            with ProcessPoolExecutor(max_workers=int(numProcs)) as executor:
+            with ThreadPoolExecutor(max_workers=int(numProcs)) as executor:
                 future_to_name = {}
                 for argsTup in argsL:
                     name = argsTup[2]
@@ -172,20 +172,22 @@ class PdbCsmImageWorkflow:
     def run_command_with_url(self, argsTup):
         """Run a command with URL support, downloading files to temp location if needed."""
         cmd, outPath, name, checkFileAppend, bcifSource, bcifRemote = argsTup
+        logger.info("%s start", name)
         try:
             # download to tmp dir if remote bcif file
             if bcifRemote:
-                response = requests.get(bcifRemote, timeout=5)
+                response = requests.get(bcifRemote, timeout=30)
                 response.raise_for_status()
                 tmpfile = Path(bcifSource)
                 tmpfile.write_bytes(response.content)
+
             # run command
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            logger.info("%s: %s %s", name, result.stdout, result.stderr)
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, text=True, check=True, timeout=300)
 
             # cleanup
             if bcifRemote:
                 tmpfile.unlink()
+            logger.info("%s done", name)
 
         except subprocess.CalledProcessError as e:
             logger.error("%s: %s", name, str(e))
