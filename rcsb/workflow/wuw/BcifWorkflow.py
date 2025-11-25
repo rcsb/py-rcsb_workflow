@@ -72,9 +72,10 @@ class BcifWorkflow:
 
         if self.mode in ["wuw", "workflow"]:
 
-            assert (
-                self.outfileSuffix in [".bcif", ".bcif.gz"]
-            ), "error - require either .bcif or .bcif.gz output file"
+            assert self.outfileSuffix in [
+                ".bcif",
+                ".bcif.gz",
+            ], "error - require either .bcif or .bcif.gz output file"
 
             assert self.contentType in [
                 "pdb",
