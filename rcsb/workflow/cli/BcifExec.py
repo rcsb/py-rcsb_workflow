@@ -25,82 +25,88 @@ logger = logging.getLogger()
 def main():
 
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-    # modes
-    parser.add_argument(
-        "--op",
-        default="workflow",
-        required=False,
-        help="workflow, convert, or deconvert",
-    )
+    subparsers = parser.add_subparsers(dest="mode", help="sub-command help")
+    wuwparser = subparsers.add_parser("wuw", aliases=["workflow"], help="run weekly update workflow")
+    convertparser = subparsers.add_parser("convert", help="convert cif to bcif")
+    deconvertparser = subparsers.add_parser("deconvert", help="deconvert bcif to cif")
+
     # paths
-    parser.add_argument(
+    wuwparser.add_argument(
         "--listFileBase",
         default="/tmp",
-        required=False,
+        required=True,
         help="path for input lists",
     )
-    parser.add_argument(
+    wuwparser.add_argument(
         "--listFileName",
         default="pdbx_core_ids-1.txt",
-        required=False,
+        required=True,
         help="name of list file to read",
     )
-    parser.add_argument(
+    wuwparser.add_argument(
         "--remotePath",
-        default="http://prereleaseftp-external-east.rcsb.org/pdb/data/structures/divided/mmCIF/",
-        required=False,
+        default="http://files.wwpdb.org/pub/pdb/data/structures/divided/mmCIF/",
+        required=True,
         help="url or directory for cif files",
     )
-    parser.add_argument(
+    wuwparser.add_argument(
         "--outputPath",
         default="/mnt/vdb1/out",
-        required=False,
+        required=True,
         help="output directory for bcif files",
     )
-    parser.add_argument(
-        "--infile", required=False, help="optional infile for convert or deconvert mode"
+    convertparser.add_argument(
+        "--infile", required=True, help="optional infile for convert mode"
     )
-    parser.add_argument(
+    convertparser.add_argument(
         "--outfile",
-        required=False,
-        help="optional outfile for convert or deconvert mode",
+        required=True,
+        help="optional outfile for convert mode",
+    )
+    deconvertparser.add_argument(
+        "--infile", required=True, help="optional infile for deconvert mode"
+    )
+    deconvertparser.add_argument(
+        "--outfile",
+        required=True,
+        help="optional outfile for deconvert mode",
     )
     # settings
-    parser.add_argument(
+    wuwparser.add_argument(
         "--contentType",
         default="pdb",
-        required=False,
+        required=True,
         choices=["pdb", "csm", "ihm"],
         help="which type of experiment was performed",
     )
-    parser.add_argument(
+    wuwparser.add_argument(
         "--nfiles",
         default=0,
         required=False,
         help="set 0 for all files, set less than N for a test run, will not produce exactly n files",
     )
-    parser.add_argument(
+    wuwparser.add_argument(
         "--outfileSuffix",
         default=".bcif.gz",
         required=False,
         choices=[".bcif", ".bcif.gz"],
         help="whether to use additional gzip compression",
     )
-    parser.add_argument(
+    wuwparser.add_argument(
         "--batchSize",
         default=1,
         required=False,
         help="optional subdivisions of sublists for pdb list and csm list",
     )
     # output folder structure, default none (save all output files in one folder)
-    parser.add_argument(
+    wuwparser.add_argument(
         "--outputContentType",
         action="store_true",
         default=False,
         required=False,
         help="whether output paths should include a directory for the content type (pdb, csm)",
     )
-    parser.add_argument(
+    wuwparser.add_argument(
         "--outputHash",
         action="store_true",
         default=False,
@@ -108,7 +114,7 @@ def main():
         help="whether output paths should include the hash for the entry",
     )
     # input folder structure, default none (read all input files from one folder)
-    parser.add_argument(
+    wuwparser.add_argument(
         "--inputHash",
         action="store_true",
         default=False,

@@ -32,22 +32,25 @@ class BcifWorkflow:
     def __init__(self, args):
 
         # mode
-        self.mode = args.op
+        self.mode = args.mode
         # paths and files
-        self.listFileBase = args.listFileBase
-        self.listFileName = args.listFileName
-        self.remotePath = args.remotePath
-        self.outputPath = args.outputPath
-        self.infile = args.infile
-        self.outfile = args.outfile
+        if args.mode in ["wuw", "workflow"]:
+            self.listFileBase = args.listFileBase
+            self.listFileName = args.listFileName
+            self.remotePath = args.remotePath
+            self.outputPath = args.outputPath
+        elif args.mode in ["convert", "deconvert"]:
+            self.infile = args.infile
+            self.outfile = args.outfile
         # settings
-        self.contentType = args.contentType
-        self.nfiles = int(args.nfiles)
-        self.outfileSuffix = args.outfileSuffix
-        self.outputContentType = bool(args.outputContentType)
-        self.outputHash = bool(args.outputHash)
-        self.inputHash = bool(args.inputHash)
-        self.batchSize = int(args.batchSize)
+        if args.mode in ["wuw", "workflow"]:
+            self.contentType = args.contentType
+            self.nfiles = int(args.nfiles)
+            self.outfileSuffix = args.outfileSuffix
+            self.outputContentType = bool(args.outputContentType)
+            self.outputHash = bool(args.outputHash)
+            self.inputHash = bool(args.inputHash)
+            self.batchSize = int(args.batchSize)
         # config
         self.pdbxDict = args.pdbxDict
         self.maDict = args.maDict
@@ -61,30 +64,37 @@ class BcifWorkflow:
     def validate(self):
 
         assert self.mode in [
+            "wuw",
             "workflow",
             "convert",
             "deconvert",
-        ], "error - require mode is one of workflow, convert, or deconvert"
+        ], "error - require that mode is one of wuw, workflow, convert, or deconvert"
 
-        assert (
-            self.outfileSuffix in [".bcif", ".bcif.gz"]
-        ), "error - require either .bcif or .bcif.gz output file"
+        if self.mode in ["wuw", "workflow"]:
 
-        assert self.contentType in [
-            "pdb",
-            "csm",
-            "ihm",
-        ], "error - content type must be pdb, csm, or ihm"
+            assert (
+                self.outfileSuffix in [".bcif", ".bcif.gz"]
+            ), "error - require either .bcif or .bcif.gz output file"
+
+            assert self.contentType in [
+                "pdb",
+                "csm",
+                "ihm",
+            ], "error - content type must be pdb, csm, or ihm"
+
+        elif self.mode in ["convert", "deconvert"]:
+
+            if not os.path.exists(self.infile):
+                sys.exit("error - input file %s not found" % self.infile)
 
     def __call__(self):
 
-        logger.info(
-            "running bcif workflow on %s and %s",
-            os.path.join(self.listFileBase, self.listFileName),
-            self.remotePath,
-        )
-
-        if self.mode == "workflow":
+        if self.mode in ["wuw", "workflow"]:
+            logger.info(
+                "running bcif workflow on %s and %s",
+                os.path.join(self.listFileBase, self.listFileName),
+                self.remotePath,
+            )
             convertCifFilesToBcif(
                 self.listFileName,
                 self.listFileBase,
@@ -103,21 +113,14 @@ class BcifWorkflow:
                 self.ihmDict,
                 self.flrDict,
             )
-        elif self.mode == "convert":
-            if not os.path.exists(self.infile):
-                sys.exit("error - input file %s not found" % self.infile)
+        elif self.mode in ["convert", "deconvert"]:
             workpath = tempfile.mkdtemp()
             dictionaryApi = getDictionaryApi(
                 self.pdbxDict, self.maDict, self.rcsbDict, self.ihmDict, self.flrDict
             )
-            convert(self.infile, self.outfile, workpath, dictionaryApi)
-            logger.info("converted %s to %s", self.infile, self.outfile)
-        elif self.mode == "deconvert":
-            if not os.path.exists(self.infile):
-                sys.exit("error - input file %s not found" % self.infile)
-            workpath = tempfile.mkdtemp()
-            dictionaryApi = getDictionaryApi(
-                self.pdbxDict, self.maDict, self.rcsbDict, self.ihmDict, self.flrDict
-            )
-            deconvert(self.infile, self.outfile, workpath, dictionaryApi)
-            logger.info("deconverted %s to %s", self.infile, self.outfile)
+            if self.mode == "convert":
+                convert(self.infile, self.outfile, workpath, dictionaryApi)
+                logger.info("converted %s to %s", self.infile, self.outfile)
+            elif self.mode == "deconvert":
+                deconvert(self.infile, self.outfile, workpath, dictionaryApi)
+                logger.info("deconverted %s to %s", self.infile, self.outfile)
