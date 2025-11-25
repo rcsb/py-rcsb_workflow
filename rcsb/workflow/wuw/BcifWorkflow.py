@@ -34,16 +34,16 @@ class BcifWorkflow:
         # mode
         self.mode = args.mode
         # paths and files
-        if args.mode in ["wuw", "workflow"]:
+        if args.mode == "full_file_list":
             self.listFileBase = args.listFileBase
             self.listFileName = args.listFileName
             self.remotePath = args.remotePath
             self.outputPath = args.outputPath
-        elif args.mode in ["convert", "deconvert"]:
+        elif args.mode in ["cif_to_bcif", "bcif_to_cif"]:
             self.infile = args.infile
             self.outfile = args.outfile
         # settings
-        if args.mode in ["wuw", "workflow"]:
+        if args.mode == "full_file_list":
             self.contentType = args.contentType
             self.nfiles = int(args.nfiles)
             self.outfileSuffix = args.outfileSuffix
@@ -64,13 +64,12 @@ class BcifWorkflow:
     def validate(self):
 
         assert self.mode in [
-            "wuw",
-            "workflow",
-            "convert",
-            "deconvert",
-        ], "error - require that mode is one of wuw, workflow, convert, or deconvert"
+            "full_file_list",
+            "cif_to_bcif",
+            "bcif_to_cif"
+        ], "error - require that mode is one of full_file_list, cif_to_bcif, or bcif_to_cif"
 
-        if self.mode in ["wuw", "workflow"]:
+        if self.mode == "full_file_list":
 
             assert self.outfileSuffix in [
                 ".bcif",
@@ -83,14 +82,14 @@ class BcifWorkflow:
                 "ihm",
             ], "error - content type must be pdb, csm, or ihm"
 
-        elif self.mode in ["convert", "deconvert"]:
+        elif self.mode in ["cif_to_bcif", "bcif_to_cif"]:
 
             if not os.path.exists(self.infile):
                 sys.exit("error - input file %s not found" % self.infile)
 
     def __call__(self):
 
-        if self.mode in ["wuw", "workflow"]:
+        if self.mode == "full_file_list":
             logger.info(
                 "running bcif workflow on %s and %s",
                 os.path.join(self.listFileBase, self.listFileName),
@@ -114,14 +113,14 @@ class BcifWorkflow:
                 self.ihmDict,
                 self.flrDict,
             )
-        elif self.mode in ["convert", "deconvert"]:
+        elif self.mode in ["cif_to_bcif", "bcif_to_cif"]:
             workpath = tempfile.mkdtemp()
             dictionaryApi = getDictionaryApi(
                 self.pdbxDict, self.maDict, self.rcsbDict, self.ihmDict, self.flrDict
             )
-            if self.mode == "convert":
+            if self.mode == "cif_to_bcif":
                 convert(self.infile, self.outfile, workpath, dictionaryApi)
                 logger.info("converted %s to %s", self.infile, self.outfile)
-            elif self.mode == "deconvert":
+            elif self.mode == "bcif_to_cif":
                 deconvert(self.infile, self.outfile, workpath, dictionaryApi)
                 logger.info("deconverted %s to %s", self.infile, self.outfile)

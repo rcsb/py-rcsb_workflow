@@ -27,10 +27,10 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     subparsers = parser.add_subparsers(dest="mode", help="sub-command help")
     wuwparser = subparsers.add_parser(
-        "wuw", aliases=["workflow"], help="run weekly update workflow"
+        "full_file_list", help="run weekly update workflow"
     )
-    convertparser = subparsers.add_parser("convert", help="convert cif to bcif")
-    deconvertparser = subparsers.add_parser("deconvert", help="deconvert bcif to cif")
+    convertparser = subparsers.add_parser("cif_to_bcif", help="convert cif to bcif")
+    deconvertparser = subparsers.add_parser("bcif_to_cif", help="deconvert bcif to cif")
 
     # paths
     wuwparser.add_argument(
