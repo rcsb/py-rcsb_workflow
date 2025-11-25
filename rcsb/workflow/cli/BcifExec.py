@@ -26,7 +26,12 @@ def main():
 
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     # modes
-    parser.add_argument("--op", default="workflow", required=False, help="workflow, convert, or deconvert")
+    parser.add_argument(
+        "--op",
+        default="workflow",
+        required=False,
+        help="workflow, convert, or deconvert",
+    )
     # paths
     parser.add_argument(
         "--listFileBase",
@@ -53,14 +58,12 @@ def main():
         help="output directory for bcif files",
     )
     parser.add_argument(
-        "--infile",
-        required=False,
-        help="optional infile for convert or deconvert mode"
+        "--infile", required=False, help="optional infile for convert or deconvert mode"
     )
     parser.add_argument(
         "--outfile",
         required=False,
-        help="optional outfile for convert or deconvert mode"
+        help="optional outfile for convert or deconvert mode",
     )
     # settings
     parser.add_argument(

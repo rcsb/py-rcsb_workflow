@@ -17,7 +17,12 @@ import os
 import logging
 import tempfile
 import sys
-from rcsb.workflow.bcif.task_functions import convertCifFilesToBcif, convert, deconvert, getDictionaryApi
+from rcsb.workflow.bcif.task_functions import (
+    convertCifFilesToBcif,
+    convert,
+    deconvert,
+    getDictionaryApi,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,12 +60,14 @@ class BcifWorkflow:
     # public method required by pylint
     def validate(self):
 
-        assert (
-            self.mode in ["workflow", "convert", "deconvert"]
-        ), "error - require mode is one of workflow, convert, or deconvert"
+        assert self.mode in [
+            "workflow",
+            "convert",
+            "deconvert",
+        ], "error - require mode is one of workflow, convert, or deconvert"
 
         assert (
-            self.outfileSuffix == ".bcif" or self.outfileSuffix == ".bcif.gz"
+            self.outfileSuffix in [".bcif", ".bcif.gz"]
         ), "error - require either .bcif or .bcif.gz output file"
 
         assert self.contentType in [
@@ -94,19 +101,23 @@ class BcifWorkflow:
                 self.maDict,
                 self.rcsbDict,
                 self.ihmDict,
-                self.flrDict
+                self.flrDict,
             )
         elif self.mode == "convert":
             if not os.path.exists(self.infile):
                 sys.exit("error - input file %s not found" % self.infile)
             workpath = tempfile.mkdtemp()
-            dictionaryApi = getDictionaryApi(self.pdbxDict, self.maDict, self.rcsbDict, self.ihmDict, self.flrDict)
+            dictionaryApi = getDictionaryApi(
+                self.pdbxDict, self.maDict, self.rcsbDict, self.ihmDict, self.flrDict
+            )
             convert(self.infile, self.outfile, workpath, dictionaryApi)
             logger.info("converted %s to %s", self.infile, self.outfile)
         elif self.mode == "deconvert":
             if not os.path.exists(self.infile):
                 sys.exit("error - input file %s not found" % self.infile)
             workpath = tempfile.mkdtemp()
-            dictionaryApi = getDictionaryApi(self.pdbxDict, self.maDict, self.rcsbDict, self.ihmDict, self.flrDict)
+            dictionaryApi = getDictionaryApi(
+                self.pdbxDict, self.maDict, self.rcsbDict, self.ihmDict, self.flrDict
+            )
             deconvert(self.infile, self.outfile, workpath, dictionaryApi)
             logger.info("deconverted %s to %s", self.infile, self.outfile)
