@@ -25,36 +25,48 @@ logger = logging.getLogger()
 def main():
 
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+    # modes
+    parser.add_argument("--op", default="workflow", required=False, help="workflow, convert, or deconvert")
     # paths
     parser.add_argument(
         "--listFileBase",
         default="/tmp",
-        required=True,
+        required=False,
         help="path for input lists",
     )
     parser.add_argument(
         "--listFileName",
         default="pdbx_core_ids-1.txt",
-        required=True,
+        required=False,
         help="name of list file to read",
     )
     parser.add_argument(
         "--remotePath",
         default="http://prereleaseftp-external-east.rcsb.org/pdb/data/structures/divided/mmCIF/",
-        required=True,
+        required=False,
         help="url or directory for cif files",
     )
     parser.add_argument(
         "--outputPath",
         default="/mnt/vdb1/out",
-        required=True,
+        required=False,
         help="output directory for bcif files",
+    )
+    parser.add_argument(
+        "--infile",
+        required=False,
+        help="optional infile for convert or deconvert mode"
+    )
+    parser.add_argument(
+        "--outfile",
+        required=False,
+        help="optional outfile for convert or deconvert mode"
     )
     # settings
     parser.add_argument(
         "--contentType",
         default="pdb",
-        required=True,
+        required=False,
         choices=["pdb", "csm", "ihm"],
         help="which type of experiment was performed",
     )
