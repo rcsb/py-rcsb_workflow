@@ -66,7 +66,7 @@ class BcifWorkflow:
         assert self.mode in [
             "full_file_list",
             "cif_to_bcif",
-            "bcif_to_cif"
+            "bcif_to_cif",
         ], "error - require that mode is one of full_file_list, cif_to_bcif, or bcif_to_cif"
 
         if self.mode == "full_file_list":
