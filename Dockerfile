@@ -41,3 +41,6 @@ RUN apt-get update \
     && npm i molrender@0.9.0 \
     && apt-get -yqq install --no-install-recommends libgl1-mesa-dev=22.3.6-1+deb12u1 xvfb=2:21.1.7-3+deb12u10 xauth=1:1.1.2-1 \
     && rm -rf /var/lib/apt/lists/*
+
+# Switch back to app workdir
+WORKDIR /app
