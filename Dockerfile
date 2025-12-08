@@ -2,14 +2,16 @@
 # and packages needed for running ETL workflow
 
 # Use an official Python image as a base image
+# UPDATE TO 3.12
 FROM python:3.10-slim-bookworm
 
 # Set the working directory inside the container
 WORKDIR /app
 ENV PATH=$PATH:/root/.local/bin
 
-# Copy requirements file
-COPY ./requirements.txt /app/requirements.txt
+# Copy project files
+COPY pyproject.toml /app/
+COPY . /app/
 
 # Install system dependencies
 RUN apt-get update \
@@ -24,9 +26,11 @@ RUN mkdir -p /opt/mmseqs2 \
     && rm /opt/mmseqs-linux-avx2.tar.gz \
     && ln -s /opt/mmseqs2/bin/mmseqs /usr/local/bin/mmseqs
 
-# Install the required Python packages
-RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "setuptools>=40.8.0" "wheel>=0.43.0" \
-    && pip install --no-cache-dir --user -r /app/requirements.txt \
+# Use Hatch to install the project and its dependencies
+RUN hatch run pip install --no-cache-dir .
+
+# Install the required Python utilities
+RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "hatch>=1.16.2" "wheel>=0.43.0" "setuptools>=40.8.0" \
     && pip install --no-cache-dir "pymongo>=4.10.1"
 
 # Install node and molrender.js
@@ -43,5 +47,5 @@ RUN apt-get update \
 
 # Install the local code
 WORKDIR /app
-COPY . /app/
-RUN pip install --no-cache-dir .
+RUN hatch run pip install --no-cache-dir .
+    
