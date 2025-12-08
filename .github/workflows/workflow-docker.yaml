@@ -28,6 +28,7 @@ on:
   push:
     branches:
       - master
+      - dev-hatch
 
 jobs:
   run-workflow:
