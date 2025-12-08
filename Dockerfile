@@ -26,12 +26,10 @@ RUN mkdir -p /opt/mmseqs2 \
     && rm /opt/mmseqs-linux-avx2.tar.gz \
     && ln -s /opt/mmseqs2/bin/mmseqs /usr/local/bin/mmseqs
 
-# Use Hatch to install the project and its dependencies
-RUN hatch run pip install --no-cache-dir .
-
-# Install the required Python utilities
+# Install the required Python utilities and use Hatch to install the project
 RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "hatch>=1.16.2" "wheel>=0.43.0" "setuptools>=40.8.0" \
-    && pip install --no-cache-dir "pymongo>=4.10.1"
+    && pip install --no-cache-dir "pymongo>=4.10.1" \
+    && hatch run pip install --no-cache-dir .
 
 # Install node and molrender.js
 RUN mkdir -p /opt/modules/node_modules
@@ -44,8 +42,3 @@ RUN apt-get update \
     && npm i molrender@0.9.0 \
     && apt-get -yqq install --no-install-recommends libgl1-mesa-dev=22.3.6-1+deb12u1 xvfb=2:21.1.7-3+deb12u10 xauth=1:1.1.2-1 \
     && rm -rf /var/lib/apt/lists/*
-
-# Install the local code
-WORKDIR /app
-RUN hatch run pip install --no-cache-dir .
-    
