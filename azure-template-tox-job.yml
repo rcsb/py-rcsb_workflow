@@ -1,5 +1,5 @@
 # Date: 8-Jul-2019 jdw split out from original pipeline
-# Supports: fixtures=mysql,mongodb (linux)
+# Supports: fixtures=mysql,mongodb,mmseqs2 (linux)
 #
 # Updates:
 #  6-Aug-2019  jdw build source and binary wheels by default.
