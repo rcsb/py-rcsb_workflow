@@ -10,7 +10,7 @@ ENV PATH=$PATH:/root/.local/bin
 
 # Copy project files
 COPY pyproject.toml /app/
-COPY . /app/
+# COPY . /app/
 
 # Install system dependencies
 RUN apt-get update \

@@ -30,14 +30,14 @@ dependencies = [
     "OpenEye-toolkits >= 2024.1.1",
     #
     "mmcif >= 1.0.0",
-    "rcsb.utils.io >= 1.48",
+    "rcsb.utils.io >= 1.49",
     "rcsb.db >= 1.812",
     "rcsb.utils.chem >= 0.84",
-    "rcsb.utils.seq >= 0.82",
-    "rcsb.utils.targets >= 0.82",
+    "rcsb.utils.seq >= 0.84",
+    "rcsb.utils.targets >= 0.83",
     "rcsb.utils.seqalign >= 0.32",
     "rcsb.exdb >= 1.31",
-    "requests >= 2.25",
+    "requests >= 2.32.3",
 ]
 
 [project.optional-dependencies]
