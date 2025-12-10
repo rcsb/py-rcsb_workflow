@@ -1,8 +1,10 @@
 # Dockerfile for building image with all ExDB CLI commands 
 # and packages needed for running ETL workflow
 
+# Use an official Python image as a base image
 FROM python:3.12-slim-bookworm
 
+# Set the working directory inside the container
 WORKDIR /app
 ENV PATH=$PATH:/root/.local/bin
 
@@ -11,6 +13,7 @@ COPY . /app/
 
 # Install all system dependencies in one layer
 RUN apt-get update && \
+    # Confirmed versions that work: build-essential=12.9 pkg-config=1.8.1-1 default-libmysqlclient-dev=1.1.0
     apt-get install -y --no-install-recommends \
         build-essential=12.* pkg-config=1.8.* \
         default-libmysqlclient-dev=1.1.* wget=1.21.* libcairo2=1.16.* git=1:2.* \
@@ -27,9 +30,10 @@ RUN mkdir -p /opt/mmseqs2 \
     && ln -s /opt/mmseqs2/bin/mmseqs /usr/local/bin/mmseqs
 
 # Install Python dependencies and the package
-RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "hatch>=1.16.2" "wheel>=0.43.0" "setuptools>=40.8.0" \
+RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "wheel>=0.43.0" "setuptools>=40.8.0" \
     && pip install --no-cache-dir "pymongo>=4.10.1" \
-    && hatch run pip install --no-cache-dir .
+    # Use pip instead of hatch or uv, since the latter will only install CLIs into the virtual envs
+    && pip install --no-cache-dir . --extra-index-url https://pypi.anaconda.org/OpenEye/simple
 
 # Install node modules
 WORKDIR /opt/modules/node_modules
