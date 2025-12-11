@@ -15,7 +15,6 @@ __docformat__ = "google en"
 __author__ = "John Westbrook"
 __email__ = "jwest@rcsb.rutgers.edu"
 __license__ = "Creative Commons Attribution 3.0 Unported"
-__version__ = "V0.01"
 
 import logging
 import os
@@ -24,7 +23,10 @@ import resource
 import time
 import unittest
 
+from importlib.metadata import version as get_package_version
 from rcsb.workflow.chem.ChemCompImageWorkflow import ChemCompImageWorkflow
+
+__version__ = get_package_version("rcsb.workflow")
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 TOPDIR = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))

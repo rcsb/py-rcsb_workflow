@@ -1,12 +1,12 @@
-# File: azure-template-tox-job.yml
 # Date: 8-Jul-2019 jdw split out from original pipeline
-# Supports: fixtures=,mongodb,mmseq2 (linux)
+# Supports: fixtures=mysql,mongodb,mmseqs2 (linux)
 #
 # Updates:
 #  6-Aug-2019  jdw build source and binary wheels by default.
 # 13-Aug-2019  jdw export config support token prior to launching tox runner
-# 20-Jun-2021  jdw add mmseq2 fixture
-#
+# 24-Nov-2020  jdw add py39 support
+# 10-Oct-2024  mjt add py310 support, macos-12 -> macos-13, ubuntu 20 -> ubuntu 22
+#  8-Dec-2025  dwp add py313 support, standardize template
 ##
 parameters:
   tox: ""
@@ -19,7 +19,7 @@ jobs:
     timeoutInMinutes: 0
     pool:
       ${{ if eq(parameters.os, 'macos') }}:
-        vmImage: "macOS-latest"
+        vmImage: "macOS-15"
       ${{ if eq(parameters.os, 'linux') }}:
         vmImage: "ubuntu-latest"
 
@@ -37,6 +37,7 @@ jobs:
       #
       - checkout: self
         submodules: true
+        fetchDepth: 1
       #
       - ${{ if startsWith(parameters.os, 'macos') }}:
           - bash: |
@@ -58,7 +59,6 @@ jobs:
           - script: which bison
             displayName: "Check bison"
           #
-          #
           - script: brew install mmseqs2
             displayName: "Install mmseqs2"
           - script: which mmseqs
@@ -75,10 +75,6 @@ jobs:
           #
           - script: sudo apt-get update
             displayName: "update apt"
-          #- script: sudo apt-get upgrade
-          #  displayName: 'upgrade apt'
-          #- script: sudo apt-get update
-          #  displayName: 'update apt'
           - script: sudo apt-get install flex
             displayName: "Install flex"
           - script: sudo apt-get install bison
@@ -133,9 +129,8 @@ jobs:
       - script: python -m pip install --upgrade pip tox
         displayName: "Install tools"
         #
-      - script: pip install -r requirements.txt
+      - script: pip install .[tests] --extra-index-url https://pypi.anaconda.org/OpenEye/simple
         displayName: "Install dependencies"
-      #
       #
       - task: DownloadSecureFile@1
         name: oelicense
@@ -147,41 +142,29 @@ jobs:
           - script: |
               export OE_LICENSE=$(oelicense.secureFilePath)
               export CONFIG_SUPPORT_TOKEN_ENV=$(VAR_CONFIG_SUPPORT_TOKEN_ENV)
+              export PIP_EXTRA_INDEX_URL="https://pypi.anaconda.org/OpenEye/simple"
               ${{ format('python -m tox -e {0}', parameters.tox) }}
             displayName: "Running tox task"
-      - ? ${{ if and(not(startsWith(parameters.tox, 'py')), startsWith(parameters.python, '3.10')) }}
+      - ? ${{ if and(not(startsWith(parameters.tox, 'py')), startsWith(parameters.python, '3.12')) }}
         : - script: |
               export OE_LICENSE=$(oelicense.secureFilePath)
               export CONFIG_SUPPORT_TOKEN_ENV=$(VAR_CONFIG_SUPPORT_TOKEN_ENV)
-              ${{ format('python -m tox -e {0}-py310', parameters.tox) }}
-            displayName: "Running tox task"
-      - ? ${{ if and(not(startsWith(parameters.tox, 'py')), startsWith(parameters.python, '3.9')) }}
-        : - script: |
-              export OE_LICENSE=$(oelicense.secureFilePath)
-              export CONFIG_SUPPORT_TOKEN_ENV=$(VAR_CONFIG_SUPPORT_TOKEN_ENV)
-              ${{ format('python -m tox -e {0}-py39', parameters.tox) }}
+              export PIP_EXTRA_INDEX_URL="https://pypi.anaconda.org/OpenEye/simple"
+              ${{ format('python -m tox -e {0}-py312', parameters.tox) }}
             displayName: "Running tox task"
       #
       #  Build artifacts if this is a test target (i.e. labeled as py##)
       #
       - ${{ if startsWith(parameters.tox, 'py') }}:
-          - script: pip install --upgrade pip twine setuptools wheel
+          - script: pip install --upgrade pip build twine hatch
             displayName: "Acquire build tools"
-          - script: python setup.py  sdist --dist-dir "$(System.DefaultWorkingDirectory)/dist"
-            displayName: "Build source dist"
-          - script: python setup.py  bdist_wheel --dist-dir "$(System.DefaultWorkingDirectory)/dist"
-            displayName: "Build wheel"
-          #
-          - script: python setup.py  sdist --dist-dir "$(System.DefaultWorkingDirectory)/udist"
-            displayName: "Build source dist"
+          - script: python -m build --sdist --wheel --outdir "$(System.DefaultWorkingDirectory)/dist"
+            displayName: "Build source and wheel distributions"
           #
           # Check the install artifacts
-          - script: ls -lR "$(System.DefaultWorkingDirectory)/dist" "$(System.DefaultWorkingDirectory)/udist"
+          - script: ls -lR "$(System.DefaultWorkingDirectory)/dist"
             displayName: "Listing of installed software"
           #
           - publish: $(System.DefaultWorkingDirectory)/dist
             artifact: ${{ format('sw_{0}_{1}', parameters.tox, parameters.os) }}
-          #
-          - publish: $(System.DefaultWorkingDirectory)/udist
-            artifact: ${{ format('sw_u_{0}_{1}', parameters.tox, parameters.os) }}
         #

@@ -1,0 +1,103 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rcsb.workflow"
+description = "RCSB Python data processing and ETL/ELT workflow entry points"
+version = "0.64"
+readme = "README.md"
+authors = [
+    { name="John Westbrook", email="john.westbrook@rcsb.org" }
+]
+maintainers = [
+    { name="Dennis Piehl", email="dennis.piehl@rcsb.org" },
+    { name="Michael Trumbull", email="michael.trumbull@rcsb.org" },
+    { name="James Smith", email="james.smith@rcsb.org" }
+]
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.9"  # Latest OpenEye (2025.1.1) only supports up to 3.12 (as of Nov. 2025)
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",  # Latest OpenEye (2025.1.1) only supports up to 3.12 (as of Nov. 2025)
+]
+
+dependencies = [
+    # OpenEye is needed here despite it not being a direct requirement of this package (it's used by rcsb.utils.chem)
+    "OpenEye-toolkits >= 2024.1.1",
+    #
+    "mmcif >= 1.0.0",
+    "rcsb.utils.io >= 1.49",
+    "rcsb.db >= 1.812",
+    "rcsb.utils.chem >= 0.84",
+    "rcsb.utils.seq >= 0.84",
+    "rcsb.utils.targets >= 0.83",
+    "rcsb.utils.seqalign >= 0.32",
+    "rcsb.exdb >= 1.31",
+    "requests >= 2.32.3",
+]
+
+[project.optional-dependencies]
+tests = ["tox", "pylint", "black>=21.5b1", "flake8", "coverage", "check-manifest"]
+
+[project.urls]
+Homepage = "https://github.com/rcsb/py-rcsb_workflow"
+
+[project.scripts]
+exdb_wf_cli = "rcsb.workflow.cli.ExDbExec:main"
+imgs_exec_cli = "rcsb.workflow.cli.ImgExec:main"
+bcif_exec_cli = "rcsb.workflow.cli.BcifExec:main"
+chem_search_index_cli = "rcsb.workflow.cli.ChemSearchIndexExec:main"
+
+
+# ----------------  hatch configuration ----------------
+[tool.hatch.build.targets.sdist]
+include = [
+    "/rcsb/**",
+    "/README.md",
+    "/LICENSE",
+    "/HISTORY.txt",
+    "/pyproject.toml",
+]
+exclude = [
+    "/rcsb/mock-*",
+    "/rcsb/workflow/test*/test*-*",
+    "/rcsb/workflow/test*/**.tdd",
+    "/rcsb/workflow/test*/**.txt",
+    "/rcsb/workflow/test*/**.sh",
+    "/rcsb/workflow/test*/**.gz",
+    "/rcsb/workflow/test*/**.pic",
+    "/rcsb/workflow/test*/**.cif",
+    "/rcsb/workflow/test*/**.json",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["rcsb"]
+exclude = [
+    "/rcsb/workflow/test*",
+    "/rcsb/mock-*",
+]
+
+[tool.hatch.envs.default]
+skip-install = true
+dependencies = ["OpenEye-toolkits>=2024.1.1"]
+
+[tool.hatch.envs.default.env-vars]
+PIP_EXTRA_INDEX_URL = "https://pypi.anaconda.org/OpenEye/simple"
+
+# ----------------  test configuration ----------------
+[tool.hatch.envs.hatch-test]
+dependencies = ["tox"]
+
+[tool.hatch.envs.hatch-test.scripts]
+run = ["tox"]
+
+# ----------------  UV configuration ----------------
+[tool.uv]
+extra-index-url = ["https://pypi.anaconda.org/OpenEye/simple"]
+managed = false  # This prevents uv from automatically creating venvs within individual packages when running 'uv run ...' from within the package directory

@@ -1,0 +1,34 @@
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.env/
+.env.* 
+*.venv/
+
+# Git files
+.git/
+.gitignore
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Test outputs
+rcsb/workflow/tests/
+rcsb/mock-data/
+coverage/
+*.cover
+*.log
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Other local configs
+*.swp

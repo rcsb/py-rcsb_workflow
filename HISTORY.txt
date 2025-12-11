@@ -57,4 +57,4 @@
 10-Sep-2025 - V0.61 Return without error in bcif task functions, update content prefixes
 30-Sep-2025 - V0.62 Let jpg gen use model file over URL
 15-Oct-2025 - V0.63 Add ChemSearchIndex from weekly-update-workflow so it can be a cli call instead
- 
+ 8-Dec-2025 - V0.64 Switch to 'pyproject.toml' file and update test pipelines to python 3.12
