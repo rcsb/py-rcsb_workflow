@@ -735,7 +735,7 @@ class ResidueRsccReferenceGenerator:
         if high < 1:
             resolution_index = str(9)
         else:
-            resolution_index = str(high * 10)
+            resolution_index = str(int(high * 10))
         # calculate percentiles for each residue type
         for residue_type in self.l_standard_residue:
             logger.info("to find percentiles for %s", residue_type)
@@ -794,7 +794,7 @@ class ResidueRsccReferenceGenerator:
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(self.data, f, indent=2)
         logger.info("Wrote data to output files %s", output_file)
-        return True      
+        return True
 
     def writeReviewReference(self, output_file: str) -> bool:
         """
