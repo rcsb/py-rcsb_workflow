@@ -24,6 +24,7 @@ import platform
 import resource
 import time
 import unittest
+import shutil
 
 from rcsb.workflow.wuw.ExDbWorkflow import ExDbWorkflow
 
@@ -48,6 +49,9 @@ class ExDbWorkflowTests(unittest.TestCase):
         cachePath = os.path.join(TOPDIR, "CACHE")
         # self.__dataPath = os.path.join(HERE, "test-data")
         #
+        self._disk_before = shutil.disk_usage(HERE).used
+        logger.info("Filesystem disk usage start: %.2f MB", self._disk_before / (1024 ** 2))
+        #
         self.__commonD = {
             "configPath": configPath,
             "mockTopPath": mockTopPath,
@@ -67,6 +71,9 @@ class ExDbWorkflowTests(unittest.TestCase):
         rusageMax = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         logger.info("Maximum resident memory size %.4f %s", rusageMax / 10 ** 6, unitS)
         endTime = time.time()
+        disk_after = shutil.disk_usage(HERE).used
+        disk_delta = disk_after - self._disk_before
+        logger.info("Filesystem disk usage delta: %.2f MB", disk_delta / (1024 ** 2))
         logger.info("Completed %s at %s (%.4f seconds)", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()), endTime - self.__startTime)
 
     def testExDbLoaderWorkflows(self):

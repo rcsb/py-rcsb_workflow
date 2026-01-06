@@ -24,6 +24,7 @@ import platform
 import resource
 import time
 import unittest
+import shutil
 
 from rcsb.db.mongo.DocumentLoader import DocumentLoader
 from rcsb.db.mongo.PdbxLoader import PdbxLoader
@@ -59,6 +60,9 @@ class PdbxLoaderFixture(unittest.TestCase):
         #        Or, can try to resolve error directly by specifying how to reconcile diverent branches in git.Repo class.
         configName = "site_info_configuration"
         self.__cfgOb = ConfigUtil(configPath=configPath, defaultSectionName=configName, mockTopPath=self.__mockTopPath)
+        #
+        self._disk_before = shutil.disk_usage(HERE).used
+        logger.info("Filesystem disk usage start: %.2f MB", self._disk_before / (1024 ** 2))
         #
         self.__resourceName = "MONGO_DB"
         self.__failedFilePath = os.path.join(HERE, "test-output", "failed-list.txt")
@@ -200,6 +204,9 @@ class PdbxLoaderFixture(unittest.TestCase):
         rusageMax = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         logger.info("Maximum resident memory size %.4f %s", rusageMax / 10 ** 6, unitS)
         endTime = time.time()
+        disk_after = shutil.disk_usage(HERE).used
+        disk_delta = disk_after - self._disk_before
+        logger.info("Filesystem disk usage delta: %.2f MB", disk_delta / (1024 ** 2))
         logger.info("Completed %s at %s (%.4f seconds)", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()), endTime - self.__startTime)
 
     def testPdbxLoader(self):

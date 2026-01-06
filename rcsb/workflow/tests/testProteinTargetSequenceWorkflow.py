@@ -6,8 +6,9 @@
 # Updates:
 #  13-Feb-2025 dwp Remove IMGT from feature building after service became unavailable February 2025
 #  19-Feb-2025 dwp Bring back IMGT
-#   6-Jan-2026 dwp Re-remove IMGT from testing (consumes a lot of disk space by fetching 1.6 GB file,
-#                  and this is already tested by rcsb.utils.targets)
+#   6-Jan-2026 dwp Re-exclude IMGT from testing (consumes a lot of disk space by fetching 1.6 GB file,
+#                  and this is already tested by rcsb.utils.targets);
+#                  Exclude chembl and drugbank from testing to save on disk space
 #
 ##
 """
@@ -146,7 +147,8 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - export FASTA target files"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.exportTargetsFasta(useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False, resourceNameList=["sabdab", "card", "chembl", "pharos"])
+            # ok = ptsW.exportTargetsFasta(useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False, resourceNameList=["sabdab", "card", "chembl", "pharos"])
+            ok = ptsW.exportTargetsFasta(useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False, resourceNameList=["sabdab", "card", "pharos"])
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -157,7 +159,8 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - export FASTA target files (and load Pharos from source)"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.exportTargetsFasta(useCache=True, addTaxonomy=True, reloadPharos=True, fromDbPharos=True, resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"])
+            # ok = ptsW.exportTargetsFasta(useCache=True, addTaxonomy=True, reloadPharos=True, fromDbPharos=True, resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"])
+            ok = ptsW.exportTargetsFasta(useCache=True, addTaxonomy=True, reloadPharos=True, fromDbPharos=True, resourceNameList=["sabdab", "card", "pharos"])
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -167,7 +170,8 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - create search databases"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.createSearchDatabases(resourceNameList=["sabdab", "card", "chembl", "pharos", "pdbprent"], addTaxonomy=False, timeOutSeconds=3600, verbose=False)
+            # ok = ptsW.createSearchDatabases(resourceNameList=["sabdab", "card", "chembl", "pharos", "pdbprent"], addTaxonomy=False, timeOutSeconds=3600, verbose=False)
+            ok = ptsW.createSearchDatabases(resourceNameList=["sabdab", "pharos", "pdbprent"], addTaxonomy=False, timeOutSeconds=3600, verbose=False)
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -180,7 +184,8 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
             formatOutput = "query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,raw,bits,qlen,tlen,qaln,taln,cigar"
             ok = ptsW.search(
                 referenceResourceName="pdbprent",
-                resourceNameList=["sabdab", "chembl", "pharos"],
+                # resourceNameList=["sabdab", "chembl", "pharos"],
+                resourceNameList=["sabdab", "pharos"],
                 identityCutoff=0.95,
                 sensitivity=4.5,
                 timeOutSeconds=1000,
@@ -188,7 +193,7 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
             )
             self.assertTrue(ok)
             ok = ptsW.search(
-                referenceResourceName="pdbprent", resourceNameList=["card"], identityCutoff=0.95, sensitivity=4.5, timeOutSeconds=1000, useBitScore=True, formatOutput=formatOutput
+                referenceResourceName="pdbprent", resourceNameList=["sabdab"], identityCutoff=0.95, sensitivity=4.5, timeOutSeconds=1000, useBitScore=True, formatOutput=formatOutput
             )
             self.assertTrue(ok)
         except Exception as e:
@@ -199,7 +204,7 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - build features from search results"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.buildFeatureData(referenceResourceName="pdbprent", resourceNameList=["sabdab", "card"], useTaxonomy=False, backup=False)
+            ok = ptsW.buildFeatureData(referenceResourceName="pdbprent", resourceNameList=["sabdab"], useTaxonomy=False, backup=False)
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -210,7 +215,8 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
             if self.__isMac:
-                ok = ptsW.buildActivityData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos"], backup=False, maxTargets=50)
+                # ok = ptsW.buildActivityData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos"], backup=False, maxTargets=50)
+                ok = ptsW.buildActivityData(referenceResourceName="pdbprent", resourceNameList=["pharos"], backup=False, maxTargets=50)
             else:
                 ok = ptsW.buildActivityData(referenceResourceName="pdbprent", resourceNameList=["pharos"], backup=False, maxTargets=50)
             self.assertTrue(ok)
@@ -223,7 +229,8 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - build features from search results"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.buildCofactorData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos"], backup=False)
+            # ok = ptsW.buildCofactorData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos"], backup=False)
+            ok = ptsW.buildCofactorData(referenceResourceName="pdbprent", resourceNameList=["pharos"], backup=False)
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
