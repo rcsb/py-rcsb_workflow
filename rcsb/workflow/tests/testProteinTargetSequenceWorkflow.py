@@ -6,6 +6,8 @@
 # Updates:
 #  13-Feb-2025 dwp Remove IMGT from feature building after service became unavailable February 2025
 #  19-Feb-2025 dwp Bring back IMGT
+#   6-Jan-2026 dwp Re-remove IMGT from testing (consumes a lot of disk space by fetching 1.6 GB file,
+#                  and this is already tested by rcsb.utils.targets)
 #
 ##
 """
@@ -22,6 +24,7 @@ import platform
 import resource
 import time
 import unittest
+import shutil
 
 from rcsb.workflow.targets.ProteinTargetSequenceWorkflow import ProteinTargetSequenceWorkflow
 from rcsb.utils.config.ConfigUtil import ConfigUtil
@@ -46,6 +49,9 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         self.__cfgOb = ConfigUtil(configPath=configPath, defaultSectionName=configName, mockTopPath=self.__mockTopPath)
         self.__cachePath = os.path.join(HERE, "test-output", "CACHE")
         #
+        self._disk_before = shutil.disk_usage(HERE).used
+        logger.info("Filesystem disk usage start: %.2f MB", self._disk_before / (1024 ** 2))
+        #
         self.__workflowFixture()
         self.__startTime = time.time()
         logger.debug("Starting %s at %s", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()))
@@ -55,6 +61,9 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         rusageMax = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         logger.info("Maximum resident memory size %.4f %s", rusageMax / 10 ** 6, unitS)
         endTime = time.time()
+        disk_after = shutil.disk_usage(HERE).used
+        disk_delta = disk_after - self._disk_before
+        logger.info("Filesystem disk usage delta: %.2f MB", disk_delta / (1024 ** 2))
         logger.info("Completed %s at %s (%.4f seconds)\n", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()), endTime - self.__startTime)
 
     def __workflowFixture(self):
@@ -190,7 +199,7 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - build features from search results"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.buildFeatureData(referenceResourceName="pdbprent", resourceNameList=["sabdab", "card", "imgt"], useTaxonomy=False, backup=False)
+            ok = ptsW.buildFeatureData(referenceResourceName="pdbprent", resourceNameList=["sabdab", "card"], useTaxonomy=False, backup=False)
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -242,7 +251,7 @@ def abbrevSuite():
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testBBCreateSearchDatabases"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testCCSearchDatabases"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testDDBuildFeatures"))
-    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testDDBuildActivityData"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testEEBuildActivityData"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testFFBuildCofactorData"))
     return suiteSelect
 
@@ -257,7 +266,7 @@ def fullSuite():
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testBBCreateSearchDatabases"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testCCSearchDatabases"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testDDBuildFeatures"))
-    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testDDBuildActivityData"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testEEBuildActivityData"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testFFBuildCofactorData"))
     return suiteSelect
 
