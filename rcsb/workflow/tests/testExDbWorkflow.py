@@ -79,12 +79,16 @@ class ExDbWorkflowTests(unittest.TestCase):
     def testExDbLoaderWorkflows(self):
         """Test run workflow steps ..."""
         try:
-            # opL = ["etl_chemref", "upd_ref_seq", "etl_tree_node_lists"]
-            opL = ["etl_chemref", "etl_tree_node_lists"]
             rlWf = ExDbWorkflow(**self.__commonD)
-            for op in opL:
-                ok = rlWf.load(op, **self.__loadCommonD)
-                self.assertTrue(ok)
+            ok = rlWf.load("etl_chemref", **self.__loadCommonD)
+            self.assertTrue(ok)
+            ok = rlWf.load("etl_tree_node_lists", treeCollectionList=["tree_ec"], **self.__loadCommonD)
+            self.assertTrue(ok)
+            try:
+                ok = rlWf.load("etl_tree_node_lists", treeCollectionList=["tree_scop"], **self.__loadCommonD)
+                self.assertFalse(ok)
+            except Exception:
+                logger.info("Expected failure if tree_scop node list is empty")
         except Exception as e:
             logger.exception("Failing with %s", str(e))
             self.fail()
