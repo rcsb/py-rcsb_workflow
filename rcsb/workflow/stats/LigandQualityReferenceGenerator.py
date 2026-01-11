@@ -10,7 +10,6 @@ Generate ligand quality reference data that is used for ligand quality score com
 """
 import csv
 import logging
-import json
 import time
 import numpy as np
 import os
@@ -18,7 +17,6 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
 from rcsb.db.mongo.Connection import Connection
-from rcsb.db.mongo.MongoDbUtil import MongoDbUtil
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +28,7 @@ class LigandQualityReferenceGenerator:
     Generate ligand reference data through PCA;
         Attributes:
             data: final output of each pdb_ligand combination and their quality scores
-            qdata: direct data from MongoDB query 
+            qdata: direct data from MongoDB query
         Methods:
             fetchLigand(pdb_id): Fetch, filter, reduce, and reformat ligand quality metrics
             analyze(): Run PCA on the filtered and reduced ligand quality scores to generate reference data.
@@ -49,7 +47,7 @@ class LigandQualityReferenceGenerator:
         self.__cachePath = cachePath
         # self.__configName = cfgOb.getDefaultSectionName()
         self.__resourceName = "MONGO_DB"
-        #        
+        #
         self.__databaseName = kwargs.get("databaseName", "pdbx_core")
         self.__collectionName = kwargs.get("collectionName", "pdbx_core_nonpolymer_entity_instance")
         #
@@ -66,7 +64,7 @@ class LigandQualityReferenceGenerator:
             logger.error("Failed to fetch ligand quality data, STOP")
             return False
         if not self.analyzeLigand():
-            logger.error("Failed to analyze ligand quality data, STOP") 
+            logger.error("Failed to analyze ligand quality data, STOP")
             return False
         output_file = os.path.join(self.__cachePath, "ligand_score_reference.csv")  # final output file
         if not self.writeReference(output_file):

@@ -133,7 +133,7 @@ def main():
         "upd_glycan_idx",
         "upd_resource_stash",
         "ligand_quality_ref_gen",
-        "residue_rscc_ref_gen",        
+        "residue_rscc_ref_gen",
     ]:
         okR = exWf.buildExdbResource(op, **loadD)
     elif op in [

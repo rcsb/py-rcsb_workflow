@@ -11,19 +11,17 @@ aggregate them by residue type for X‑ray entries in resolution bins, and
 produce RSCC reference statistics (percentiles) for standard polymer residues.
 
 """
-import csv
 import logging
 import json
-import time
 import numbers
 import numpy as np
 import os
 from pymongo.database import Database   # for type hint only
 
 from rcsb.db.mongo.Connection import Connection
-from rcsb.utils.config.ConfigUtil import ConfigUtil
 
 logger = logging.getLogger(__name__)
+
 
 class InvalidParametersError(ValueError):
     pass
@@ -34,14 +32,14 @@ class InvalidSequenceError(Exception):
 
 
 class ResidueRsccReferenceGenerator:
-    """ 
+    """
     This module provides the class ResidueRsccReferenceGenerator which:
     - Connects to a configurable MongoDB instance (default database "pdbx_core").
     - Selects X-ray entries in a resolution bin.
     - Collects polymer entities, sequences and instance IDs.
     - Fetches per-instance features (RSCC, NATOMS_EDS, AVERAGE_OCCUPANCY).
     - Maps feature values to sequence ordinals and aggregates by residue type.
-    - Computes percentiles and generates reference outputs.    
+    - Computes percentiles and generates reference outputs.
 
     Each resolution bin is processed separately and non-parallely because of the large data volume
         Attributes:
@@ -66,7 +64,7 @@ class ResidueRsccReferenceGenerator:
             processResidue: map residue type to RSCC by sequence ordinal, filter by natoms and occupancy, to add self.bin["residues"] and self.bin["tracking"];
             calculatePercentile: calculate percentile for RSCC array;
             generateBin: consolidate all processes above to generate data for one resolution bin;
-            generate: generate final data for all resolution bins. 
+            generate: generate final data for all resolution bins.
     """
     def __init__(self, cfgOb, cachePath, **kwargs):
         """Initiate the class variables and the MongoDB connection"""
@@ -75,16 +73,16 @@ class ResidueRsccReferenceGenerator:
                                    "GLN", "GLU", "GLY", "HIS", "ILE",
                                    "LEU", "LYS", "MET", "PHE", "PRO",
                                    "SER", "THR", "TRP", "TYR", "VAL",
-                                   "MSE"] # 20 standard aa + MSE
-        self.data = {}  # RSCC percentials by residue type and resolution bin, formated for Mol*    
+                                   "MSE"]  # 20 standard aa + MSE
+        self.data = {}  # RSCC percentials by residue type and resolution bin, formated for Mol*
         self.data_ref = {}  # optional reference, superset of self.data, for review purpose only
         for residue in self.l_standard_residue:
             self.data[residue] = {}
             self.data_ref[residue] = {}
         self.bin = {}  # store all data for the current resolution bin being worked on
         # self.bin is updated through each step of MongoDB data fetch and process to add values for
-        # (1) MongoDB query results by keys of: "entry_ids", "entities",  "instances"; 
-        # (2) Processed results by keys of: "instance_ids", "sequences", "residues", "metrics"; 
+        # (1) MongoDB query results by keys of: "entry_ids", "entities",  "instances";
+        # (2) Processed results by keys of: "instance_ids", "sequences", "residues", "metrics";
         # (3) Metadata by keys of: "resolution", "tracking".
         #
         _ = kwargs
@@ -92,12 +90,12 @@ class ResidueRsccReferenceGenerator:
         self.__cachePath = cachePath
         # self.__configName = cfgOb.getDefaultSectionName()
         self.__resourceName = "MONGO_DB"
-        #  
+        #
         self.__databaseName = kwargs.get("databaseName", "pdbx_core")
         self.__collectionNames = kwargs.get("collectionNames",
-                                           ["pdbx_core_entry",
-                                            "pdbx_core_polymer_entity", 
-                                            "pdbx_core_polymer_entity_instance"])
+                                            ["pdbx_core_entry",
+                                             "pdbx_core_polymer_entity",
+                                             "pdbx_core_polymer_entity_instance"])
         #
         self.__collections = {}
         for collectionName in self.__collectionNames:
@@ -147,8 +145,8 @@ class ResidueRsccReferenceGenerator:
             l_range = [i / 10 for i in range(int(high * 10), int(low * 10) + 1)]
         # Construct all bins within the range by 0.1 increment
         l_bin = []
-        for i in range(len(l_range)-1):
-            bin = [l_range[i], l_range[i+1]]
+        for i in range(len(l_range) - 1):
+            bin = [l_range[i], l_range[i + 1]]
             l_bin.append(bin)
         logger.info("to generate RSCC reference for %s resolution bins from %s to %s", len(l_bin), high, low)
         # Enumerate through each bin
@@ -228,10 +226,10 @@ class ResidueRsccReferenceGenerator:
         collectionName = self.__collections["entry"]  # use core_entry collection
         collection = db[collectionName]
         d_condition = {"rcsb_entry_info.experimental_method": "X-ray",
-                        "rcsb_entry_info.resolution_combined": {
-                            "$gte": high, "$lt": low
-                        }
-        }  # high <= bin < low
+                       "rcsb_entry_info.resolution_combined": {
+                           "$gte": high, "$lt": low
+                       }
+                       }  # high <= bin < low
         # Run find
         try:
             cursor = collection.find(d_condition, {"_id": 0, "rcsb_id": 1})
@@ -241,7 +239,7 @@ class ResidueRsccReferenceGenerator:
         except Exception as e:
             logger.error("failed to fetch entry data from MongoDB for resolution bin %s, %s", resolution_bin, e)
             return False
-    
+
     def verifyResolution(self, resolution_bin: list[int]):
         """
         Verify the provided resolution bin, raise exception for any problem.
@@ -257,14 +255,14 @@ class ResidueRsccReferenceGenerator:
           * low_resolution > high_resolution
         """
         if not resolution_bin:
-            raise InvalidParametersError("the resolution bin is empty or None")           
+            raise InvalidParametersError("the resolution bin is empty or None")
         if len(resolution_bin) != 2:
             raise InvalidParametersError("the resolution bin must be provided as a list of two numbers")
         for value in resolution_bin:
             if not isinstance(value, numbers.Number):
                 raise InvalidParametersError("both elements of the resolution bin must be numbers")
         [high, low] = resolution_bin
-        if high <0:
+        if high < 0:
             raise InvalidParametersError("high resolution, as the 1st value of the resolution bin, must be greater than zero")
         if low <= high:
             raise InvalidParametersError("high resolution, as the 1st value of the resolution bin, must be smaller than the 2nd")
@@ -480,12 +478,12 @@ class ResidueRsccReferenceGenerator:
             return False
         # Construct MongoDB aggregation
         logger.info("to fetch instance data for %s instances", len(self.bin["instance_ids"]))
-        collectionName = self.__collections["instance"]  # use core_polymer_entity_instance collection 
+        collectionName = self.__collections["instance"]  # use core_polymer_entity_instance collection
         collection = db[collectionName]
         pipeline = [
             {
                 "$match": {
-                    "rcsb_id": { "$in": self.bin["instance_ids"] }
+                    "rcsb_id": {"$in": self.bin["instance_ids"]}
                 }
             },
             {
@@ -675,27 +673,28 @@ class ResidueRsccReferenceGenerator:
           is skipped (may indicate microheterogeneity).
         """
         # reference on number of non-hydrogen atoms of each standard residues
-        d_num_atoms = { "ALA": 6, 
-                        "ARG": 12,
-                        "ASN": 9,
-                        "ASP": 9,
-                        "CYS": 7,
-                        "GLN": 10,
-                        "GLU": 10,
-                        "GLY": 5,
-                        "HIS": 11,
-                        "ILE": 9,
-                        "LEU": 9,
-                        "LYS": 10,
-                        "MET": 9,
-                        "PHE": 12,
-                        "PRO": 8,
-                        "SER": 7,
-                        "THR": 8,
-                        "TRP": 15,
-                        "TYR": 13,
-                        "VAL": 8,
-                        "MSE": 9 }  # number of non-hydrogen atoms for 20 standard aa and MSE
+        d_num_atoms = {
+            "ALA": 6,
+            "ARG": 12,
+            "ASN": 9,
+            "ASP": 9,
+            "CYS": 7,
+            "GLN": 10,
+            "GLU": 10,
+            "GLY": 5,
+            "HIS": 11,
+            "ILE": 9,
+            "LEU": 9,
+            "LYS": 10,
+            "MET": 9,
+            "PHE": 12,
+            "PRO": 8,
+            "SER": 7,
+            "THR": 8,
+            "TRP": 15,
+            "TYR": 13,
+            "VAL": 8,
+            "MSE": 9}  # number of non-hydrogen atoms for 20 standard aa and MSE
         # enumerate through each entity in the entry
         for entity_id in self.bin["sequences"][entry_id]:
             logger.debug("to process residue data of entity %s of entry %s", entity_id, entry_id)
@@ -774,7 +773,7 @@ class ResidueRsccReferenceGenerator:
             return False
         # start process
         [high, low] = self.bin["resolution"]
-        resolution_str = f"[{high},{low})" # convert resolution bin list to str output
+        resolution_str = f"[{high},{low})"  # convert resolution bin list to str output
         # convert resolution bin to index used by Mol*, i.e. 0.1-1 -> 9, 1-1.1 -> 10...
         if high < 1:
             resolution_index = str(9)
@@ -822,7 +821,7 @@ class ResidueRsccReferenceGenerator:
                 file.write("\n")
         return True
 
-    def writeReference(self, output_file: str) -> bool: 
+    def writeReference(self, output_file: str) -> bool:
         """
         Write the generated self.data to a json file for Mol* to read
 

@@ -69,7 +69,7 @@ class ResidueRsccReferenceGeneratorTests(unittest.TestCase):
         """
         with Connection(cfgOb=self.__cfgOb, resourceName=self.__resourceName) as client:
             db = client[self.__databaseName]
-            resolution_bin = [0,0.5]
+            resolution_bin = [0, 0.5]
             self.cRRRG.fetchEntry(db, resolution_bin=resolution_bin)
             self.assertTrue(self.cRRRG.bin["entry_ids"])
             # Write to output file
@@ -227,6 +227,7 @@ class ResidueRsccReferenceGeneratorTests(unittest.TestCase):
         output_file_tsv = os.path.join(self.__cachePath, "testResidueRsccReferenceGenerator_generate.tsv")
         self.cRRRG.writeReviewReference(output_file_tsv)
         logger.info("Wrote data to output tsv files %s", output_file_tsv)
+
 
 def genRsccRef():
     suiteSelect = unittest.TestSuite()
