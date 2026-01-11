@@ -355,6 +355,8 @@ class ExDbWorkflow(object):
             "upd_entry_info",
             "upd_glycan_idx",
             "upd_resource_stash",
+            "ligand_quality_ref_gen",
+            "residue_rscc_ref_gen",
         ]:
             logger.error("Unsupported operation %r - exiting", op)
             return False

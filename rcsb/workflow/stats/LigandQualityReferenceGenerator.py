@@ -50,6 +50,8 @@ class LigandQualityReferenceGenerator:
         #
         self.__databaseName = kwargs.get("databaseName", "pdbx_core")
         self.__collectionName = kwargs.get("collectionName", "pdbx_core_nonpolymer_entity_instance")
+        # self.__databaseName = kwargs.get("databaseName", "dw")
+        # self.__collectionName = kwargs.get("collectionName", "core_nonpolymer_entity_instance")
         #
 
     def generate(self, pdb_ids: list[str] = None) -> bool:

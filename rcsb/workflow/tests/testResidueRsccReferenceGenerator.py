@@ -38,7 +38,7 @@ class ResidueRsccReferenceGeneratorTests(unittest.TestCase):
         if self.__isMac:
             self.__databaseName = "dw"
             self.__cfgOb = ConfigUtil(configPath=configPath,
-                                      defaultSectionName="site_info_remote_configuration",
+                                      defaultSectionName="site_info_configuration",
                                       mockTopPath=self.__mockTopPath)
             self.cRRRG = ResidueRsccReferenceGenerator(self.__cfgOb,
                                                        cachePath=self.__cachePath,
@@ -222,7 +222,7 @@ class ResidueRsccReferenceGeneratorTests(unittest.TestCase):
         Test generate on all PDB entries.
         """
         self.cRRRG.generate([0.1, 1.1])
-        output_file = os.path.join(self.__cachePath, "testResidueRsccReferenceGenerator_generate.json")
+        output_file = os.path.join(self.__cachePath, "rscc-thresholds.json")
         self.assertTrue(os.path.exists(output_file), "Output JSON file does not exist.")
         output_file_tsv = os.path.join(self.__cachePath, "testResidueRsccReferenceGenerator_generate.tsv")
         self.cRRRG.writeReviewReference(output_file_tsv)

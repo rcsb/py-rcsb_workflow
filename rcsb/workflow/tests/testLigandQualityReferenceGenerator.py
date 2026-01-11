@@ -35,7 +35,7 @@ class LigandQualityReferenceGeneratorTests(unittest.TestCase):
         os.makedirs(self.__cachePath, exist_ok=True)
         if self.__isMac:
             self.__cfgOb = ConfigUtil(configPath=configPath,
-                                      defaultSectionName="site_info_remote_configuration",
+                                      defaultSectionName="site_info_configuration",
                                       mockTopPath=self.__mockTopPath)
             self.cRLRG = LigandQualityReferenceGenerator(self.__cfgOb,
                                                          cachePath=self.__cachePath,
