@@ -17,6 +17,8 @@ import json
 import time
 import numbers
 import numpy as np
+import os
+from pymongo.database import Database   # for type hint only
 
 from rcsb.db.mongo.Connection import Connection
 from rcsb.utils.config.ConfigUtil import ConfigUtil
@@ -55,18 +57,18 @@ class ResidueRsccReferenceGenerator:
                 fragments_start: starting residue's identity for each fragment
                 residues: filtered RSCC value array for each residue type
                 tracking: record the number of residues present and selected for each entry
-        Methods: the following methods works in tandem, except for the last two that consolidate all
+        Methods: the following methods work in tandem, except for the last two that consolidate all
             fetchEntry: query MongoDB to add self.bin["entry_id"] by resolution bin;
             fetchEntity: query MongoDB to add self.bin["entities"] by entry_id;
             processEntity: process self.bin["entities"] to add self.bin["sequences"] and self.bin["instance_ids"];
             fetchInstance: query MongoDB to add self.bin["instances"] by instance_id;
             processInstance: process self.bin["instances"] to add self.bin["metrics"] and self.bin["fragments_start];
-            processResidue: map residue type to RSCC by sequence ordinal, filter by natoms and occupancy, to add self.bin["residues"] and self.bin["tracking"]
+            processResidue: map residue type to RSCC by sequence ordinal, filter by natoms and occupancy, to add self.bin["residues"] and self.bin["tracking"];
             calculatePercentile: calculate percentile for RSCC array;
             generateBin: consolidate all processes above to generate data for one resolution bin;
             generate: generate final data for all resolution bins. 
     """
-    def __init__(self, cfgOb, **kwargs):
+    def __init__(self, cfgOb, cachePath, **kwargs):
         """Initiate the class variables and the MongoDB connection"""
         #
         self.l_standard_residue = ["ALA", "ARG", "ASN", "ASP", "CYS",
@@ -87,67 +89,104 @@ class ResidueRsccReferenceGenerator:
         #
         _ = kwargs
         self.__cfgOb = cfgOb
+        self.__cachePath = cachePath
         # self.__configName = cfgOb.getDefaultSectionName()
         self.__resourceName = "MONGO_DB"
         #  
         self.__databaseName = kwargs.get("databaseName", "pdbx_core")
-        self.__collectionNames = kwargs.get("collectionNames", 
-                                           ["pdbx_core_entry", 
+        self.__collectionNames = kwargs.get("collectionNames",
+                                           ["pdbx_core_entry",
                                             "pdbx_core_polymer_entity", 
                                             "pdbx_core_polymer_entity_instance"])
         #
-        conn = Connection(cfgOb=self.__cfgOb, resourceName=self.__resourceName)
-        conn.openConnection()
-        self.__client = conn.getClientConnection()
-        self.__db = self.__client[self.__databaseName]
         self.__collections = {}
         for collectionName in self.__collectionNames:
             collectionLevel = collectionName.split("_")[-1]  # level of entry, entity, instance
-            self.__collections[collectionLevel] = self.__db[collectionName]
+            self.__collections[collectionLevel] = collectionName
+        # conn = Connection(cfgOb=self.__cfgOb, resourceName=self.__resourceName)
+        # conn.openConnection()
+        # self.__client = conn.getClientConnection()
+        # self.__db = self.__client[self.__databaseName]
+        # self.__collections = {}
+        # for collectionName in self.__collectionNames:
+        #     collectionLevel = collectionName.split("_")[-1]  # level of entry, entity, instance
+        #     self.__collections[collectionLevel] = self.__db[collectionName]
 
-    def generate(self) -> bool:
+    def generate(self, resolution_range: list[int] = None) -> bool:
         """
         Generate residue RSCC references for the entire PDB archive, throughtout bins of
-        [0.1, 1.0], [1.0, 1.1], ..., [3.4,3.5], [3.5, 50].
+        [0.1, 1.0], [1.0, 1.1], ..., [3.4,3.5], [3.5, 50], or within the optional resolution_range
+        :param resolution_range: Two‑element sequence ``[high_resolution, low_resolution]``
+            specifying the half‑open interval (``high_resolution <= resolution < low_resolution``).
+        :type resolution_range: list[float] or list[int]
         :returns: True if all bins were processed successfully.
         :rtype: bool
         """
-        # Construct all resolution bins
-        l_range = [i / 10 for i in range(10, 36)]
-        l_range.insert(0, 0.1)
-        l_range.append(50)
+        # Set up resolution range
+        if resolution_range:
+            try:
+                self.verifyResolution(resolution_range)
+            except InvalidParametersError as e:
+                logger.error("invalid resolution range of %s: %s", resolution_range, e)
+                return False
+            [high, low] = resolution_range
+        else:
+            high = 0.1  # minimum resolution by default
+            low = 50  # maximum resolution by default
+        if high < 1 and low > 3.5:
+            l_range = [i / 10 for i in range(10, 36)]  # 0.1 increment from 1.0 to 3.5 resolution
+            l_range.insert(0, high)
+            l_range.append(low)
+        elif high < 1:
+            l_range = [i / 10 for i in range(10, int(low * 10) + 1)]
+            l_range.insert(0, high)
+        elif low > 3.5:
+            l_range = [i / 10 for i in range(int(high * 10), 36)]
+            l_range.append(low)
+        else:
+            l_range = [i / 10 for i in range(int(high * 10), int(low * 10) + 1)]
+        # Construct all bins within the range by 0.1 increment
         l_bin = []
         for i in range(len(l_range)-1):
             bin = [l_range[i], l_range[i+1]]
             l_bin.append(bin)
+        logger.info("to generate RSCC reference for %s resolution bins from %s to %s", len(l_bin), high, low)
         # Enumerate through each bin
-        for bin in l_bin:
-            if not self.generateBin(bin):
-                logger.error("Stop process due to failure in the bin %s", bin)
-                return False
-            self.bin = {}
+        with Connection(cfgOb=self.__cfgOb, resourceName=self.__resourceName) as client:
+            db = client[self.__databaseName]
+            for bin in l_bin:
+                if not self.generateBin(db, bin):
+                    logger.error("Stop process due to failure in the bin %s", bin)
+                    return False
+                self.bin = {}  # reset, empty self.bin data for the run on the next bin
+        output_file = os.path.join(self.__cachePath, "rscc-thresholds.json")  # final output file
+        if not self.writeReference(output_file):
+            logger.error("Failed to write RSCC reference data to file, STOP")
+            return False
+        logger.info("Finished generating RSCC reference data file at %s", output_file)
         return True
 
-    def generateBin(self, resolution_bin: list[int]):
+    def generateBin(self, db: Database, resolution_bin: list[int]) -> bool:
         """
         Generate the RSCC percentile reference of each standard residue for a given resolution bin.
 
+        :param db: Instance of pymongo.database.Database class for pdbx_core database.
         :param resolution_bin: Two‑element sequence ``[high_resolution, low_resolution]``
             specifying the half‑open interval (``high_resolution <= resolution < low_resolution``).
         :type resolution_bin: list[float] or list[int]
         :returns: True if all processing steps complete successfully; False if any step fails.
         :rtype: bool
         """
-        if not self.fetchEntry(resolution_bin):
+        if not self.fetchEntry(db, resolution_bin):
             logger.error("failed fetechEntry step for the resolution bin %s", resolution_bin)
             return False
-        if not self.fetchEntity():
+        if not self.fetchEntity(db):
             logger.error("failed fetchEntity step for the resolution bin %s", resolution_bin)
             return False
         if not self.processEntity():
             logger.error("failed processEntity step for the resolution bin %s", resolution_bin)
             return False
-        if not self.fetchInstance():
+        if not self.fetchInstance(db):
             logger.error("failed fetchInstance step for the resolution bin %s", resolution_bin)
             return False
         if not self.processInstance():
@@ -162,10 +201,11 @@ class ResidueRsccReferenceGenerator:
         logger.info("finished all RSCC data process for the resolution bin %s", resolution_bin)
         return True
 
-    def fetchEntry(self, resolution_bin: list[int]) -> bool:
+    def fetchEntry(self, db: Database, resolution_bin: list[int]) -> bool:
         """
         Fetch PDB entry IDs within a given resolution bin and store them in self.bin["entry_ids"].
         Perform MongoDB search by rcsb_entry_info.resolution_combined within the resolution bin
+        :param db: Instance of pymongo.database.Database class for pdbx_core database.
         :param resolution_bin: Two-element sequence specifying the resolution bin as
             [high_resolution, low_resolution].  - high_resolution must be a number >= 0.
         :type resolution_bin: list[int] or list[float]
@@ -184,13 +224,14 @@ class ResidueRsccReferenceGenerator:
         # Construct MongDB query
         logger.info("to fetch entry ID for resolution bin %s", resolution_bin)
         self.bin["resolution"] = resolution_bin
-        [high_resolution, low_resolution] = resolution_bin
-        collection = self.__collections["entry"]  # use core_entry collection
+        [high, low] = resolution_bin
+        collectionName = self.__collections["entry"]  # use core_entry collection
+        collection = db[collectionName]
         d_condition = {"rcsb_entry_info.experimental_method": "X-ray",
                         "rcsb_entry_info.resolution_combined": {
-                            "$gte": high_resolution, "$lt": low_resolution
+                            "$gte": high, "$lt": low
                         }
-        }  # high_resolution <= bin < low_resolution
+        }  # high <= bin < low
         # Run find
         try:
             cursor = collection.find(d_condition, {"_id": 0, "rcsb_id": 1})
@@ -222,21 +263,22 @@ class ResidueRsccReferenceGenerator:
         for value in resolution_bin:
             if not isinstance(value, numbers.Number):
                 raise InvalidParametersError("both elements of the resolution bin must be numbers")
-        [high_resolution, low_resolution] = resolution_bin
-        if high_resolution <0:
+        [high, low] = resolution_bin
+        if high <0:
             raise InvalidParametersError("high resolution, as the 1st value of the resolution bin, must be greater than zero")
-        if low_resolution <= high_resolution:
+        if low <= high:
             raise InvalidParametersError("high resolution, as the 1st value of the resolution bin, must be smaller than the 2nd")
 
-    def fetchEntity(self) -> bool:
+    def fetchEntity(self, db: Database) -> bool:
         """
         Fetch protein entities for entries in the current resolution bin and store them in self.bin["entities"].
         Perform MongoDB aggregation by entry_id, and returns the following fields for each matching entity document:
-        - rcsb_id, e.g. '2OR2_1'
-        - entry_id, e.g. '2OR2'
-        - entity_id, e.g. '1'
-        - asym_ids, e.g. ['A', 'B']
-        - pdbx_seq_one_letter_code, e.g. 'ASSVNELENWSKWMQPIPDNIPLARISIPGTHDSGT(MSE)A...'
+        - rcsb_id, e.g. "2OR2_1"
+        - entry_id, e.g. "2OR2"
+        - entity_id, e.g. "1"
+        - asym_ids, e.g. ["A", "B"]
+        - pdbx_seq_one_letter_code, e.g. "ASSVNELENWSKWMQPIPDNIPLARISIPGTHDSGT(MSE)A..."
+        :param db: Instance of pymongo.database.Database class for pdbx_core database.
         :returns: True if the MongoDB aggregation succeeded
         :rtype: bool
         """
@@ -246,7 +288,8 @@ class ResidueRsccReferenceGenerator:
             return False
         # Construct MongoBD aggregation
         logger.info("to fetch entity data for %s entries", len(self.bin["entry_ids"]))
-        collection = self.__collections["entity"]  # use core_polymer_entity collection
+        collectionName = self.__collections["entity"]  # use core_polymer_entity collection
+        collection = db[collectionName]
         pipeline = [
             {
                 "$match": {
@@ -284,7 +327,6 @@ class ResidueRsccReferenceGenerator:
             each entity mapping contains:
                 - "residue_ordinal": the output of residue identity for each ordinal index
                 - "instance_ids": the list of instance identifiers (entry_id.asym_id) for the entity
-        Returns
         :returns: True if all entities were validated and processed successfully.
         :rtype: bool
         Side effects
@@ -311,7 +353,7 @@ class ResidueRsccReferenceGenerator:
                     return False
             entry_id = d_entity["entry_id"]
             entity_id = d_entity["entity_id"]
-            logger.info("to process entity data of entity %s of entry %s", entity_id, entry_id)
+            logger.debug("to process entity data of entity %s of entry %s", entity_id, entry_id)
             asym_ids = d_entity["asym_ids"]  # asym IDs as list
             sequence = d_entity["pdbx_seq_one_letter_code"]  # one-letter code sequence
             if entry_id not in self.bin["sequences"]:
@@ -340,8 +382,8 @@ class ResidueRsccReferenceGenerator:
         internal conversion table. Parenthesized residue annotations are captured verbatim (preserving
         case) and assigned as the residue identifier for a single ordinal.
         Supported behavior summary
-        - Standard single-letter residues (case-insensitive) are mapped to three-letter codes (e.g. 'A' -> 'ALA').
-        - Text between '(' and ')' is treated as a single modified residue and assigned to the next ordinal.
+        - Standard single-letter residues (case-insensitive) are mapped to three-letter codes (e.g. "A" -> "ALA").
+        - Text between "(" and ")" is treated as a single modified residue and assigned to the next ordinal.
         - If a parenthesized modified residue exceeds 5 characters, an error is logged and an empty dict is returned.
         - Unknown single-letter codes (not present in the internal mapping) will raise a KeyError.
         Parameters
@@ -349,7 +391,7 @@ class ResidueRsccReferenceGenerator:
         :type sequence: str
         Returns
         :returns: A dictionary mapping 1-based residue ordinals (int) to residue identifiers (str). For
-                  standard residues the values are three-letter uppercase codes (e.g. 'ALA'); for modified
+                  standard residues the values are three-letter uppercase codes (e.g. "ALA"); for modified
                   residues the values are the literal contents found inside the parentheses.
         :rtype: dict[int, str]
         Notes
@@ -360,36 +402,36 @@ class ResidueRsccReferenceGenerator:
         Example of return
         :example:
             Input:  "ACD(MSE)F"
-            Output: {1: 'ALA', 2: 'CYS', 3: 'ASP', 4: 'MSE', 5: 'PHE'}
+            Output: {1: "ALA", 2: "CYS", 3: "ASP", 4: "MSE", 5: "PHE"}
         """
         # Validate sequence input
         if not sequence.strip():
             raise InvalidSequenceError("sequence is empty")
         # Set up convertion table from 1-char to 3-char, 3-char will be used throughout the data process
-        d_aa_convert = {'A': 'ALA',
-                        'R': 'ARG',
-                        'N': 'ASN',
-                        'D': 'ASP',
-                        'C': 'CYS',
-                        'Q': 'GLN',
-                        'E': 'GLU',
-                        'G': 'GLY',
-                        'H': 'HIS',
-                        'I': 'ILE',
-                        'L': 'LEU',
-                        'K': 'LYS',
-                        'M': 'MET',
-                        'F': 'PHE',
-                        'P': 'PRO',
-                        'S': 'SER',
-                        'T': 'THR',
-                        'W': 'TRP',
-                        'Y': 'TYR',
-                        'V': 'VAL',
-                        'U': 'SEC',
-                        'O': 'PYL',
-                        'B': 'ASX',
-                        'Z': 'GLX',
+        d_aa_convert = {"A": "ALA",
+                        "R": "ARG",
+                        "N": "ASN",
+                        "D": "ASP",
+                        "C": "CYS",
+                        "Q": "GLN",
+                        "E": "GLU",
+                        "G": "GLY",
+                        "H": "HIS",
+                        "I": "ILE",
+                        "L": "LEU",
+                        "K": "LYS",
+                        "M": "MET",
+                        "F": "PHE",
+                        "P": "PRO",
+                        "S": "SER",
+                        "T": "THR",
+                        "W": "TRP",
+                        "Y": "TYR",
+                        "V": "VAL",
+                        "U": "SEC",
+                        "O": "PYL",
+                        "B": "ASX",
+                        "Z": "GLX",
                         }
         sequence = "".join(sequence.strip().split())  # remove extra white spaces if any
         d_residue_ordinal = {}
@@ -420,11 +462,12 @@ class ResidueRsccReferenceGenerator:
                             raise InvalidSequenceError("sequence misses or wrongly places an ending parenthesis")
         return d_residue_ordinal
 
-    def fetchInstance(self) -> bool:
+    def fetchInstance(self, db: Database) -> bool:
         """
         Fetch instance documents from the MongoDB "instance" collection and store data in self.bin["instances"]
         Perform MongoDB aggregation by instance_id and filtered "rcsb_polymer_instance_feature"
         array whose "type" is one of: "RSCC", "NATOMS_EDS", or "AVERAGE_OCCUPANCY".
+        :param db: Instance of pymongo.database.Database class for pdbx_core database.
         :returns: True if the aggregation succeeded and self.bin["instances"] was populated.
         :rtype: bool
         :postcondition: If True, self.bin["instances"] is a list of dicts with at least:
@@ -437,7 +480,8 @@ class ResidueRsccReferenceGenerator:
             return False
         # Construct MongoDB aggregation
         logger.info("to fetch instance data for %s instances", len(self.bin["instance_ids"]))
-        collection = self.__collections["instance"]  # use core_polymer_entity_instance collection 
+        collectionName = self.__collections["instance"]  # use core_polymer_entity_instance collection 
+        collection = db[collectionName]
         pipeline = [
             {
                 "$match": {
@@ -527,7 +571,7 @@ class ResidueRsccReferenceGenerator:
         d_beg_comp = {}  # dictionary by instance id, record begining residue of all fragments, for mapping verification
         for d_instance in self.bin["instances"]:
             id = d_instance["rcsb_id"]
-            logger.info("to process instance data of %s", id)
+            logger.debug("to process instance data of %s", id)
             d_feature_oridinal[id] = {"RSCC": {}, "NATOMS_EDS": {}, "AVERAGE_OCCUPANCY": {}}
             d_beg_comp[id] = {}
             l_feature = d_instance.get("rcsb_polymer_instance_feature", [])
@@ -538,7 +582,7 @@ class ResidueRsccReferenceGenerator:
                 feature_type = feature.get("type")
                 l_feature_position = feature.get("feature_positions", [])
                 if not l_feature_position:
-                    logger.info("no feature data for %s of %s", feature_type, id)
+                    logger.debug("no feature data for %s of %s", feature_type, id)
                     continue
                 for d_position in l_feature_position:
                     beg_seq_id = d_position["beg_seq_id"]
@@ -546,7 +590,7 @@ class ResidueRsccReferenceGenerator:
                     d_beg_comp[id][beg_seq_id] = beg_comp_id
                     l_value = d_position.get("values", [])
                     if not l_value:
-                        logger.info("no value found for %s of %s", feature_type, id)
+                        logger.debug("no value found for %s of %s", feature_type, id)
                         continue
                     d_fragment = dict(enumerate(l_value, start=beg_seq_id))  # convert list to dict with key of seq_id
                     d_feature_oridinal[id][feature_type].update(d_fragment)
@@ -562,9 +606,9 @@ class ResidueRsccReferenceGenerator:
         :rtype: bool
         Side effects
         ------------
-        - Mutates self.bin by creating or overwriting the keys 'residues' and
-            'tracking'.
-        - Populates lists under self.bin['residues'] for each standard residue.
+        - Mutates self.bin by creating or overwriting the keys "residues" and
+            "tracking".
+        - Populates lists under self.bin["residues"] for each standard residue.
         - Calls self.processResidueOneEntry(entry_id) for each entry, which is
             expected to update per-entry tracking counters and append RSCC values.
         """
@@ -581,7 +625,7 @@ class ResidueRsccReferenceGenerator:
         for standard_residue in self.l_standard_residue:
             self.bin["residues"][standard_residue] = []  # record RSCC in one single array for one residue type
         for entry_id in self.bin["sequences"]:
-            logger.info("to process residue data of %s", entry_id)
+            logger.debug("to process residue data of %s", entry_id)
             self.bin["tracking"][entry_id] = {"residues_total": 0,
                                               "residues_with_rscc": 0,
                                               "residues_selected": 0}  # initialize counting
@@ -601,8 +645,8 @@ class ResidueRsccReferenceGenerator:
         - filters residues by minimum average occupancy (``occupancy_limit``);
         - filters residues with more than one missing heavy atom (based on expected
           non-hydrogen atom counts);
-        - appends accepted RSCC values to ``self.bin['residues'][residue_type]``;
-        - updates counters in ``self.bin['tracking'][entry_id]`` and stops when
+        - appends accepted RSCC values to ``self.bin["residues"][residue_type]``;
+        - updates counters in ``self.bin["tracking"][entry_id]`` and stops when
           ``count_limit`` is reached.
 
         :param entry_id: Identifier of the entry to process.
@@ -616,8 +660,8 @@ class ResidueRsccReferenceGenerator:
 
         Side effects
         ------------
-        - Modifies ``self.bin['residues']`` by appending RSCC values for accepted residues.
-        - Increments counters in ``self.bin['tracking'][entry_id]``:
+        - Modifies ``self.bin["residues"]`` by appending RSCC values for accepted residues.
+        - Increments counters in ``self.bin["tracking"][entry_id]``:
           ``residues_total``, ``residues_with_rscc``, ``residues_selected``.
         - Emits informational, debug and error logs for processing and skip reasons.
 
@@ -631,35 +675,35 @@ class ResidueRsccReferenceGenerator:
           is skipped (may indicate microheterogeneity).
         """
         # reference on number of non-hydrogen atoms of each standard residues
-        d_num_atoms = { 'ALA': 6, 
-                        'ARG': 12,
-                        'ASN': 9,
-                        'ASP': 9,
-                        'CYS': 7,
-                        'GLN': 10,
-                        'GLU': 10,
-                        'GLY': 5,
-                        'HIS': 11,
-                        'ILE': 9,
-                        'LEU': 9,
-                        'LYS': 10,
-                        'MET': 9,
-                        'PHE': 12,
-                        'PRO': 8,
-                        'SER': 7,
-                        'THR': 8,
-                        'TRP': 15,
-                        'TYR': 13,
-                        'VAL': 8,
-                        'MSE': 9 }  # number of non-hydrogen atoms for 20 standard aa and MSE
+        d_num_atoms = { "ALA": 6, 
+                        "ARG": 12,
+                        "ASN": 9,
+                        "ASP": 9,
+                        "CYS": 7,
+                        "GLN": 10,
+                        "GLU": 10,
+                        "GLY": 5,
+                        "HIS": 11,
+                        "ILE": 9,
+                        "LEU": 9,
+                        "LYS": 10,
+                        "MET": 9,
+                        "PHE": 12,
+                        "PRO": 8,
+                        "SER": 7,
+                        "THR": 8,
+                        "TRP": 15,
+                        "TYR": 13,
+                        "VAL": 8,
+                        "MSE": 9 }  # number of non-hydrogen atoms for 20 standard aa and MSE
         # enumerate through each entity in the entry
         for entity_id in self.bin["sequences"][entry_id]:
-            logger.info("to process residue data of entity %s of entry %s", entity_id, entry_id)
+            logger.debug("to process residue data of entity %s of entry %s", entity_id, entry_id)
             d_residue_ordinal = self.bin["sequences"][entry_id][entity_id]["residue_ordinal"]
             l_instance_id = self.bin["sequences"][entry_id][entity_id]["instance_ids"]
             # enumerate through each instance of the entity
             for instance_id in l_instance_id:
-                logger.info("to process residue data of instance %s of entity %s of entry %s", instance_id, entity_id, entry_id)
+                logger.debug("to process residue data of instance %s of entity %s of entry %s", instance_id, entity_id, entry_id)
                 self.bin["tracking"][entry_id]["residues_total"] += len(d_residue_ordinal)  # track all residues
                 d_rscc_ordinal = self.bin["metrics"][instance_id]["RSCC"]
                 self.bin["tracking"][entry_id]["residues_with_rscc"] += len(d_rscc_ordinal)  # track residues with RSCC
@@ -697,7 +741,7 @@ class ResidueRsccReferenceGenerator:
                     self.bin["residues"][residue_type].append(rscc)
                     self.bin["tracking"][entry_id]["residues_selected"] += 1
                     if self.bin["tracking"][entry_id]["residues_selected"] >= count_limit:  # set sampling limit to avoid over-representation of large structure
-                        logger.info("reached residue selection limit of %s for entry %s, stop collecting", count_limit, entry_id)
+                        logger.debug("reached residue selection limit of %s for entry %s, stop collecting", count_limit, entry_id)
                         return  # stop the single-entry method when limit is reached
 
     def calculatePercentiles(self):
@@ -768,14 +812,14 @@ class ResidueRsccReferenceGenerator:
             return False
         l_header = ["entry_id", "residues_total", "residues_with_rscc", "residues_selected"]
         with open(output_file, mode="w", newline="", encoding="utf-8") as file:
-            file.write('\t'.join(l_header))
-            file.write('\n')
+            file.write("\t".join(l_header))
+            file.write("\n")
             for entry_id in self.bin["tracking"]:
                 l_line = [entry_id]
                 for key in ["residues_total", "residues_with_rscc", "residues_selected"]:
                     l_line.append(str(self.bin["tracking"][entry_id][key]))
-                file.write('\t'.join(l_line))
-                file.write('\n')
+                file.write("\t".join(l_line))
+                file.write("\n")
         return True
 
     def writeReference(self, output_file: str) -> bool: 
@@ -811,13 +855,13 @@ class ResidueRsccReferenceGenerator:
             return False
         l_header = ["resname", "res_cut", "count", "median", "p25", "p5", "p1"]
         with open(output_file, mode="w", newline="", encoding="utf-8") as file:
-            file.write('\t'.join(l_header))
-            file.write('\n')
+            file.write("\t".join(l_header))
+            file.write("\n")
             for residue_type in self.data_ref:
                 for resolution in self.data_ref[residue_type]:
                     l_line = [residue_type, resolution]
                     for key in ["count", "median", "p25", "p5", "p1"]:
                         l_line.append(str(self.data_ref[residue_type][resolution][key]))
-                    file.write('\t'.join(l_line))
-                    file.write('\n')
+                    file.write("\t".join(l_line))
+                    file.write("\n")
         return True

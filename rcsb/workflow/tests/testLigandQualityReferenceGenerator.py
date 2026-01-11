@@ -38,14 +38,15 @@ class LigandQualityReferenceGeneratorTests(unittest.TestCase):
                                       defaultSectionName="site_info_remote_configuration",
                                       mockTopPath=self.__mockTopPath)
             self.cRLRG = LigandQualityReferenceGenerator(self.__cfgOb,
-                                                      databaseName="dw",
-                                                      collectionName="core_nonpolymer_entity_instance")
+                                                         cachePath=self.__cachePath,
+                                                         databaseName="dw",
+                                                         collectionName="core_nonpolymer_entity_instance")
         else:
             self.__cfgOb = ConfigUtil(configPath=configPath,
                                       defaultSectionName="site_info_configuration",
                                       mockTopPath=self.__mockTopPath)
             # self.__workflowFixture()
-            self.cRLRG = LigandQualityReferenceGenerator(self.__cfgOb)
+            self.cRLRG = LigandQualityReferenceGenerator(self.__cfgOb, cachePath=self.__cachePath)
         self.__startTime = time.time()
         logger.debug("Starting %s at %s", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()))
 
@@ -136,9 +137,8 @@ class LigandQualityReferenceGeneratorTests(unittest.TestCase):
             json.dump(self.cRLRG.data, file, indent=2)
         logger.info("Wrote data to output file %s", output_file)
         # Write reference data to csv
-        csv_output_file = os.path.join(self.__cachePath, "ligand_score_reference_test.csv")
-        self.assertTrue(self.cRLRG.writeReference(csv_output_file))
-        logger.info("Wrote reference data to csv file %s", csv_output_file)
+        csv_output_file = os.path.join(self.__cachePath, "ligand_score_reference.csv")
+        self.assertTrue(os.path.exists(csv_output_file), "Output CSV file does not exist.")
 
     def testGenerateAll(self):
         """
@@ -153,8 +153,7 @@ class LigandQualityReferenceGeneratorTests(unittest.TestCase):
         logger.info("Wrote data to output file %s", output_file)
         # Write reference data to csv
         csv_output_file = os.path.join(self.__cachePath, "ligand_score_reference.csv")
-        self.assertTrue(self.cRLRG.writeReference(csv_output_file))
-        logger.info("Wrote reference data to csv file %s", csv_output_file)
+        self.assertTrue(os.path.exists(csv_output_file), "Output CSV file does not exist.")
 
 
 def genLigandRef():

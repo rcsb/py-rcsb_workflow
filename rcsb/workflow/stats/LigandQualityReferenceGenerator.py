@@ -13,10 +13,12 @@ import logging
 import json
 import time
 import numpy as np
+import os
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
 from rcsb.db.mongo.Connection import Connection
+from rcsb.db.mongo.MongoDbUtil import MongoDbUtil
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +38,7 @@ class LigandQualityReferenceGenerator:
                 fetch -> analyze.
             writeReference(output_file): Write the generated ligand quality reference data to a csv file.
     """
-    def __init__(self, cfgOb, **kwargs):
+    def __init__(self, cfgOb, cachePath, **kwargs):
         """Initiate the class and the MongoDB connection"""
         #
         self.data = []
@@ -44,17 +46,13 @@ class LigandQualityReferenceGenerator:
         #
         _ = kwargs
         self.__cfgOb = cfgOb
+        self.__cachePath = cachePath
         # self.__configName = cfgOb.getDefaultSectionName()
         self.__resourceName = "MONGO_DB"
         #        
         self.__databaseName = kwargs.get("databaseName", "pdbx_core")
         self.__collectionName = kwargs.get("collectionName", "pdbx_core_nonpolymer_entity_instance")
         #
-        conn = Connection(cfgOb=self.__cfgOb, resourceName=self.__resourceName)
-        conn.openConnection()
-        self.__client = conn.getClientConnection()
-        self.__db = self.__client[self.__databaseName]
-        self.__collection = self.__db[self.__collectionName]
 
     def generate(self, pdb_ids: list[str] = None) -> bool:
         """
@@ -64,10 +62,18 @@ class LigandQualityReferenceGenerator:
         :param pdb_ids: List of specified PDB IDs, default to [] which leads to all PDB structures being queried.
         :return: The same object with updated self.data of ligand quality reference data.
         """
-        if self.fetchLigand(pdb_ids):
-            return self.analyzeLigand()
-        else:
+        if not self.fetchLigand(pdb_ids):
+            logger.error("Failed to fetch ligand quality data, STOP")
             return False
+        if not self.analyzeLigand():
+            logger.error("Failed to analyze ligand quality data, STOP") 
+            return False
+        output_file = os.path.join(self.__cachePath, "ligand_score_reference.csv")  # final output file
+        if not self.writeReference(output_file):
+            logger.error("Failed to write ligand quality reference data to file, STOP")
+            return False
+        logger.info("Finished generating ligand quality reference data file at %s", output_file)
+        return True
 
     def fetchLigand(self, pdb_ids: list[str] = None) -> bool:
         """
@@ -81,7 +87,7 @@ class LigandQualityReferenceGenerator:
         :return: True for success, False for failure
         """
         if pdb_ids:
-            # 1️⃣ Match the PDB entries by provided IDs
+            # Match the PDB entries by provided IDs
             pipeline = [{
                 "$match": {
                     "rcsb_nonpolymer_entity_instance_container_identifiers.entry_id": {
@@ -90,11 +96,11 @@ class LigandQualityReferenceGenerator:
                 }
             }]
         else:
-            # 1️⃣ With no matching PDB IDs provided, All PDB entries are chosen
+            # With no matching PDB IDs provided, All PDB entries are chosen
             pipeline = []
 
         pipeline.extend([
-            # 2️⃣ Project combined ID and filter scores
+            # Project combined ID and filter scores
             {
                 "$project": {
                     "_id": 0,
@@ -130,10 +136,10 @@ class LigandQualityReferenceGenerator:
                 }
             },
 
-            # 3️⃣ Remove documents with no valid scores
+            # Remove documents with no valid scores
             {"$match": {"scores.0": {"$exists": True}}},
 
-            # 4️⃣ Unwind and group by ID to calculate averages
+            # Unwind and group by ID to calculate averages
             {"$unwind": "$scores"},
             {
                 "$group": {
@@ -146,7 +152,7 @@ class LigandQualityReferenceGenerator:
                 }
             },
 
-            # 5️⃣ Final projection
+            # Final projection
             {
                 "$project": {
                     "_id": 0,
@@ -159,27 +165,30 @@ class LigandQualityReferenceGenerator:
                 }
             },
 
-            # 6️⃣ Optional limit
+            # Optional limit
             # {"$limit": 10}
         ])
 
         # Run aggregation
-        try:
-            startTime = time.time()
-            self.qdata = list(self.__collection.aggregate(pipeline))
-            logger.info(
-                "Fetched %s unique pdb_ligand combination records from MongoDB: %s, collectionName: %s at %s (%.4f seconds)",
-                len(self.qdata),
-                self.__databaseName,
-                self.__collectionName,
-                time.strftime("%Y %m %d %H:%M:%S", time.localtime()),
-                time.time() - startTime,
-            )
-            return True
-        except Exception as e:
-            logger.error("Failed to fetch MongoDB data fetch with %s", e)
-            self.qdata = None
-            return False
+        with Connection(cfgOb=self.__cfgOb, resourceName=self.__resourceName) as client:
+            try:
+                db = client[self.__databaseName]
+                collection = db[self.__collectionName]
+                startTime = time.time()
+                self.qdata = list(collection.aggregate(pipeline))
+                logger.info(
+                    "Fetched %s unique pdb_ligand combination records from MongoDB: %s, collectionName: %s at %s (%.4f seconds)",
+                    len(self.qdata),
+                    self.__databaseName,
+                    self.__collectionName,
+                    time.strftime("%Y %m %d %H:%M:%S", time.localtime()),
+                    time.time() - startTime,
+                )
+                return True
+            except Exception as e:
+                logger.error("Failed to fetch MongoDB data fetch with %s", e)
+                self.qdata = None
+                return False
 
     def analyzeLigand(self) -> bool:
         """
