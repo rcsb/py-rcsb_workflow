@@ -221,7 +221,7 @@ class ResidueRsccReferenceGeneratorTests(unittest.TestCase):
         """
         Test generate on all PDB entries.
         """
-        self.cRRRG.generate([0.1, 1.1])
+        self.cRRRG.generate([1.9, 2.1])
         output_file = os.path.join(self.__cachePath, "rscc-thresholds.json")
         self.assertTrue(os.path.exists(output_file), "Output JSON file does not exist.")
         output_file_tsv = os.path.join(self.__cachePath, "testResidueRsccReferenceGenerator_generate.tsv")
