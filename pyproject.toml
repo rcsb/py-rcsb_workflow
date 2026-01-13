@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "rcsb.workflow"
 description = "RCSB Python data processing and ETL/ELT workflow entry points"
-version = "0.64"
+version = "0.65"
 readme = "README.md"
 authors = [
     { name="John Westbrook", email="john.westbrook@rcsb.org" }
@@ -38,7 +38,7 @@ dependencies = [
     "rcsb.utils.seq >= 0.84",
     "rcsb.utils.targets >= 0.83",
     "rcsb.utils.seqalign >= 0.32",
-    "rcsb.exdb >= 1.31",
+    "rcsb.exdb >= 1.33",
     "requests >= 2.32.3",
 ]
 

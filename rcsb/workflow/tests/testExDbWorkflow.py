@@ -24,6 +24,7 @@ import platform
 import resource
 import time
 import unittest
+import shutil
 
 from rcsb.workflow.wuw.ExDbWorkflow import ExDbWorkflow
 
@@ -48,6 +49,9 @@ class ExDbWorkflowTests(unittest.TestCase):
         cachePath = os.path.join(TOPDIR, "CACHE")
         # self.__dataPath = os.path.join(HERE, "test-data")
         #
+        self._disk_before = shutil.disk_usage(HERE).used
+        logger.info("Filesystem disk usage start: %.2f MB", self._disk_before / (1024 ** 2))
+        #
         self.__commonD = {
             "configPath": configPath,
             "mockTopPath": mockTopPath,
@@ -67,17 +71,24 @@ class ExDbWorkflowTests(unittest.TestCase):
         rusageMax = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         logger.info("Maximum resident memory size %.4f %s", rusageMax / 10 ** 6, unitS)
         endTime = time.time()
+        disk_after = shutil.disk_usage(HERE).used
+        disk_delta = disk_after - self._disk_before
+        logger.info("Filesystem disk usage delta: %.2f MB", disk_delta / (1024 ** 2))
         logger.info("Completed %s at %s (%.4f seconds)", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()), endTime - self.__startTime)
 
     def testExDbLoaderWorkflows(self):
         """Test run workflow steps ..."""
         try:
-            # opL = ["etl_chemref", "upd_ref_seq", "etl_tree_node_lists"]
-            opL = ["etl_chemref", "etl_tree_node_lists"]
             rlWf = ExDbWorkflow(**self.__commonD)
-            for op in opL:
-                ok = rlWf.load(op, **self.__loadCommonD)
-                self.assertTrue(ok)
+            ok = rlWf.load("etl_chemref", **self.__loadCommonD)
+            self.assertTrue(ok)
+            ok = rlWf.load("etl_tree_node_lists", treeCollectionList=["tree_ec"], **self.__loadCommonD)
+            self.assertTrue(ok)
+            try:
+                ok = rlWf.load("etl_tree_node_lists", treeCollectionList=["tree_scop"], **self.__loadCommonD)
+                self.assertFalse(ok)
+            except Exception:
+                logger.info("Expected failure if tree_scop node list is empty")
         except Exception as e:
             logger.exception("Failing with %s", str(e))
             self.fail()
