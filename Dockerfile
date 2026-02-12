@@ -19,7 +19,7 @@ RUN apt-get update && \
         default-libmysqlclient-dev=1.1.* wget=1.21.* libcairo2=1.16.* git=1:2.* \
         nodejs=18.20.4+dfsg-1~deb12u1 libnode108=18.20.4+dfsg-1~deb12u1 npm=9.2.0~ds1-1 \
         libx11-dev=2:1.8.4-2+deb12u2 libxi-dev=2:1.8-1+b1 libxext-dev=2:1.3.4-1+b1 mesa-common-dev=22.3.6-1+deb12u1 \
-        libgl1-mesa-dev=22.3.6-1+deb12u1 xvfb=2:21.1.7-3+deb12u10 xauth=1:1.1.2-1 tzdata=* \
+        libgl1-mesa-dev=22.3.6-1+deb12u1 xvfb=2:21.* xauth=1:1.1.2-1 tzdata=* \
     && rm -rf /var/lib/apt/lists/*
 
 # Install mmseqs2

@@ -6,6 +6,9 @@
 # Updates:
 #  13-Feb-2025 dwp Remove IMGT from feature building after service became unavailable February 2025
 #  19-Feb-2025 dwp Bring back IMGT
+#   6-Jan-2026 dwp Re-exclude IMGT from testing (consumes a lot of disk space by fetching 1.6 GB file,
+#                  and this is already tested by rcsb.utils.targets);
+#                  Exclude chembl and drugbank from testing to save on disk space
 #
 ##
 """
@@ -22,6 +25,7 @@ import platform
 import resource
 import time
 import unittest
+import shutil
 
 from rcsb.workflow.targets.ProteinTargetSequenceWorkflow import ProteinTargetSequenceWorkflow
 from rcsb.utils.config.ConfigUtil import ConfigUtil
@@ -46,6 +50,9 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         self.__cfgOb = ConfigUtil(configPath=configPath, defaultSectionName=configName, mockTopPath=self.__mockTopPath)
         self.__cachePath = os.path.join(HERE, "test-output", "CACHE")
         #
+        self._disk_before = shutil.disk_usage(HERE).used
+        logger.info("Filesystem disk usage start: %.2f MB", self._disk_before / (1024 ** 2))
+        #
         self.__workflowFixture()
         self.__startTime = time.time()
         logger.debug("Starting %s at %s", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()))
@@ -55,6 +62,9 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         rusageMax = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         logger.info("Maximum resident memory size %.4f %s", rusageMax / 10 ** 6, unitS)
         endTime = time.time()
+        disk_after = shutil.disk_usage(HERE).used
+        disk_delta = disk_after - self._disk_before
+        logger.info("Filesystem disk usage delta: %.2f MB", disk_delta / (1024 ** 2))
         logger.info("Completed %s at %s (%.4f seconds)\n", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()), endTime - self.__startTime)
 
     def __workflowFixture(self):
@@ -137,7 +147,8 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - export FASTA target files"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.exportTargetsFasta(useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False, resourceNameList=["sabdab", "card", "chembl", "pharos"])
+            # ok = ptsW.exportTargetsFasta(useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False, resourceNameList=["sabdab", "card", "chembl", "pharos"])
+            ok = ptsW.exportTargetsFasta(useCache=True, addTaxonomy=False, reloadPharos=False, fromDbPharos=False, resourceNameList=["sabdab", "card", "pharos"])
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -148,7 +159,8 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - export FASTA target files (and load Pharos from source)"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.exportTargetsFasta(useCache=True, addTaxonomy=True, reloadPharos=True, fromDbPharos=True, resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"])
+            # ok = ptsW.exportTargetsFasta(useCache=True, addTaxonomy=True, reloadPharos=True, fromDbPharos=True, resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"])
+            ok = ptsW.exportTargetsFasta(useCache=True, addTaxonomy=True, reloadPharos=True, fromDbPharos=True, resourceNameList=["sabdab", "card", "pharos"])
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -158,7 +170,8 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - create search databases"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.createSearchDatabases(resourceNameList=["sabdab", "card", "chembl", "pharos", "pdbprent"], addTaxonomy=False, timeOutSeconds=3600, verbose=False)
+            # ok = ptsW.createSearchDatabases(resourceNameList=["sabdab", "card", "chembl", "pharos", "pdbprent"], addTaxonomy=False, timeOutSeconds=3600, verbose=False)
+            ok = ptsW.createSearchDatabases(resourceNameList=["sabdab", "pharos", "pdbprent"], addTaxonomy=False, timeOutSeconds=3600, verbose=False)
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -171,7 +184,8 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
             formatOutput = "query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,raw,bits,qlen,tlen,qaln,taln,cigar"
             ok = ptsW.search(
                 referenceResourceName="pdbprent",
-                resourceNameList=["sabdab", "chembl", "pharos"],
+                # resourceNameList=["sabdab", "chembl", "pharos"],
+                resourceNameList=["sabdab", "pharos"],
                 identityCutoff=0.95,
                 sensitivity=4.5,
                 timeOutSeconds=1000,
@@ -179,7 +193,7 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
             )
             self.assertTrue(ok)
             ok = ptsW.search(
-                referenceResourceName="pdbprent", resourceNameList=["card"], identityCutoff=0.95, sensitivity=4.5, timeOutSeconds=1000, useBitScore=True, formatOutput=formatOutput
+                referenceResourceName="pdbprent", resourceNameList=["sabdab"], identityCutoff=0.95, sensitivity=4.5, timeOutSeconds=1000, useBitScore=True, formatOutput=formatOutput
             )
             self.assertTrue(ok)
         except Exception as e:
@@ -190,7 +204,7 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - build features from search results"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.buildFeatureData(referenceResourceName="pdbprent", resourceNameList=["sabdab", "card", "imgt"], useTaxonomy=False, backup=False)
+            ok = ptsW.buildFeatureData(referenceResourceName="pdbprent", resourceNameList=["sabdab"], useTaxonomy=False, backup=False)
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -201,7 +215,8 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
             if self.__isMac:
-                ok = ptsW.buildActivityData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos"], backup=False, maxTargets=50)
+                # ok = ptsW.buildActivityData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos"], backup=False, maxTargets=50)
+                ok = ptsW.buildActivityData(referenceResourceName="pdbprent", resourceNameList=["pharos"], backup=False, maxTargets=50)
             else:
                 ok = ptsW.buildActivityData(referenceResourceName="pdbprent", resourceNameList=["pharos"], backup=False, maxTargets=50)
             self.assertTrue(ok)
@@ -214,7 +229,8 @@ class ProteinTargetSequenceWorkflowTests(unittest.TestCase):
         """Test case - build features from search results"""
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
-            ok = ptsW.buildCofactorData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos"], backup=False)
+            # ok = ptsW.buildCofactorData(referenceResourceName="pdbprent", resourceNameList=["chembl", "pharos"], backup=False)
+            ok = ptsW.buildCofactorData(referenceResourceName="pdbprent", resourceNameList=["pharos"], backup=False)
             self.assertTrue(ok)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
@@ -242,7 +258,7 @@ def abbrevSuite():
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testBBCreateSearchDatabases"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testCCSearchDatabases"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testDDBuildFeatures"))
-    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testDDBuildActivityData"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testEEBuildActivityData"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testFFBuildCofactorData"))
     return suiteSelect
 
@@ -257,7 +273,7 @@ def fullSuite():
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testBBCreateSearchDatabases"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testCCSearchDatabases"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testDDBuildFeatures"))
-    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testDDBuildActivityData"))
+    suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testEEBuildActivityData"))
     suiteSelect.addTest(ProteinTargetSequenceWorkflowTests("testFFBuildCofactorData"))
     return suiteSelect
 

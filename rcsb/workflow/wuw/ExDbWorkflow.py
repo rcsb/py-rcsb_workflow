@@ -108,6 +108,7 @@ class ExDbWorkflow(object):
             useSequenceCache = not rebuildSequenceCache
             #
             useFilteredLists = kwargs.get("useFilteredLists", False)
+            treeCollectionList = kwargs.get("treeCollectionList", None)
 
         except Exception as e:
             logger.exception("Argument or configuration processing failing with %s", str(e))
@@ -127,6 +128,7 @@ class ExDbWorkflow(object):
                     readBackCheck=readBackCheck,
                     useCache=self.__useCache,
                     useFilteredLists=useFilteredLists,
+                    treeCollectionList=treeCollectionList,
                 )
                 ok = rhw.load(dataSetId, loadType=loadType)
                 okS = self.loadStatus(rhw.getLoadStatus(), readBackCheck=readBackCheck)
