@@ -23,11 +23,23 @@ from rcsb.db.mongo.Connection import Connection
 logger = logging.getLogger(__name__)
 
 
-class InvalidParametersError(ValueError):
+class InvalidParametersError(Exception):
+    """Custom exception class for errors in ResidueRsccReferenceGenerator parameter validation."""
     pass
 
 
 class InvalidSequenceError(Exception):
+    """Custom exception class for errors in sequence parsing and validation."""
+    pass
+
+
+class DatabaseError(Exception):
+    """Custom exception class for errors in MongoDB connection and query execution."""
+    pass
+
+
+class OutputError(Exception):
+    """Custom exception class for errors during output file writing."""
     pass
 
 
@@ -69,17 +81,17 @@ class ResidueRsccReferenceGenerator:
     def __init__(self, cfgOb, cachePath, **kwargs):
         """Initiate the class variables and the MongoDB connection"""
         #
-        self.l_standard_residue = ["ALA", "ARG", "ASN", "ASP", "CYS",
-                                   "GLN", "GLU", "GLY", "HIS", "ILE",
-                                   "LEU", "LYS", "MET", "PHE", "PRO",
-                                   "SER", "THR", "TRP", "TYR", "VAL",
-                                   "MSE"]  # 20 standard aa + MSE
+        self.l_standard_residue = [
+            "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE",
+            "LEU", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL",
+            "MSE"
+        ]  # 20 standard aa + MSE
         self.data = {}  # RSCC percentials by residue type and resolution bin, formated for Mol*
         self.data_ref = {}  # optional reference, superset of self.data, for review purpose only
         for residue in self.l_standard_residue:
             self.data[residue] = {}
             self.data_ref[residue] = {}
-        self.bin = {}  # store all data for the current resolution bin being worked on
+        self.resolution_bin = {}  # store all data for the current resolution bin being worked on
         # self.bin is updated through each step of MongoDB data fetch and process to add values for
         # (1) MongoDB query results by keys of: "entry_ids", "entities",  "instances";
         # (2) Processed results by keys of: "instance_ids", "sequences", "residues", "metrics";
@@ -92,15 +104,16 @@ class ResidueRsccReferenceGenerator:
         self.__resourceName = "MONGO_DB"
         #
         self.__databaseName = kwargs.get("databaseName", "pdbx_core")
-        self.__collectionNames = kwargs.get("collectionNames",
-                                            ["pdbx_core_entry",
-                                             "pdbx_core_polymer_entity",
-                                             "pdbx_core_polymer_entity_instance"])
+        self.__collectionNames = kwargs.get(
+            "collectionNames",
+            ["pdbx_core_entry", "pdbx_core_polymer_entity", "pdbx_core_polymer_entity_instance"]
+        )
         #
         self.__collections = {}
         for collectionName in self.__collectionNames:
             collectionLevel = collectionName.split("_")[-1]  # level of entry, entity, instance
             self.__collections[collectionLevel] = collectionName
+        # below is the alternate way to setup connection without context, saved as reference
         # conn = Connection(cfgOb=self.__cfgOb, resourceName=self.__resourceName)
         # conn.openConnection()
         # self.__client = conn.getClientConnection()
@@ -153,18 +166,28 @@ class ResidueRsccReferenceGenerator:
         with Connection(cfgOb=self.__cfgOb, resourceName=self.__resourceName) as client:
             db = client[self.__databaseName]
             for bin in l_bin:
-                if not self.generateBin(db, bin):
-                    logger.error("Stop process due to failure in the bin %s", bin)
+                try:
+                    self.generateBin(db, bin)
+                except InvalidParametersError as e:
+                    logger.error("Stop process resolution bin %s due to parameter ERROR %s", bin, e)
                     return False
-                self.bin = {}  # reset, empty self.bin data for the run on the next bin
+                except DatabaseError as e:
+                    logger.error("Stop process resolution bin %s due to database ERROR %s", bin, e)
+                    return False
+                except Exception as e:
+                    logger.error("Stop process resolution bin %s due to other ERROR: %s", bin, e)
+                    return False
+                self.resolution_bin = {}  # reset, empty self.bin data for the run on the next bin
         output_file = os.path.join(self.__cachePath, "rscc-thresholds.json")  # final output file
-        if not self.writeReference(output_file):
-            logger.error("Failed to write RSCC reference data to file, STOP")
+        try:
+            self.writeReference(output_file)
+        except OutputError as e:
+            logger.error("Failed to write RSCC reference data to file %s ERROR %s", output_file, e)
             return False
         logger.info("Finished generating RSCC reference data file at %s", output_file)
         return True
 
-    def generateBin(self, db: Database, resolution_bin: list[int]) -> bool:
+    def generateBin(self, db: Database, resolution_bin: list[int]):
         """
         Generate the RSCC percentile reference of each standard residue for a given resolution bin.
 
@@ -172,34 +195,17 @@ class ResidueRsccReferenceGenerator:
         :param resolution_bin: Two‑element sequence ``[high_resolution, low_resolution]``
             specifying the half‑open interval (``high_resolution <= resolution < low_resolution``).
         :type resolution_bin: list[float] or list[int]
-        :returns: True if all processing steps complete successfully; False if any step fails.
-        :rtype: bool
         """
-        if not self.fetchEntry(db, resolution_bin):
-            logger.error("failed fetechEntry step for the resolution bin %s", resolution_bin)
-            return False
-        if not self.fetchEntity(db):
-            logger.error("failed fetchEntity step for the resolution bin %s", resolution_bin)
-            return False
-        if not self.processEntity():
-            logger.error("failed processEntity step for the resolution bin %s", resolution_bin)
-            return False
-        if not self.fetchInstance(db):
-            logger.error("failed fetchInstance step for the resolution bin %s", resolution_bin)
-            return False
-        if not self.processInstance():
-            logger.error("failed processInstance step for the resolution bin %s", resolution_bin)
-            return False
-        if not self.processResidue():
-            logger.error("failed processResidue step for the resolution bin %s", resolution_bin)
-            return False
-        if not self.calculatePercentiles():
-            logger.error("failed calculate Percentiles step for the resolution bin %s", resolution_bin)
-            return False
+        self.fetchEntry(db, resolution_bin)
+        self.fetchEntity(db)
+        self.processEntity()
+        self.fetchInstance(db)
+        self.processInstance()
+        self.processResidue()
+        self.calculatePercentiles()
         logger.info("finished all RSCC data process for the resolution bin %s", resolution_bin)
-        return True
 
-    def fetchEntry(self, db: Database, resolution_bin: list[int]) -> bool:
+    def fetchEntry(self, db: Database, resolution_bin: list[int]):
         """
         Fetch PDB entry IDs within a given resolution bin and store them in self.bin["entry_ids"].
         Perform MongoDB search by rcsb_entry_info.resolution_combined within the resolution bin
@@ -207,38 +213,31 @@ class ResidueRsccReferenceGenerator:
         :param resolution_bin: Two-element sequence specifying the resolution bin as
             [high_resolution, low_resolution].  - high_resolution must be a number >= 0.
         :type resolution_bin: list[int] or list[float]
-        :returns: True if the MongoDB query succeeded
-        :rtype: bool
         Notes
         -----
         - The resolution interval is half-open: high_resolution <= resolution < low_resolution.
         """
         # Validate input data
-        try:
-            self.verifyResolution(resolution_bin)
-        except InvalidParametersError as e:
-            logger.error("invalid resolution bin of %s: %s", resolution_bin, e)
-            return False
+        self.verifyResolution(resolution_bin)
         # Construct MongDB query
         logger.info("to fetch entry ID for resolution bin %s", resolution_bin)
-        self.bin["resolution"] = resolution_bin
+        self.resolution_bin["resolution"] = resolution_bin
         [high, low] = resolution_bin
         collectionName = self.__collections["entry"]  # use core_entry collection
         collection = db[collectionName]
-        d_condition = {"rcsb_entry_info.experimental_method": "X-ray",
-                       "rcsb_entry_info.resolution_combined": {
-                           "$gte": high, "$lt": low
-                       }
-                       }  # high <= bin < low
+        d_condition = {
+            "rcsb_entry_info.experimental_method": "X-ray",
+            "rcsb_entry_info.resolution_combined": {
+                "$gte": high, "$lt": low
+            }
+        }  # high <= bin < low
         # Run find
         try:
             cursor = collection.find(d_condition, {"_id": 0, "rcsb_id": 1})
-            self.bin["entry_ids"] = [doc["rcsb_id"] for doc in cursor]  # collect IDs in a list only
-            logger.info("%s PDB X-ray entries found within the resolution bin %s", len(self.bin["entry_ids"]), resolution_bin)
-            return True
+            self.resolution_bin["entry_ids"] = [doc["rcsb_id"] for doc in cursor]  # collect IDs in a list only
+            logger.info("%s PDB X-ray entries found within the resolution bin %s", len(self.resolution_bin["entry_ids"]), resolution_bin)
         except Exception as e:
-            logger.error("failed to fetch entry data from MongoDB for resolution bin %s, %s", resolution_bin, e)
-            return False
+            raise DatabaseError(f"fetchEntry failed to fetch data from MongoDB for resolution bin {resolution_bin}: {e}") from e
 
     def verifyResolution(self, resolution_bin: list[int]):
         """
@@ -267,7 +266,7 @@ class ResidueRsccReferenceGenerator:
         if low <= high:
             raise InvalidParametersError("high resolution, as the 1st value of the resolution bin, must be smaller than the 2nd")
 
-    def fetchEntity(self, db: Database) -> bool:
+    def fetchEntity(self, db: Database):
         """
         Fetch protein entities for entries in the current resolution bin and store them in self.bin["entities"].
         Perform MongoDB aggregation by entry_id, and returns the following fields for each matching entity document:
@@ -277,21 +276,18 @@ class ResidueRsccReferenceGenerator:
         - asym_ids, e.g. ["A", "B"]
         - pdbx_seq_one_letter_code, e.g. "ASSVNELENWSKWMQPIPDNIPLARISIPGTHDSGT(MSE)A..."
         :param db: Instance of pymongo.database.Database class for pdbx_core database.
-        :returns: True if the MongoDB aggregation succeeded
-        :rtype: bool
         """
         # Validate input data
-        if ("entry_ids" not in self.bin) or (not self.bin["entry_ids"]):
-            logger.error("must run fetchEntry first to retrive valid PDB entry IDs")
-            return False
+        if ("entry_ids" not in self.resolution_bin) or (not self.resolution_bin["entry_ids"]):
+            raise InvalidParametersError("fetchEntity failed, must run fetchEntry first to retrive valid PDB entry IDs")
         # Construct MongoBD aggregation
-        logger.info("to fetch entity data for %s entries", len(self.bin["entry_ids"]))
+        logger.info("to fetch entity data for %s entries", len(self.resolution_bin["entry_ids"]))
         collectionName = self.__collections["entity"]  # use core_polymer_entity collection
         collection = db[collectionName]
         pipeline = [
             {
                 "$match": {
-                    "rcsb_polymer_entity_container_identifiers.entry_id": {"$in": self.bin["entry_ids"]},
+                    "rcsb_polymer_entity_container_identifiers.entry_id": {"$in": self.resolution_bin["entry_ids"]},
                     "entity_poly.type": "polypeptide(L)"
                 }
             },
@@ -308,14 +304,12 @@ class ResidueRsccReferenceGenerator:
         ]
         # Run aggregate
         try:
-            self.bin["entities"] = list(collection.aggregate(pipeline))
-            logger.info("%s entities retrived", len(self.bin["entities"]))
-            return True
+            self.resolution_bin["entities"] = list(collection.aggregate(pipeline))
+            logger.info("%s entities retrived", len(self.resolution_bin["entities"]))
         except Exception as e:
-            logger.error("failed to fetch entitiy data from MongoDB with %s", e)
-            return False
+            raise DatabaseError(f"fetchEntity failed to fetch data from MongoDB for resolution bin {self.resolution_bin['resolution']}: {e}") from e
 
-    def processEntity(self) -> bool:
+    def processEntity(self):
         """
         Process entities stored in self.bin["entities"] and populate instance and sequence mappings.
         constructing:
@@ -325,52 +319,46 @@ class ResidueRsccReferenceGenerator:
             each entity mapping contains:
                 - "residue_ordinal": the output of residue identity for each ordinal index
                 - "instance_ids": the list of instance identifiers (entry_id.asym_id) for the entity
-        :returns: True if all entities were validated and processed successfully.
-        :rtype: bool
         Side effects
         - Mutates self.bin by setting/updating:
             - self.bin["instance_ids"] (list of strings)
             - self.bin["sequences"] (dict: entry_id -> entity_id -> {"residue_ordinal", "instance_ids"})
         """
         # Validate input data
-        if ("entities" not in self.bin) or (not self.bin["entities"]):
-            logger.error("must run fetchEntity first to retrive valid PDB entity data")
-            return False
-        n_all_entities = len(self.bin["entities"])
+        if ("entities" not in self.resolution_bin) or (not self.resolution_bin["entities"]):
+            raise InvalidParametersError("processEntity failed, must run fetchEntity first to retrive valid PDB entity data")
+        n_all_entities = len(self.resolution_bin["entities"])
         logger.info("to process %s entities", n_all_entities)
-        self.bin["instance_ids"] = []  # to record all instance ids for X-ray proteins of the resolution bin
-        self.bin["sequences"] = {}  # key by entry id -> entity id, record each residue's identity
+        self.resolution_bin["instance_ids"] = []  # to record all instance ids for X-ray proteins of the resolution bin
+        self.resolution_bin["sequences"] = {}  # key by entry id -> entity id, record each residue's identity
         n_success_entities = 0
-        for d_entity in self.bin["entities"]:
+        for d_entity in self.resolution_bin["entities"]:
             for key in ["entry_id", "entity_id", "asym_ids", "pdbx_seq_one_letter_code"]:
                 if key not in d_entity:
-                    logger.error("key %s not found in entities object", key)
-                    return False
+                    raise InvalidParametersError(f"processEntity failed, key {key} not found in entities object")
                 if not d_entity[key]:
-                    logger.error("empty value for %s in entities object", key)
-                    return False
+                    raise InvalidParametersError(f"processEntity failed, empty value for key {key} in entities object")
             entry_id = d_entity["entry_id"]
             entity_id = d_entity["entity_id"]
             logger.debug("to process entity data of entity %s of entry %s", entity_id, entry_id)
             asym_ids = d_entity["asym_ids"]  # asym IDs as list
             sequence = d_entity["pdbx_seq_one_letter_code"]  # one-letter code sequence
-            if entry_id not in self.bin["sequences"]:
-                self.bin["sequences"][entry_id] = {}
-            self.bin["sequences"][entry_id][entity_id] = {}
-            self.bin["sequences"][entry_id][entity_id]["instance_ids"] = []
+            if entry_id not in self.resolution_bin["sequences"]:
+                self.resolution_bin["sequences"][entry_id] = {}
+            self.resolution_bin["sequences"][entry_id][entity_id] = {}
+            self.resolution_bin["sequences"][entry_id][entity_id]["instance_ids"] = []
             for asym_id in asym_ids:
                 instance_id = ".".join([entry_id, asym_id])
-                self.bin["sequences"][entry_id][entity_id]["instance_ids"].append(instance_id)
-                self.bin["instance_ids"].append(instance_id)
+                self.resolution_bin["sequences"][entry_id][entity_id]["instance_ids"].append(instance_id)
+                self.resolution_bin["instance_ids"].append(instance_id)
             try:
                 d_residue_ordinal = self.getResidueByOrdinal(sequence)
-                self.bin["sequences"][entry_id][entity_id]["residue_ordinal"] = d_residue_ordinal
+                self.resolution_bin["sequences"][entry_id][entity_id]["residue_ordinal"] = d_residue_ordinal
                 n_success_entities += 1
-            except InvalidSequenceError as e:
+            except InvalidSequenceError as e:  # catch sequence error but do not stop process because it's not critical
                 logger.error("invalid sequence: %s; %s", sequence, e)
-                self.bin["sequences"][entry_id][entity_id]["residue_ordinal"] = {}
+                self.resolution_bin["sequences"][entry_id][entity_id]["residue_ordinal"] = {}
         logger.info("finished entity process success/total entities: %s/%s", n_success_entities, n_all_entities)
-        return True
 
     def getResidueByOrdinal(self, sequence: str) -> dict:
         """
@@ -404,33 +392,34 @@ class ResidueRsccReferenceGenerator:
         """
         # Validate sequence input
         if not sequence.strip():
-            raise InvalidSequenceError("sequence is empty")
+            raise InvalidSequenceError("getResidueByOrdinal failed, sequence is empty")
         # Set up convertion table from 1-char to 3-char, 3-char will be used throughout the data process
-        d_aa_convert = {"A": "ALA",
-                        "R": "ARG",
-                        "N": "ASN",
-                        "D": "ASP",
-                        "C": "CYS",
-                        "Q": "GLN",
-                        "E": "GLU",
-                        "G": "GLY",
-                        "H": "HIS",
-                        "I": "ILE",
-                        "L": "LEU",
-                        "K": "LYS",
-                        "M": "MET",
-                        "F": "PHE",
-                        "P": "PRO",
-                        "S": "SER",
-                        "T": "THR",
-                        "W": "TRP",
-                        "Y": "TYR",
-                        "V": "VAL",
-                        "U": "SEC",
-                        "O": "PYL",
-                        "B": "ASX",
-                        "Z": "GLX",
-                        }
+        d_aa_convert = {
+            "A": "ALA",
+            "R": "ARG",
+            "N": "ASN",
+            "D": "ASP",
+            "C": "CYS",
+            "Q": "GLN",
+            "E": "GLU",
+            "G": "GLY",
+            "H": "HIS",
+            "I": "ILE",
+            "L": "LEU",
+            "K": "LYS",
+            "M": "MET",
+            "F": "PHE",
+            "P": "PRO",
+            "S": "SER",
+            "T": "THR",
+            "W": "TRP",
+            "Y": "TYR",
+            "V": "VAL",
+            "U": "SEC",
+            "O": "PYL",
+            "B": "ASX",
+            "Z": "GLX",
+        }
         sequence = "".join(sequence.strip().split())  # remove extra white spaces if any
         d_residue_ordinal = {}
         i = 0
@@ -446,7 +435,7 @@ class ResidueRsccReferenceGenerator:
                     if mod_residue:
                         d_residue_ordinal[i] = mod_residue
                     else:
-                        raise InvalidSequenceError("sequence misses a starting parenthesis")
+                        raise InvalidSequenceError("getResidueByOrdinal failed, sequence misses a starting parenthesis")
                 else:
                     if b_standard:
                         i += 1
@@ -457,33 +446,30 @@ class ResidueRsccReferenceGenerator:
                     else:
                         mod_residue += char
                         if len(mod_residue) > 5:
-                            raise InvalidSequenceError("sequence misses or wrongly places an ending parenthesis")
+                            raise InvalidSequenceError("getResidueByOrdinal failed, sequence misses or wrongly places an ending parenthesis")
         return d_residue_ordinal
 
-    def fetchInstance(self, db: Database) -> bool:
+    def fetchInstance(self, db: Database):
         """
         Fetch instance documents from the MongoDB "instance" collection and store data in self.bin["instances"]
         Perform MongoDB aggregation by instance_id and filtered "rcsb_polymer_instance_feature"
         array whose "type" is one of: "RSCC", "NATOMS_EDS", or "AVERAGE_OCCUPANCY".
         :param db: Instance of pymongo.database.Database class for pdbx_core database.
-        :returns: True if the aggregation succeeded and self.bin["instances"] was populated.
-        :rtype: bool
         :postcondition: If True, self.bin["instances"] is a list of dicts with at least:
                         - "rcsb_id" (str)
                         - "rcsb_polymer_instance_feature" (list of filtered feature dicts)
         """
         # Validate data input
-        if ("instance_ids" not in self.bin) or (not self.bin["instance_ids"]):
-            logger.error("must run fetchEntity and processEntity first to retrive valid PDB instance IDs")
-            return False
+        if ("instance_ids" not in self.resolution_bin) or (not self.resolution_bin["instance_ids"]):
+            raise InvalidParametersError("fetchInstance failed, must run processEntity first to retrive valid PDB instance IDs")
         # Construct MongoDB aggregation
-        logger.info("to fetch instance data for %s instances", len(self.bin["instance_ids"]))
+        logger.info("to fetch instance data for %s instances", len(self.resolution_bin["instance_ids"]))
         collectionName = self.__collections["instance"]  # use core_polymer_entity_instance collection
         collection = db[collectionName]
         pipeline = [
             {
                 "$match": {
-                    "rcsb_id": {"$in": self.bin["instance_ids"]}
+                    "rcsb_id": {"$in": self.resolution_bin["instance_ids"]}
                 }
             },
             {
@@ -502,14 +488,12 @@ class ResidueRsccReferenceGenerator:
         ]
         # Run aggregate
         try:
-            self.bin["instances"] = list(collection.aggregate(pipeline))
-            logger.info("%s instances retrived", len(self.bin["instances"]))
-            return True
+            self.resolution_bin["instances"] = list(collection.aggregate(pipeline))
+            logger.info("%s instances retrieved", len(self.resolution_bin["instances"]))
         except Exception as e:
-            logger.error("failed to fetch instance data from MongoDB with %s", e)
-            return False
+            raise DatabaseError(f"fetchInstance failed to fetch data from MongoDB for resolution bin {self.resolution_bin['resolution']}: {e}") from e
 
-    def processInstance(self) -> bool:
+    def processInstance(self):
         """
         Process polymer instance feature data and populate aggregated metrics.
         This method validates that self.bin["instances"] and then iterates
@@ -555,53 +539,44 @@ class ResidueRsccReferenceGenerator:
             at beg_seq_id; these ordinal-keyed entries are merged into the corresponding
             feature dict for that instance. If multiple fragments provide values for the
             same ordinal, later updates will overwrite earlier ones.
-        :return: True if processing succeeded and self.bin was updated; False if required
-                         instance data was not present.
-        :rtype: bool
         """
         # Validate data input
-        if ("instances" not in self.bin) or (not self.bin["instances"]):
-            logger.error("must run fetchInstance first to retrive valid PDB instance data")
-            return False
+        if ("instances" not in self.resolution_bin) or (not self.resolution_bin["instances"]):
+            raise InvalidParametersError("processInstance failed, must run fetchInstance first to retrive valid PDB instance data")
         # Start process
-        logger.info("to process feature data of RSCC, natom, occupancy on %s instances", len(self.bin["instances"]))
+        logger.info("to process feature data of RSCC, natom, occupancy on %s instances", len(self.resolution_bin["instances"]))
         d_feature_oridinal = {}  # dictionary by instance id, record rscc/natoms/occu value by sequence ordinal
         d_beg_comp = {}  # dictionary by instance id, record begining residue of all fragments, for mapping verification
-        for d_instance in self.bin["instances"]:
-            id = d_instance["rcsb_id"]
-            logger.debug("to process instance data of %s", id)
-            d_feature_oridinal[id] = {"RSCC": {}, "NATOMS_EDS": {}, "AVERAGE_OCCUPANCY": {}}
-            d_beg_comp[id] = {}
+        for d_instance in self.resolution_bin["instances"]:
+            rcsb_id = d_instance["rcsb_id"]
+            logger.debug("to process instance data of %s", rcsb_id)
+            d_feature_oridinal[rcsb_id] = {"RSCC": {}, "NATOMS_EDS": {}, "AVERAGE_OCCUPANCY": {}}
+            d_beg_comp[rcsb_id] = {}
             l_feature = d_instance.get("rcsb_polymer_instance_feature", [])
             if not l_feature:
-                logger.info("no feature data of RSCC, natom, occupancy for %s", id)
+                logger.info("no feature data of RSCC, natom, occupancy for %s", rcsb_id)
                 continue
             for feature in l_feature:
                 feature_type = feature.get("type")
                 l_feature_position = feature.get("feature_positions", [])
                 if not l_feature_position:
-                    logger.debug("no feature data for %s of %s", feature_type, id)
+                    logger.debug("no feature data for %s of %s", feature_type, rcsb_id)
                     continue
                 for d_position in l_feature_position:
                     beg_seq_id = d_position["beg_seq_id"]
                     beg_comp_id = d_position["beg_comp_id"]
-                    d_beg_comp[id][beg_seq_id] = beg_comp_id
+                    d_beg_comp[rcsb_id][beg_seq_id] = beg_comp_id
                     l_value = d_position.get("values", [])
                     if not l_value:
-                        logger.debug("no value found for %s of %s", feature_type, id)
+                        logger.debug("no value found for %s of %s", feature_type, rcsb_id)
                         continue
                     d_fragment = dict(enumerate(l_value, start=beg_seq_id))  # convert list to dict with key of seq_id
-                    d_feature_oridinal[id][feature_type].update(d_fragment)
-        self.bin["metrics"] = d_feature_oridinal
-        self.bin["fragments_start"] = d_beg_comp
-        return True
+                    d_feature_oridinal[rcsb_id][feature_type].update(d_fragment)
+        self.resolution_bin["metrics"] = d_feature_oridinal
+        self.resolution_bin["fragments_start"] = d_beg_comp
 
-    def processResidue(self) -> bool:
+    def processResidue(self):
         """Process residue RSCC data for all entries
-        Returns
-        -------
-        :returns: True if processing was initialized and delegated successfully;
-        :rtype: bool
         Side effects
         ------------
         - Mutates self.bin by creating or overwriting the keys "residues" and
@@ -611,24 +586,23 @@ class ResidueRsccReferenceGenerator:
             expected to update per-entry tracking counters and append RSCC values.
         """
         # Validate input data
-        if ("sequences" not in self.bin) or (not self.bin["sequences"]):
-            logger.error("must run fetchEntiy and processEntity first to retrive valid PDB sequence data")
-            return False
-        if ("metrics" not in self.bin) or (not self.bin["metrics"]):
-            logger.error("must run fetchInstance and processInstance first to retrive valid PDB instance data")
-            return False
+        if ("sequences" not in self.resolution_bin) or (not self.resolution_bin["sequences"]):
+            raise InvalidParametersError("processResidue failed, must run fetchEntiy and processEntity first to retrive valid PDB sequence data")
+        if ("metrics" not in self.resolution_bin) or (not self.resolution_bin["metrics"]):
+            raise InvalidParametersError("processResidue failed, must run fetchInstance and processInstance first to retrive valid PDB instance data")
         # Process and filter RSCC data for every residue of each entry, and track residue counting
-        self.bin["residues"] = {}  # record residue RSCC data
-        self.bin["tracking"] = {}  # record residue counting per entry for problem finding and solving
+        self.resolution_bin["residues"] = {}  # record residue RSCC data
+        self.resolution_bin["tracking"] = {}  # record residue counting per entry for problem finding and solving
         for standard_residue in self.l_standard_residue:
-            self.bin["residues"][standard_residue] = []  # record RSCC in one single array for one residue type
-        for entry_id in self.bin["sequences"]:
+            self.resolution_bin["residues"][standard_residue] = []  # record RSCC in one single array for one residue type
+        for entry_id in self.resolution_bin["sequences"]:
             logger.debug("to process residue data of %s", entry_id)
-            self.bin["tracking"][entry_id] = {"residues_total": 0,
-                                              "residues_with_rscc": 0,
-                                              "residues_selected": 0}  # initialize counting
+            self.resolution_bin["tracking"][entry_id] = {
+                "residues_total": 0,
+                "residues_with_rscc": 0,
+                "residues_selected": 0
+            }  # initialize counting
             self.processResidueOneEntry(entry_id)  # process a single entry and count all processed residues
-        return True
 
     def processResidueOneEntry(self, entry_id, count_limit=1000, occupancy_limit=0.9):
         """
@@ -653,8 +627,6 @@ class ResidueRsccReferenceGenerator:
         :type count_limit: int
         :param occupancy_limit: Minimum average occupancy required for a residue.
         :type occupancy_limit: float
-        :returns: None (updates are performed in-place on ``self.bin``).
-        :rtype: None
 
         Side effects
         ------------
@@ -694,20 +666,21 @@ class ResidueRsccReferenceGenerator:
             "TRP": 15,
             "TYR": 13,
             "VAL": 8,
-            "MSE": 9}  # number of non-hydrogen atoms for 20 standard aa and MSE
+            "MSE": 9
+        }  # number of non-hydrogen atoms for 20 standard aa and MSE
         # enumerate through each entity in the entry
-        for entity_id in self.bin["sequences"][entry_id]:
+        for entity_id in self.resolution_bin["sequences"][entry_id]:
             logger.debug("to process residue data of entity %s of entry %s", entity_id, entry_id)
-            d_residue_ordinal = self.bin["sequences"][entry_id][entity_id]["residue_ordinal"]
-            l_instance_id = self.bin["sequences"][entry_id][entity_id]["instance_ids"]
+            d_residue_ordinal = self.resolution_bin["sequences"][entry_id][entity_id]["residue_ordinal"]
+            l_instance_id = self.resolution_bin["sequences"][entry_id][entity_id]["instance_ids"]
             # enumerate through each instance of the entity
             for instance_id in l_instance_id:
                 logger.debug("to process residue data of instance %s of entity %s of entry %s", instance_id, entity_id, entry_id)
-                self.bin["tracking"][entry_id]["residues_total"] += len(d_residue_ordinal)  # track all residues
-                d_rscc_ordinal = self.bin["metrics"][instance_id]["RSCC"]
-                self.bin["tracking"][entry_id]["residues_with_rscc"] += len(d_rscc_ordinal)  # track residues with RSCC
-                d_natoms_ordinal = self.bin["metrics"][instance_id]["NATOMS_EDS"]
-                d_occupancy_ordinal = self.bin["metrics"][instance_id]["AVERAGE_OCCUPANCY"]
+                self.resolution_bin["tracking"][entry_id]["residues_total"] += len(d_residue_ordinal)  # track all residues
+                d_rscc_ordinal = self.resolution_bin["metrics"][instance_id]["RSCC"]
+                self.resolution_bin["tracking"][entry_id]["residues_with_rscc"] += len(d_rscc_ordinal)  # track residues with RSCC
+                d_natoms_ordinal = self.resolution_bin["metrics"][instance_id]["NATOMS_EDS"]
+                d_occupancy_ordinal = self.resolution_bin["metrics"][instance_id]["AVERAGE_OCCUPANCY"]
                 # validate the sequence ordinals match among RSCC, NATOMS_EDS, and AVERAGE_OCCUPANCY
                 if not d_rscc_ordinal.keys() == d_natoms_ordinal.keys() == d_occupancy_ordinal.keys():
                     logger.error("%s has unmatching sequence ordinal for at least one residue on RSCC, natoms, and occupancy, skip", instance_id)
@@ -737,9 +710,9 @@ class ResidueRsccReferenceGenerator:
                                      instance_id, ordinal, residue_type, rscc, occupancy, num_observed_atoms)
                         continue  # skip residues with more than one missing heavy atoms
                     # retrieve RSCC and add it to the array by residue type
-                    self.bin["residues"][residue_type].append(rscc)
-                    self.bin["tracking"][entry_id]["residues_selected"] += 1
-                    if self.bin["tracking"][entry_id]["residues_selected"] >= count_limit:  # set sampling limit to avoid over-representation of large structure
+                    self.resolution_bin["residues"][residue_type].append(rscc)
+                    self.resolution_bin["tracking"][entry_id]["residues_selected"] += 1
+                    if self.resolution_bin["tracking"][entry_id]["residues_selected"] >= count_limit:  # set sampling limit to avoid over-representation of large structure
                         logger.debug("reached residue selection limit of %s for entry %s, stop collecting", count_limit, entry_id)
                         return  # stop the single-entry method when limit is reached
 
@@ -755,8 +728,6 @@ class ResidueRsccReferenceGenerator:
             using numpy.percentile and records these along with the count under
             self.data[resolution][residue_type].
         - If no values are present for a residue type, logs a warning and skips it.
-        :returns: True if processing percentiles successfully;
-        :rtype: bool
         :raises KeyError:
                 If expected keys ("resolution" or "residues") are missing from self.bin.
         :raises ValueError:
@@ -765,14 +736,12 @@ class ResidueRsccReferenceGenerator:
                 Propagates other unexpected exceptions from called operations (logging, numpy).
         """
         # Validate input data
-        if ("resolution" not in self.bin) or (not self.bin["resolution"]):
-            logger.error("must run fetchEntry and provide resolution bin")
-            return False
-        if ("residues" not in self.bin) or (not self.bin["residues"]):
-            logger.error("must run processResidue first to retrive valid PDB residue data")
-            return False
+        if ("resolution" not in self.resolution_bin) or (not self.resolution_bin["resolution"]):
+            raise InvalidParametersError("calculatePercentiles failed, must run fetchEntry and provide resolution bin")
+        if ("residues" not in self.resolution_bin) or (not self.resolution_bin["residues"]):
+            raise InvalidParametersError("calculatePercentiles failed, must run processResidue first to retrive valid PDB residue data")
         # start process
-        [high, low] = self.bin["resolution"]
+        [high, low] = self.resolution_bin["resolution"]
         resolution_str = f"[{high},{low})"  # convert resolution bin list to str output
         # convert resolution bin to index used by Mol*, i.e. 0.1-1 -> 9, 1-1.1 -> 10...
         if high < 1:
@@ -782,7 +751,7 @@ class ResidueRsccReferenceGenerator:
         # calculate percentiles for each residue type
         for residue_type in self.l_standard_residue:
             logger.info("to find percentiles for %s", residue_type)
-            l_value = self.bin["residues"][residue_type]
+            l_value = self.resolution_bin["residues"][residue_type]
             if not l_value:
                 logger.warning("no RSCC value found for %s", residue_type)
                 continue
@@ -792,54 +761,55 @@ class ResidueRsccReferenceGenerator:
                 3
             )
             self.data[residue_type][resolution_index] = [p25, p5, p1]
-            self.data_ref[residue_type][resolution_str] = {"count": count,
-                                                           "median": median,
-                                                           "p25": p25,
-                                                           "p5": p5,
-                                                           "p1": p1}
-        return True
+            self.data_ref[residue_type][resolution_str] = {
+                "count": count,
+                "median": median,
+                "p25": p25,
+                "p5": p5,
+                "p1": p1
+            }
 
-    def writeTracking(self, output_file: str) -> bool:
+    def writeTracking(self, output_file: str):
         """
         Write the tracking data for the current bin to a tsv file for review
 
         :param output_file: Path to the output tsv file.
-        :return: True upon successful write operation.
         """
-        if ("tracking" not in self.bin) or (not self.bin["tracking"]):
-            logger.error("must run processResidue first")
-            return False
+        if ("tracking" not in self.resolution_bin) or (not self.resolution_bin["tracking"]):
+            raise OutputError("writeTracking failed, no tracking data to write, please run processResidue first to retrive valid PDB residue data")
         l_header = ["entry_id", "residues_total", "residues_with_rscc", "residues_selected"]
-        with open(output_file, mode="w", newline="", encoding="utf-8") as file:
-            file.write("\t".join(l_header))
-            file.write("\n")
-            for entry_id in self.bin["tracking"]:
-                l_line = [entry_id]
-                for key in ["residues_total", "residues_with_rscc", "residues_selected"]:
-                    l_line.append(str(self.bin["tracking"][entry_id][key]))
-                file.write("\t".join(l_line))
+        try:
+            with open(output_file, mode="w", newline="", encoding="utf-8") as file:
+                file.write("\t".join(l_header))
                 file.write("\n")
-        return True
+                for entry_id in self.resolution_bin["tracking"]:
+                    l_line = [entry_id]
+                    for key in ["residues_total", "residues_with_rscc", "residues_selected"]:
+                        l_line.append(str(self.resolution_bin["tracking"][entry_id][key]))
+                    file.write("\t".join(l_line))
+                    file.write("\n")
+        except Exception as e:
+            raise OutputError(f"writeTracking failed to write tracking data to {output_file}: {e}") from e
+        logger.info("Wrote tracking data to output files %s", output_file)
 
-    def writeReference(self, output_file: str) -> bool:
+    def writeReference(self, output_file: str):
         """
         Write the generated self.data to a json file for Mol* to read
 
         :param output_file: Path to the output json file.
-        :return: True upon successful write operation.
         """
         if not self.data:
-            logger.error("No data to write. Please run generate() first.")
-            return False
+            raise OutputError("No data to write. Please run generate() first.")
         if type(self.data) is not dict:
-            logger.error("Data format incorrect. Expected a dictionary after generate()")
-            return False
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(self.data, f, indent=2)
+            raise OutputError("Data format incorrect. Expected a dictionary after generate()")
+        try:
+            with open(output_file, "w", encoding="utf-8") as f:
+                json.dump(self.data, f, indent=2)
+        except Exception as e:
+            raise OutputError(f"writeReference failed to write data to {output_file}: {e}") from e
         logger.info("Wrote data to output files %s", output_file)
-        return True
 
-    def writeReviewReference(self, output_file: str) -> bool:
+    def writeReviewReference(self, output_file: str):
         """
         Write the generated self.data_ref to a tsv file.
 
@@ -847,20 +817,21 @@ class ResidueRsccReferenceGenerator:
         :return: True upon successful write operation.
         """
         if not self.data_ref:
-            logger.error("No data to write. Please run generate() first.")
-            return False
+            raise OutputError("writeReviewReference failed, No data to write. Please run generate() first.")
         if type(self.data_ref) is not dict:
-            logger.error("Data format incorrect. Expected a dictionary after generate()")
-            return False
+            raise OutputError("writeReviewReference failed, Data format incorrect. Expected a dictionary after generate()")
         l_header = ["resname", "res_cut", "count", "median", "p25", "p5", "p1"]
-        with open(output_file, mode="w", newline="", encoding="utf-8") as file:
-            file.write("\t".join(l_header))
-            file.write("\n")
-            for residue_type in self.data_ref:
-                for resolution in self.data_ref[residue_type]:
-                    l_line = [residue_type, resolution]
-                    for key in ["count", "median", "p25", "p5", "p1"]:
-                        l_line.append(str(self.data_ref[residue_type][resolution][key]))
-                    file.write("\t".join(l_line))
-                    file.write("\n")
-        return True
+        try:
+            with open(output_file, mode="w", newline="", encoding="utf-8") as file:
+                file.write("\t".join(l_header))
+                file.write("\n")
+                for residue_type in self.data_ref:
+                    for resolution in self.data_ref[residue_type]:
+                        l_line = [residue_type, resolution]
+                        for key in ["count", "median", "p25", "p5", "p1"]:
+                            l_line.append(str(self.data_ref[residue_type][resolution][key]))
+                        file.write("\t".join(l_line))
+                        file.write("\n")
+        except Exception as e:
+            raise OutputError(f"writeReviewReference failed to write data to {output_file}: {e}") from e
+        logger.info("Wrote review reference data to output files %s", output_file)

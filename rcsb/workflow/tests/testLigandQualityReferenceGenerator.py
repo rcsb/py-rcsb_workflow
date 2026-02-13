@@ -14,7 +14,7 @@ import platform
 import resource
 import time
 import unittest
-from rcsb.workflow.stats.LigandQualityReferenceGenerator import LigandQualityReferenceGenerator
+from rcsb.workflow.refstats.LigandQualityReferenceGenerator import LigandQualityReferenceGenerator
 from rcsb.utils.config.ConfigUtil import ConfigUtil
 
 logging.basicConfig(level=logging.INFO)
@@ -33,15 +33,19 @@ class LigandQualityReferenceGeneratorTests(unittest.TestCase):
         configPath = os.path.join(TOPDIR, "rcsb", "mock-data", "config", "dbload-setup-example.yml")
         self.__cachePath = os.path.join(HERE, "test-output", "CACHE")
         os.makedirs(self.__cachePath, exist_ok=True)
-        if self.__isMac:
-            self.__cfgOb = ConfigUtil(configPath=configPath,
-                                      defaultSectionName="site_info_configuration",
-                                      mockTopPath=self.__mockTopPath)
-            self.cRLRG = LigandQualityReferenceGenerator(self.__cfgOb,
-                                                         cachePath=self.__cachePath,
-                                                         databaseName="dw",
-                                                         collectionName="core_nonpolymer_entity_instance")
-        else:
+        if self.__isMac:  # for CS Mac with a temp DB, kept for testing and debugging
+            self.__cfgOb = ConfigUtil(
+                configPath=configPath,
+                defaultSectionName="site_info_configuration",
+                mockTopPath=self.__mockTopPath
+            )
+            self.cRLRG = LigandQualityReferenceGenerator(
+                self.__cfgOb,
+                cachePath=self.__cachePath,
+                databaseName="dw",
+                collectionName="core_nonpolymer_entity_instance"
+            )
+        else:  # production testing
             self.__cfgOb = ConfigUtil(configPath=configPath,
                                       defaultSectionName="site_info_configuration",
                                       mockTopPath=self.__mockTopPath)
@@ -129,7 +133,7 @@ class LigandQualityReferenceGeneratorTests(unittest.TestCase):
         Test generate function that runs the full pipeline on several PDB IDs.
         """
         pdb_ids = ["1C0T", "1DT4", "6WJC", "4HHB"]
-        self.cRLRG.generate(pdb_ids)
+        self.assertTrue(self.cRLRG.generate(pdb_ids))
         self.assertTrue(self.cRLRG.data)
         # Write to output file
         output_file = os.path.join(self.__cachePath, "testLigandQualityReferenceGenerator_generate.json")
@@ -144,7 +148,7 @@ class LigandQualityReferenceGeneratorTests(unittest.TestCase):
         """
         Test generate function that runs the full pipeline on all PDB structures.
         """
-        self.cRLRG.generate()
+        self.assertTrue(self.cRLRG.generate())
         self.assertTrue(self.cRLRG.data)
         # Write to output file
         output_file = os.path.join(self.__cachePath, "testLigandQualityReferenceGenerator_generateAll.json")
