@@ -25,22 +25,18 @@ logger = logging.getLogger(__name__)
 
 class InvalidParametersError(Exception):
     """Custom exception class for errors in ResidueRsccReferenceGenerator parameter validation."""
-    pass
 
 
 class InvalidSequenceError(Exception):
     """Custom exception class for errors in sequence parsing and validation."""
-    pass
 
 
 class DatabaseError(Exception):
     """Custom exception class for errors in MongoDB connection and query execution."""
-    pass
 
 
 class OutputError(Exception):
     """Custom exception class for errors during output file writing."""
-    pass
 
 
 class ResidueRsccReferenceGenerator:
@@ -68,12 +64,12 @@ class ResidueRsccReferenceGenerator:
                 residues: filtered RSCC value array for each residue type
                 tracking: record the number of residues present and selected for each entry
         Methods: the following methods work in tandem, except for the last two that consolidate all
-            fetchEntry: query MongoDB to add self.bin["entry_id"] by resolution bin;
-            fetchEntity: query MongoDB to add self.bin["entities"] by entry_id;
-            processEntity: process self.bin["entities"] to add self.bin["sequences"] and self.bin["instance_ids"];
-            fetchInstance: query MongoDB to add self.bin["instances"] by instance_id;
-            processInstance: process self.bin["instances"] to add self.bin["metrics"] and self.bin["fragments_start];
-            processResidue: map residue type to RSCC by sequence ordinal, filter by natoms and occupancy, to add self.bin["residues"] and self.bin["tracking"];
+            fetchEntry: query MongoDB to add self.resolution_bin["entry_id"] by resolution bin;
+            fetchEntity: query MongoDB to add self.resolution_bin["entities"] by entry_id;
+            processEntity: process self.resolution_bin["entities"] to add self.resolution_bin["sequences"] and self.resolution_bin["instance_ids"];
+            fetchInstance: query MongoDB to add self.resolution_bin["instances"] by instance_id;
+            processInstance: process self.resolution_bin["instances"] to add self.resolution_bin["metrics"] and self.resolution_bin["fragments_start];
+            processResidue: map residue type to RSCC by sequence ordinal, filter by natoms and occupancy, to add self.resolution_bin["residues"] and self.resolution_bin["tracking"];
             calculatePercentile: calculate percentile for RSCC array;
             generateBin: consolidate all processes above to generate data for one resolution bin;
             generate: generate final data for all resolution bins.
@@ -92,7 +88,7 @@ class ResidueRsccReferenceGenerator:
             self.data[residue] = {}
             self.data_ref[residue] = {}
         self.resolution_bin = {}  # store all data for the current resolution bin being worked on
-        # self.bin is updated through each step of MongoDB data fetch and process to add values for
+        # self.resolution_bin is updated through each step of MongoDB data fetch and process to add values for
         # (1) MongoDB query results by keys of: "entry_ids", "entities",  "instances";
         # (2) Processed results by keys of: "instance_ids", "sequences", "residues", "metrics";
         # (3) Metadata by keys of: "resolution", "tracking".
@@ -159,25 +155,25 @@ class ResidueRsccReferenceGenerator:
         # Construct all bins within the range by 0.1 increment
         l_bin = []
         for i in range(len(l_range) - 1):
-            bin = [l_range[i], l_range[i + 1]]
-            l_bin.append(bin)
+            resol_bin = [l_range[i], l_range[i + 1]]
+            l_bin.append(resol_bin)
         logger.info("to generate RSCC reference for %s resolution bins from %s to %s", len(l_bin), high, low)
         # Enumerate through each bin
         with Connection(cfgOb=self.__cfgOb, resourceName=self.__resourceName) as client:
             db = client[self.__databaseName]
-            for bin in l_bin:
+            for resol_bin in l_bin:
                 try:
-                    self.generateBin(db, bin)
+                    self.generateBin(db, resol_bin)
                 except InvalidParametersError as e:
-                    logger.error("Stop process resolution bin %s due to parameter ERROR %s", bin, e)
+                    logger.error("Stop process resolution bin %s due to parameter ERROR %s", resol_bin, e)
                     return False
                 except DatabaseError as e:
-                    logger.error("Stop process resolution bin %s due to database ERROR %s", bin, e)
+                    logger.error("Stop process resolution bin %s due to database ERROR %s", resol_bin, e)
                     return False
                 except Exception as e:
-                    logger.error("Stop process resolution bin %s due to other ERROR: %s", bin, e)
+                    logger.error("Stop process resolution bin %s due to other ERROR: %s", resol_bin, e)
                     return False
-                self.resolution_bin = {}  # reset, empty self.bin data for the run on the next bin
+                self.resolution_bin = {}  # reset, empty self.resolution_bin data for the run on the next bin
         output_file = os.path.join(self.__cachePath, "rscc-thresholds.json")  # final output file
         try:
             self.writeReference(output_file)
@@ -207,7 +203,7 @@ class ResidueRsccReferenceGenerator:
 
     def fetchEntry(self, db: Database, resolution_bin: list[int]):
         """
-        Fetch PDB entry IDs within a given resolution bin and store them in self.bin["entry_ids"].
+        Fetch PDB entry IDs within a given resolution bin and store them in self.resolution_bin["entry_ids"].
         Perform MongoDB search by rcsb_entry_info.resolution_combined within the resolution bin
         :param db: Instance of pymongo.database.Database class for pdbx_core database.
         :param resolution_bin: Two-element sequence specifying the resolution bin as
@@ -268,7 +264,7 @@ class ResidueRsccReferenceGenerator:
 
     def fetchEntity(self, db: Database):
         """
-        Fetch protein entities for entries in the current resolution bin and store them in self.bin["entities"].
+        Fetch protein entities for entries in the current resolution bin and store them in self.resolution_bin["entities"].
         Perform MongoDB aggregation by entry_id, and returns the following fields for each matching entity document:
         - rcsb_id, e.g. "2OR2_1"
         - entry_id, e.g. "2OR2"
@@ -311,18 +307,18 @@ class ResidueRsccReferenceGenerator:
 
     def processEntity(self):
         """
-        Process entities stored in self.bin["entities"] and populate instance and sequence mappings.
+        Process entities stored in self.resolution_bin["entities"] and populate instance and sequence mappings.
         constructing:
-        - self.bin["instance_ids"]: a flat list of instance identifiers in the form "entry_id.asym_id"
+        - self.resolution_bin["instance_ids"]: a flat list of instance identifiers in the form "entry_id.asym_id"
             for all asym IDs of X-ray protein entities in the bin, used for next MongoDB query.
-        - self.bin["sequences"]: a nested mapping keyed first by entry_id then by entity_id, where
+        - self.resolution_bin["sequences"]: a nested mapping keyed first by entry_id then by entity_id, where
             each entity mapping contains:
                 - "residue_ordinal": the output of residue identity for each ordinal index
                 - "instance_ids": the list of instance identifiers (entry_id.asym_id) for the entity
         Side effects
-        - Mutates self.bin by setting/updating:
-            - self.bin["instance_ids"] (list of strings)
-            - self.bin["sequences"] (dict: entry_id -> entity_id -> {"residue_ordinal", "instance_ids"})
+        - Mutates self.resolution_bin by setting/updating:
+            - self.resolution_bin["instance_ids"] (list of strings)
+            - self.resolution_bin["sequences"] (dict: entry_id -> entity_id -> {"residue_ordinal", "instance_ids"})
         """
         # Validate input data
         if ("entities" not in self.resolution_bin) or (not self.resolution_bin["entities"]):
@@ -451,11 +447,11 @@ class ResidueRsccReferenceGenerator:
 
     def fetchInstance(self, db: Database):
         """
-        Fetch instance documents from the MongoDB "instance" collection and store data in self.bin["instances"]
+        Fetch instance documents from the MongoDB "instance" collection and store data in self.resolution_bin["instances"]
         Perform MongoDB aggregation by instance_id and filtered "rcsb_polymer_instance_feature"
         array whose "type" is one of: "RSCC", "NATOMS_EDS", or "AVERAGE_OCCUPANCY".
         :param db: Instance of pymongo.database.Database class for pdbx_core database.
-        :postcondition: If True, self.bin["instances"] is a list of dicts with at least:
+        :postcondition: If True, self.resolution_bin["instances"] is a list of dicts with at least:
                         - "rcsb_id" (str)
                         - "rcsb_polymer_instance_feature" (list of filtered feature dicts)
         """
@@ -496,10 +492,10 @@ class ResidueRsccReferenceGenerator:
     def processInstance(self):
         """
         Process polymer instance feature data and populate aggregated metrics.
-        This method validates that self.bin["instances"] and then iterates
+        This method validates that self.resolution_bin["instances"] and then iterates
         over each polymer instance to extract fragment-level feature values. For each
         instance it builds two mappings:
-        - self.bin["metrics"]:
+        - self.resolution_bin["metrics"]:
             A mapping keyed by polymer instance identifier (rcsb_id) to a dictionary with
             three feature-type keys: "RSCC", "NATOMS_EDS", and "AVERAGE_OCCUPANCY". Each
             feature key maps to a dict of sequence ordinal -> feature value. Feature lists
@@ -514,7 +510,7 @@ class ResidueRsccReferenceGenerator:
                     },
                     ...
             }
-        - self.bin["fragments_start"]:
+        - self.resolution_bin["fragments_start"]:
             A mapping keyed by polymer instance identifier to a dict that records the
             starting component identifier for each fragment (beg_seq_id -> beg_comp_id).
             Example shape:
@@ -522,7 +518,7 @@ class ResidueRsccReferenceGenerator:
                     "instance_id_1": {12: "ALA", 20: "GLY", ...},
                     ...
             }
-        Expected input structure (self.bin["instances"]):
+        Expected input structure (self.resolution_bin["instances"]):
         A list of dicts where each dict represents an instance and contains at least:
         - "rcsb_id" (str): instance identifier.
         - "rcsb_polymer_instance_feature" (list): optional list of feature dicts.
@@ -579,9 +575,9 @@ class ResidueRsccReferenceGenerator:
         """Process residue RSCC data for all entries
         Side effects
         ------------
-        - Mutates self.bin by creating or overwriting the keys "residues" and
+        - Mutates self.resolution_bin by creating or overwriting the keys "residues" and
             "tracking".
-        - Populates lists under self.bin["residues"] for each standard residue.
+        - Populates lists under self.resolution_bin["residues"] for each standard residue.
         - Calls self.processResidueOneEntry(entry_id) for each entry, which is
             expected to update per-entry tracking counters and append RSCC values.
         """
@@ -607,7 +603,7 @@ class ResidueRsccReferenceGenerator:
     def processResidueOneEntry(self, entry_id, count_limit=1000, occupancy_limit=0.9):
         """
         Process residue-level RSCC and related metrics for a single entry and
-        populate aggregated bins in ``self.bin``.
+        populate aggregated bins in ``self.resolution_bin``.
 
         The method iterates over all entities and instances for ``entry_id`` and:
         - validates that RSCC, NATOMS_EDS and AVERAGE_OCCUPANCY dictionaries have
@@ -617,8 +613,8 @@ class ResidueRsccReferenceGenerator:
         - filters residues by minimum average occupancy (``occupancy_limit``);
         - filters residues with more than one missing heavy atom (based on expected
           non-hydrogen atom counts);
-        - appends accepted RSCC values to ``self.bin["residues"][residue_type]``;
-        - updates counters in ``self.bin["tracking"][entry_id]`` and stops when
+        - appends accepted RSCC values to ``self.resolution_bin["residues"][residue_type]``;
+        - updates counters in ``self.resolution_bin["tracking"][entry_id]`` and stops when
           ``count_limit`` is reached.
 
         :param entry_id: Identifier of the entry to process.
@@ -630,8 +626,8 @@ class ResidueRsccReferenceGenerator:
 
         Side effects
         ------------
-        - Modifies ``self.bin["residues"]`` by appending RSCC values for accepted residues.
-        - Increments counters in ``self.bin["tracking"][entry_id]``:
+        - Modifies ``self.resolution_bin["residues"]`` by appending RSCC values for accepted residues.
+        - Increments counters in ``self.resolution_bin["tracking"][entry_id]``:
           ``residues_total``, ``residues_with_rscc``, ``residues_selected``.
         - Emits informational, debug and error logs for processing and skip reasons.
 
@@ -720,16 +716,16 @@ class ResidueRsccReferenceGenerator:
         """
         Calculate percentile statistics for RSCC values in the current resolution bin, and mutate self.data
         This method:
-        - Reads the resolution range from self.bin["resolution"] (expected as [high, low])
+        - Reads the resolution range from self.resolution_bin["resolution"] (expected as [high, low])
             and formats it as the string "high-low" to use as a key in self.data.
         - Iterates over residue types in self.l_standard_residue.
-        - For each residue type, obtains the list of RSCC values from self.bin["residues"][residue_type].
+        - For each residue type, obtains the list of RSCC values from self.resolution_bin["residues"][residue_type].
         - If values are present, computes the 1st, 5th, 25th and 50th (median) percentiles
             using numpy.percentile and records these along with the count under
             self.data[resolution][residue_type].
         - If no values are present for a residue type, logs a warning and skips it.
         :raises KeyError:
-                If expected keys ("resolution" or "residues") are missing from self.bin.
+                If expected keys ("resolution" or "residues") are missing from self.resolution_bin.
         :raises ValueError:
                 If numpy.percentile receives invalid input (e.g., non-numeric values).
         :raises Exception:

@@ -23,17 +23,14 @@ logger = logging.getLogger(__name__)
 
 class DatabaseError(Exception):
     """Custom exception class for errors in MongoDB connection and query execution."""
-    pass
 
 
 class AnalysisError(Exception):
     """Custom exception class for errors during data analysis."""
-    pass
 
 
 class OutputError(Exception):
     """Custom exception class for errors during output file writing."""
-    pass
 
 
 class LigandQualityReferenceGenerator:
@@ -53,10 +50,13 @@ class LigandQualityReferenceGenerator:
     """
     def __init__(self, cfgOb, cachePath, **kwargs):
         """Initiate the class and the MongoDB connection"""
+        # initilize output data of each pdb_ligand combination and their quality scores, which is a list of
+        # dictionaries with keys of pdb_ligand, mogul_bonds_RMSZ, mogul_angles_RMSZ, RSR, RSCC, fit_pc1, geo_pc1
+        self.data = []
         #
-        self.data = []  # final output of each pdb_ligand combination and their quality scores, which is a list of dictionaries with keys of pdb_ligand, mogul_bonds_RMSZ, mogul_angles_RMSZ, RSR, RSCC, fit_pc1, geo_pc1
-        self.qdata = None  # direct query data from MongoDB, which is a list of dictionaries with keys of pdb_ligand, mogul_bonds_RMSZ, mogul_angles_RMSZ, RSR, RSCC, and count (number of instances for the same ligand in the same PDB entry)
-        #
+        # initialize query data record from MongoDB, which is a list of dictionaries with keys of pdb_ligand, mogul_bonds_RMSZ,
+        # mogul_angles_RMSZ, RSR, RSCC, and count (number of instances for the same ligand in the same PDB entry)
+        self.qdata = None
         _ = kwargs
         self.__cfgOb = cfgOb
         self.__cachePath = cachePath
