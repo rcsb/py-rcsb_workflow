@@ -163,6 +163,9 @@ class PdbxLoaderFixture(unittest.TestCase):
             "6RFK",
             "6RKU",
             "6YRQ",
+            "3NIR",
+            "5D8V",
+            "6WJC",
         ]
         self.__ldList = [
             {
