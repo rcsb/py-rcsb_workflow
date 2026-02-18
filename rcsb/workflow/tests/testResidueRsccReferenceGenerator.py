@@ -14,9 +14,9 @@ import platform
 import resource
 import time
 import unittest
-from rcsb.workflow.refstats.ResidueRsccReferenceGenerator import ResidueRsccReferenceGenerator
 from rcsb.utils.config.ConfigUtil import ConfigUtil
 from rcsb.db.mongo.Connection import Connection
+from rcsb.workflow.refstats.ResidueRsccReferenceGenerator import ResidueRsccReferenceGenerator
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ TOPDIR = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 
 
 class ResidueRsccReferenceGeneratorTests(unittest.TestCase):
-    skipFull = True
+    debugFlag = False
 
     def setUp(self):
         self.__isMac = platform.system() == "Darwin"
@@ -71,6 +71,7 @@ class ResidueRsccReferenceGeneratorTests(unittest.TestCase):
         endTime = time.time()
         logger.info("Completed %s at %s (%.4f seconds)", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()), endTime - self.__startTime)
 
+    @unittest.skipUnless(debugFlag, "Skip individual debug tests")
     def testFetchEntry(self):
         """
         Test fetchEntry on a resolution bin.
@@ -86,6 +87,7 @@ class ResidueRsccReferenceGeneratorTests(unittest.TestCase):
                 json.dump(self.cRRRG.resolution_bin["entry_ids"], f, indent=2)
             logger.info("Wrote data to output file %s", output_file)
 
+    @unittest.skipUnless(debugFlag, "Skip individual debug tests")
     def testFetchEntity(self):
         """
         Test fetchEntity on several PDB IDs.
@@ -101,6 +103,7 @@ class ResidueRsccReferenceGeneratorTests(unittest.TestCase):
                 json.dump(self.cRRRG.resolution_bin["entities"], f, indent=2)
             logger.info("Wrote data to output file %s", output_file)
 
+    @unittest.skipUnless(debugFlag, "Skip individual debug tests")
     def testProcessEntity(self):
         """
         Test processEntity on several PDB entries.
@@ -118,6 +121,7 @@ class ResidueRsccReferenceGeneratorTests(unittest.TestCase):
                 json.dump(self.cRRRG.resolution_bin["sequences"], f, indent=2)
             logger.info("Wrote data to output file %s", output_file)
 
+    @unittest.skipUnless(debugFlag, "Skip individual debug tests")
     def testFetchInstance(self):
         """
         Test fetchInstance on several PDB IDs.
@@ -134,6 +138,7 @@ class ResidueRsccReferenceGeneratorTests(unittest.TestCase):
                 json.dump(self.cRRRG.resolution_bin["instances"], f, indent=2)
             logger.info("Wrote data to output file %s", output_file)
 
+    @unittest.skipUnless(debugFlag, "Skip individual debug tests")
     def testProcessInstance(self):
         """
         Test processInstance on several PDB IDs.
@@ -155,6 +160,7 @@ class ResidueRsccReferenceGeneratorTests(unittest.TestCase):
                 json.dump(self.cRRRG.resolution_bin["fragments_start"], f, indent=2)
             logger.info("Wrote data to output files %s, %s", output_file1, output_file2)
 
+    @unittest.skipUnless(debugFlag, "Skip individual debug tests")
     def testProcessResidue(self):
         """
         Test processResidue on several PDB IDs.
@@ -180,6 +186,7 @@ class ResidueRsccReferenceGeneratorTests(unittest.TestCase):
             self.cRRRG.writeTracking(output_file_tracking)
             logger.info("Wrote tracking data to output files %s", output_file_tracking)
 
+    @unittest.skipUnless(debugFlag, "Skip individual debug tests")
     def testCalculatePercentiles(self):
         """
         Test calculatePercentiles on several PDB IDs.
@@ -201,6 +208,7 @@ class ResidueRsccReferenceGeneratorTests(unittest.TestCase):
                 json.dump(self.cRRRG.data, f, indent=2)
             logger.info("Wrote data to output files %s", output_file)
 
+    @unittest.skipUnless(debugFlag, "Skip individual debug tests")
     def testGenerateBin(self):
         """
         Test generateBin on several PDB IDs.
@@ -235,14 +243,14 @@ class ResidueRsccReferenceGeneratorTests(unittest.TestCase):
 
 def genRsccRef():
     suiteSelect = unittest.TestSuite()
-    # suiteSelect.addTest(ResidueRsccReferenceGeneratorTests("testFetchEntry"))
-    # suiteSelect.addTest(ResidueRsccReferenceGeneratorTests("testFetchEntity"))
-    # suiteSelect.addTest(ResidueRsccReferenceGeneratorTests("testProcessEntity"))
-    # suiteSelect.addTest(ResidueRsccReferenceGeneratorTests("testFetchInstance"))
-    # suiteSelect.addTest(ResidueRsccReferenceGeneratorTests("testProcessInstance"))
-    # suiteSelect.addTest(ResidueRsccReferenceGeneratorTests("testProcessResidue"))
-    # suiteSelect.addTest(ResidueRsccReferenceGeneratorTests("testCalculatePercentiles"))
-    # suiteSelect.addTest(ResidueRsccReferenceGeneratorTests("testGenerateBin"))
+    suiteSelect.addTest(ResidueRsccReferenceGeneratorTests("testFetchEntry"))
+    suiteSelect.addTest(ResidueRsccReferenceGeneratorTests("testFetchEntity"))
+    suiteSelect.addTest(ResidueRsccReferenceGeneratorTests("testProcessEntity"))
+    suiteSelect.addTest(ResidueRsccReferenceGeneratorTests("testFetchInstance"))
+    suiteSelect.addTest(ResidueRsccReferenceGeneratorTests("testProcessInstance"))
+    suiteSelect.addTest(ResidueRsccReferenceGeneratorTests("testProcessResidue"))
+    suiteSelect.addTest(ResidueRsccReferenceGeneratorTests("testCalculatePercentiles"))
+    suiteSelect.addTest(ResidueRsccReferenceGeneratorTests("testGenerateBin"))
     suiteSelect.addTest(ResidueRsccReferenceGeneratorTests("testGenerate"))
     return suiteSelect
 

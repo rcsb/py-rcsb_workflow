@@ -25,7 +25,7 @@ TOPDIR = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 
 
 class LigandQualityReferenceGeneratorTests(unittest.TestCase):
-    skipFull = True
+    debugFlag = False
 
     def setUp(self):
         self.__isMac = platform.system() == "Darwin"
@@ -61,17 +61,17 @@ class LigandQualityReferenceGeneratorTests(unittest.TestCase):
         endTime = time.time()
         logger.info("Completed %s at %s (%.4f seconds)", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()), endTime - self.__startTime)
 
+    @unittest.skipUnless(debugFlag, "Skip individual debug tests")
     def testFetchLigand(self):
         """
         Test fetchLigand on several PDB IDs.
         """
         pdb_ids = ["6WJC", "1C0T", "1DT4", "2HYV", "XXXX"]  # 1C0T with ligand, 1DT4 without ligand, XXXX invalid ID
-        self.cRLRG.fetchLigand(pdb_ids)
-        self.assertTrue(self.cRLRG.qdata)
-        response = self.cRLRG.qdata
-        logger.info("query on %s with response %s", pdb_ids, response)
+        qdata = self.cRLRG.fetchLigand(pdb_ids)
+        self.assertTrue(qdata)
+        logger.info("query on %s with response %s", pdb_ids, qdata)
         l_pdb_id = []
-        for d_lig in response:
+        for d_lig in qdata:
             pdb_id = d_lig["pdb_ligand"].split("-")[0]
             l_pdb_id.append(pdb_id)
         l_pdb_id = list(set(l_pdb_id))
@@ -84,61 +84,63 @@ class LigandQualityReferenceGeneratorTests(unittest.TestCase):
         # Write to output file
         output_file = os.path.join(self.__cachePath, "testLigandQualityReferenceGenerator_fetchLigand.json")
         with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(self.cRLRG.qdata, f, indent=2)
+            json.dump(qdata, f, indent=2)
         logger.info("Wrote data to output file %s", output_file)
 
+    @unittest.skipUnless(debugFlag, "Skip individual debug tests")
     def testFetchLigandAll(self):
         """
         Test fetchLigand on All PDB structures.
         """
-        self.cRLRG.fetchLigand()
-        self.assertTrue(self.cRLRG.qdata)
+        qdata = self.cRLRG.fetchLigand()
+        self.assertTrue(qdata)
         # Write to output file
         output_file = os.path.join(self.__cachePath, "testLigandQualityReferenceGenerator_fetchLigandAll.json")
         with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(self.cRLRG.qdata, f, indent=2)
+            json.dump(qdata, f, indent=2)
         logger.info("Wrote data to output file %s", output_file)
 
+    @unittest.skipUnless(debugFlag, "Skip individual debug tests")
     def testAnalyzeLigand(self):
         """
         Test analyze function on several PDB IDs.
         """
         pdb_ids = ["1C0T", "1DT4", "6WJC", "4HHB"]
-        self.cRLRG.fetchLigand(pdb_ids)
-        self.cRLRG.analyzeLigand()
-        data_analyzed = self.cRLRG.data
-        self.assertTrue(data_analyzed)
+        qdata = self.cRLRG.fetchLigand(pdb_ids)
+        refdata = self.cRLRG.analyzeLigand(qdata)
+        self.assertTrue(refdata)
         # Write to output file
         output_file = os.path.join(self.__cachePath, "testLigandQualityReferenceGenerator_analyzeLigand.json")
         with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(data_analyzed, f, indent=2)
+            json.dump(refdata, f, indent=2)
         logger.info("Wrote data to output file %s", output_file)
 
+    @unittest.skipUnless(debugFlag, "Skip individual debug tests")
     def testAnalyzeLigandAll(self):
         """
         Test analyze function on all PDB structures.
         """
-        self.cRLRG.fetchLigand()
-        self.cRLRG.analyzeLigand()
-        data_analyzed = self.cRLRG.data
-        self.assertTrue(data_analyzed)
+        qdata = self.cRLRG.fetchLigand()
+        refdata = self.cRLRG.analyzeLigand(qdata)
+        self.assertTrue(refdata)
         # Write to output file
         output_file = os.path.join(self.__cachePath, "testLigandQualityReferenceGenerator_analyzeLigandAll.json")
         with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(data_analyzed, f, indent=2)
+            json.dump(refdata, f, indent=2)
         logger.info("Wrote data to output file %s", output_file)
 
+    @unittest.skipUnless(debugFlag, "Skip individual debug tests")
     def testGenerate(self):
         """
         Test generate function that runs the full pipeline on several PDB IDs.
         """
         pdb_ids = ["1C0T", "1DT4", "6WJC", "4HHB"]
         self.assertTrue(self.cRLRG.generate(pdb_ids))
-        self.assertTrue(self.cRLRG.data)
+        self.assertTrue(self.cRLRG.refDataL)
         # Write to output file
         output_file = os.path.join(self.__cachePath, "testLigandQualityReferenceGenerator_generate.json")
         with open(output_file, "w", encoding="utf-8") as file:
-            json.dump(self.cRLRG.data, file, indent=2)
+            json.dump(self.cRLRG.refDataL, file, indent=2)
         logger.info("Wrote data to output file %s", output_file)
         # Write reference data to csv
         csv_output_file = os.path.join(self.__cachePath, "ligand_score_reference.csv")
@@ -149,11 +151,11 @@ class LigandQualityReferenceGeneratorTests(unittest.TestCase):
         Test generate function that runs the full pipeline on all PDB structures.
         """
         self.assertTrue(self.cRLRG.generate())
-        self.assertTrue(self.cRLRG.data)
+        self.assertTrue(self.cRLRG.refDataL)
         # Write to output file
         output_file = os.path.join(self.__cachePath, "testLigandQualityReferenceGenerator_generateAll.json")
         with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(self.cRLRG.data, f, indent=2)
+            json.dump(self.cRLRG.refDataL, f, indent=2)
         logger.info("Wrote data to output file %s", output_file)
         # Write reference data to csv
         csv_output_file = os.path.join(self.__cachePath, "ligand_score_reference.csv")
@@ -162,11 +164,11 @@ class LigandQualityReferenceGeneratorTests(unittest.TestCase):
 
 def genLigandRef():
     suiteSelect = unittest.TestSuite()
-    # suiteSelect.addTest(LigandQualityReferenceGeneratorTests("testFetchLigand"))
-    # suiteSelect.addTest(LigandQualityReferenceGeneratorTests("testFetchLigandAll"))
-    # suiteSelect.addTest(LigandQualityReferenceGeneratorTests("testAnalyzeLigand"))
-    # suiteSelect.addTest(LigandQualityReferenceGeneratorTests("testAnalyzeLigandAll"))
-    # suiteSelect.addTest(LigandQualityReferenceGeneratorTests("testGenerate"))
+    suiteSelect.addTest(LigandQualityReferenceGeneratorTests("testFetchLigand"))
+    suiteSelect.addTest(LigandQualityReferenceGeneratorTests("testFetchLigandAll"))
+    suiteSelect.addTest(LigandQualityReferenceGeneratorTests("testAnalyzeLigand"))
+    suiteSelect.addTest(LigandQualityReferenceGeneratorTests("testAnalyzeLigandAll"))
+    suiteSelect.addTest(LigandQualityReferenceGeneratorTests("testGenerate"))
     suiteSelect.addTest(LigandQualityReferenceGeneratorTests("testGenerateAll"))
     return suiteSelect
 

@@ -7,15 +7,15 @@
 """
 Generate RSCC reference for standard polymer residues for Mol* RSCC-based colored display.
 Utilities to query RCSB MongoDB polymer-instance RSCC and related metrics,
-aggregate them by residue type for X‑ray entries in resolution bins, and
+aggregate them by residue type for X-ray entries in resolution bins, and
 produce RSCC reference statistics (percentiles) for standard polymer residues.
 
 """
+import os
 import logging
 import json
 import numbers
 import numpy as np
-import os
 from pymongo.database import Database   # for type hint only
 
 from rcsb.db.mongo.Connection import Connection
@@ -123,8 +123,8 @@ class ResidueRsccReferenceGenerator:
         """
         Generate residue RSCC references for the entire PDB archive, throughtout bins of
         [0.1, 1.0], [1.0, 1.1], ..., [3.4,3.5], [3.5, 50], or within the optional resolution_range
-        :param resolution_range: Two‑element sequence ``[high_resolution, low_resolution]``
-            specifying the half‑open interval (``high_resolution <= resolution < low_resolution``).
+        :param resolution_range: Two-element sequence ``[high_resolution, low_resolution]``
+            specifying the half-open interval (``high_resolution <= resolution < low_resolution``).
         :type resolution_range: list[float] or list[int]
         :returns: True if all bins were processed successfully.
         :rtype: bool
@@ -188,8 +188,8 @@ class ResidueRsccReferenceGenerator:
         Generate the RSCC percentile reference of each standard residue for a given resolution bin.
 
         :param db: Instance of pymongo.database.Database class for pdbx_core database.
-        :param resolution_bin: Two‑element sequence ``[high_resolution, low_resolution]``
-            specifying the half‑open interval (``high_resolution <= resolution < low_resolution``).
+        :param resolution_bin: Two-element sequence ``[high_resolution, low_resolution]``
+            specifying the half-open interval (``high_resolution <= resolution < low_resolution``).
         :type resolution_bin: list[float] or list[int]
         """
         self.fetchEntry(db, resolution_bin)

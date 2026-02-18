@@ -8,11 +8,11 @@
 Generate ligand quality reference data that is used for ligand quality score computation.
 
 """
+import os
 import csv
 import logging
 import time
 import numpy as np
-import os
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
@@ -52,11 +52,11 @@ class LigandQualityReferenceGenerator:
         """Initiate the class and the MongoDB connection"""
         # initilize output data of each pdb_ligand combination and their quality scores, which is a list of
         # dictionaries with keys of pdb_ligand, mogul_bonds_RMSZ, mogul_angles_RMSZ, RSR, RSCC, fit_pc1, geo_pc1
-        self.data = []
+        self.refDataL = []
         #
         # initialize query data record from MongoDB, which is a list of dictionaries with keys of pdb_ligand, mogul_bonds_RMSZ,
         # mogul_angles_RMSZ, RSR, RSCC, and count (number of instances for the same ligand in the same PDB entry)
-        self.qdata = None
+        self.qDataL = None
         _ = kwargs
         self.__cfgOb = cfgOb
         self.__cachePath = cachePath
@@ -79,17 +79,17 @@ class LigandQualityReferenceGenerator:
         """
         # fetch ligand quality data from MongoDB, and process the data
         try:
-            self.fetchLigand(pdb_ids)
+            self.qDataL = self.fetchLigand(pdb_ids)
         except DatabaseError as e:
             logger.error("Failed to fetch ligand quality data, STOP. ERROR: %s", e)
             return False
         # verify data is not empty
-        if not self.qdata:
+        if not self.qDataL:
             logger.error("no data fetched from MongoDB, cannot analyze, STOP")
             return False
         # analyze the data to generate reference scores
         try:
-            self.analyzeLigand()
+            self.refDataL = self.analyzeLigand(self.qDataL)
         except AnalysisError as e:
             logger.error("Failed to analyze ligand quality data, STOP. ERROR: %s", e)
             return False
@@ -114,6 +114,8 @@ class LigandQualityReferenceGenerator:
 
         :param pdb_ids: List of specified PDB IDs, default to [] which leads to all PDB structures being queried.
         """
+        qdata = None
+
         if pdb_ids:
             # Match the PDB entries by provided IDs
             pipeline = [{
@@ -203,33 +205,35 @@ class LigandQualityReferenceGenerator:
                 db = client[self.__databaseName]
                 collection = db[self.__collectionName]
                 startTime = time.time()
-                self.qdata = list(collection.aggregate(pipeline))
+                qdata = list(collection.aggregate(pipeline))
                 logger.info(
                     "Fetched %s unique pdb_ligand combination records from MongoDB: %s, collectionName: %s at %s (%.4f seconds)",
-                    len(self.qdata),
+                    len(qdata),
                     self.__databaseName,
                     self.__collectionName,
                     time.strftime("%Y %m %d %H:%M:%S", time.localtime()),
                     time.time() - startTime,
                 )
             except Exception as e:
-                self.qdata = None
+                qdata = None
                 raise DatabaseError(f"Failed to run aggregation to fetch MongoDB ligand quality data. ERROR {e}") from e
 
-    def analyzeLigand(self):
+        return qdata
+
+    def analyzeLigand(self, qDataL: list):
         """
         Run PCA on the filtered and reduced ligand quality scores to generate reference data.
         The first principal component (PC1) is used as the ligand quality reference score.
 
         """
-
+        refDataL = []
         # Prepare data for PCA, convert each score type into a separate list for matrix construction
         l_pdb_ligand = []
         l_mogul_bonds_RMSZ = []
         l_mogul_angles_RMSZ = []
         l_RSR = []
         l_RSCC = []
-        for d_lig in self.qdata:
+        for d_lig in qDataL:
             l_pdb_ligand.append(d_lig["pdb_ligand"])
             l_mogul_bonds_RMSZ.append(d_lig["mogul_bonds_RMSZ"])
             l_mogul_angles_RMSZ.append(d_lig["mogul_angles_RMSZ"])
@@ -257,24 +261,26 @@ class LigandQualityReferenceGenerator:
                 "fit_pc1": round(l_fit_pc1[i], 5),
                 "geo_pc1": round(l_geo_pc1[i], 5)
             }
-            self.data.append(ref_score)
-        logger.info("%s unique pdb-ligand pairs analzed by PCA", len(self.data))
+            refDataL.append(ref_score)
+        logger.info("%s unique pdb-ligand pairs analzed by PCA", len(refDataL))
 
-    def runPca(self, X: np.ndarray) -> list:
+        return refDataL
+
+    def runPca(self, xarr: np.ndarray) -> list:
         """
         Run PCA on numpy matrix and output the first principal components.
         Loadings and explained variance can be examined in log but not in outcome.
         Ensure lower scores correspond to better quality by adjusting the sign of PC1 if needed.
 
-        :param X: numpy matrix of any dimension
+        :param xarr: numpy matrix of any dimension
         :return: first principal components as a list
         """
         # Scale the data
         scaler = StandardScaler()
-        X_std = scaler.fit_transform(X)
+        xstd = scaler.fit_transform(xarr)
         # Perform PCA
         pca = PCA(n_components=1)
-        principal_components = pca.fit_transform(X_std)
+        principal_components = pca.fit_transform(xstd)
         logger.info("Explained variance ratios: %s", pca.explained_variance_ratio_)  # should be > 0.7(70%) for ligand geo and fit PC1
         loadings = pca.components_[0]
         logger.info("Resulting PCA loadings: %s", loadings)  # should be [sqrt(0.5), sqrt(0.5)] for scaled PCA or with minus sign on one component
@@ -294,17 +300,17 @@ class LigandQualityReferenceGenerator:
 
         :param output_file: Path to the output csv file.
         """
-        if not self.data:
+        if not self.refDataL:
             raise OutputError("No data to write. Please run generate() first.")
-        if type(self.data) is not list:
+        if type(self.refDataL) is not list:
             raise OutputError("Data format incorrect. Expected a list of dictionaries after generate().")
-        if type(self.data[0]) is not dict:
+        if type(self.refDataL[0]) is not dict:
             raise OutputError("Data format incorrect. Expected a list of dictionaries after generate().")
-        fieldnames = self.data[0].keys()
+        fieldnames = self.refDataL[0].keys()
         try:
             with open(output_file, mode="w", newline="", encoding="utf-8") as file:
                 writer = csv.DictWriter(file, fieldnames=fieldnames)
                 writer.writeheader()  # write column headers
-                writer.writerows(self.data)  # write all rows
+                writer.writerows(self.refDataL)  # write all rows
         except Exception as e:
             raise OutputError(f"Failed to write ligand quality reference data to file: {e}") from e
