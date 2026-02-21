@@ -70,7 +70,7 @@ class PdbxLoaderFixture(unittest.TestCase):
         self.__readBackCheck = True
         self.__numProc = 1
         self.__chunkSize = 2
-        self.__fileLimit = 40
+        self.__fileLimit = 42
         self.__documentStyle = "rowwise_by_name_with_cardinality"
         #
         self.__birdChemCompCoreIdList = [
@@ -169,6 +169,8 @@ class PdbxLoaderFixture(unittest.TestCase):
             "1C0T",
             "1DT4",
             "4HHB",
+            "2NAR",
+            "2OR2",
         ]
         self.__ldList = [
             {
