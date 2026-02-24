@@ -71,14 +71,6 @@ class LigandQualityReferenceGenerator:
         # mogul_angles_RMSZ, RSR, RSCC, and count (number of instances for the same ligand in the same PDB entry)
         self.qDataL = None
 
-    def __getLigandScoreDataPath(self):
-        """Return the path to final desired output file.
-
-        Note that this must be identical to what is defined in rcsb.utils.chemref.RcsbLigandScoreProvider,
-        in order to support backup and restore functionalities to BL.
-        """
-        return os.path.join(self.__dirPath, "ligand_score_reference.csv")
-
     def generate(self, pdb_ids: list[str] = None, backup: bool = False) -> bool:
         """
         Full pipeline to generate ligand quality reference data by running the steps of
@@ -111,7 +103,9 @@ class LigandQualityReferenceGenerator:
             return False
         # output the reference data to file
         try:
-            self.writeReference()
+            rlsP = RcsbLigandScoreProvider(cachePath=self.__cachePath, useCache=True)
+            ligand_score_output_path = rlsP.getLigandScoreDataPath()
+            self.writeReference(output_file=ligand_score_output_path)
         except OutputError as e:
             logger.error("Failed to write ligand quality reference data to file, STOP. ERROR: %s", e)
             return False
@@ -120,8 +114,7 @@ class LigandQualityReferenceGenerator:
         ok = True
         #
         logger.info("Refreshing RcsbLigandScoreProvider instance...")
-        rlsP = RcsbLigandScoreProvider(cachePath=self.__cachePath, useCache=True)
-        rlsP.reload()
+        rlsP.reload(useCache=True)
         if backup and rlsP.testCache():
             logger.info("Backing up data to stash...")
             okB = rlsP.backup(self.__cfgOb, self.__configName, useStash=True, useGit=False)
@@ -320,14 +313,14 @@ class LigandQualityReferenceGenerator:
             logger.info("Change sign of the first principal components to ensure correct directionality.")
         return principal_components[:, 0].tolist()
 
-    def writeReference(self):
-        """
-        Write the generated ligand quality reference data to a csv file.
+    def writeReference(self, output_file: str):
+        """Write the generated ligand quality reference data to a csv file.
+
+        Args:
+            output_file (str): Path to the output csv file.
         """
         fU = FileUtil()
         fU.mkdir(self.__dirPath)
-        #
-        output_file = self.__getLigandScoreDataPath()
         #
         if not self.refDataL:
             raise OutputError("No data to write. Please run generate() first.")
