@@ -18,6 +18,8 @@ import numbers
 import numpy as np
 from pymongo.database import Database   # for type hint only
 
+from rcsb.utils.io.FileUtil import FileUtil
+from rcsb.utils.io.StashableBase import StashableBase
 from rcsb.db.mongo.Connection import Connection
 
 logger = logging.getLogger(__name__)
@@ -39,7 +41,7 @@ class OutputError(Exception):
     """Custom exception class for errors during output file writing."""
 
 
-class ResidueRsccReferenceGenerator:
+class ResidueRsccReferenceGenerator(StashableBase):
     """
     This module provides the class ResidueRsccReferenceGenerator which:
     - Connects to a configurable MongoDB instance (default database "pdbx_core").
@@ -51,7 +53,7 @@ class ResidueRsccReferenceGenerator:
 
     Each resolution bin is processed separately and non-parallely because of the large data volume
         Attributes:
-            data: final output of RSCC percential by residue type and resolution bin
+            data: final output of RSCC percentile by residue type and resolution bin
             bin: dict to record data for the current resolution bin by its sub-keys:
                 resolution: resolution bin
                 entry_ids: PDB entry ids such as 2OR2
@@ -76,35 +78,18 @@ class ResidueRsccReferenceGenerator:
     """
     def __init__(self, cfgOb, cachePath, **kwargs):
         """Initiate the class variables and the MongoDB connection"""
-        #
-        self.l_standard_residue = [
-            "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE",
-            "LEU", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL",
-            "MSE"
-        ]  # 20 standard aa + MSE
-        self.data = {}  # RSCC percentials by residue type and resolution bin, formated for Mol*
-        self.data_ref = {}  # optional reference, superset of self.data, for review purpose only
-        for residue in self.l_standard_residue:
-            self.data[residue] = {}
-            self.data_ref[residue] = {}
-        self.resolution_bin = {}  # store all data for the current resolution bin being worked on
-        # self.resolution_bin is updated through each step of MongoDB data fetch and process to add values for
-        # (1) MongoDB query results by keys of: "entry_ids", "entities",  "instances";
-        # (2) Processed results by keys of: "instance_ids", "sequences", "residues", "metrics";
-        # (3) Metadata by keys of: "resolution", "tracking".
-        #
-        _ = kwargs
         self.__cfgOb = cfgOb
-        self.__cachePath = cachePath
-        # self.__configName = cfgOb.getDefaultSectionName()
-        self.__resourceName = "MONGO_DB"
+        self.__configName = kwargs.get("configName", "site_info_configuration")
+        self.__dirName = "rscc-reference"
+        super().__init__(cachePath, [self.__dirName])
+        self.__dirPath = os.path.join(cachePath, self.__dirName)
         #
+        self.__resourceName = "MONGO_DB"
         self.__databaseName = kwargs.get("databaseName", "pdbx_core")
         self.__collectionNames = kwargs.get(
             "collectionNames",
             ["pdbx_core_entry", "pdbx_core_polymer_entity", "pdbx_core_polymer_entity_instance"]
         )
-        #
         self.__collections = {}
         for collectionName in self.__collectionNames:
             collectionLevel = collectionName.split("_")[-1]  # level of entry, entity, instance
@@ -118,8 +103,38 @@ class ResidueRsccReferenceGenerator:
         # for collectionName in self.__collectionNames:
         #     collectionLevel = collectionName.split("_")[-1]  # level of entry, entity, instance
         #     self.__collections[collectionLevel] = self.__db[collectionName]
+        #
+        self.l_standard_residue = [
+            "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE",
+            "LEU", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL",
+            "MSE"
+        ]  # 20 standard aa + MSE
+        self.data_rscc = {}  # RSCC percentiles by residue type and resolution bin, formated for Mol*
+        self.data_ref = {}  # optional reference, superset of self.data_rscc, for review purpose only
+        for residue in self.l_standard_residue:
+            self.data_rscc[residue] = {}
+            self.data_ref[residue] = {}
+        self.resolution_bin = {}  # store all data for the current resolution bin being worked on
+        # self.resolution_bin is updated through each step of MongoDB data fetch and process to add values for
+        # (1) MongoDB query results by keys of: "entry_ids", "entities",  "instances";
+        # (2) Processed results by keys of: "instance_ids", "sequences", "residues", "metrics";
+        # (3) Metadata by keys of: "resolution", "tracking".
+        #
 
-    def generate(self, resolution_range: list[int] = None) -> bool:
+    def __getRcssRefDataPath(self):
+        return os.path.join(self.__dirPath, "rscc-thresholds.json")
+
+    def testCache(self):
+        fU = FileUtil()
+        rscc_data_file = self.__getRcssRefDataPath()
+        #
+        if self.data_rscc and fU.exists(rscc_data_file):
+            logger.info("RSCC percentile data (%d) from file %s", len(self.data_rscc), rscc_data_file)
+            if len(self.data_rscc) > 0:
+                return True
+        return False
+
+    def generate(self, resolution_range: list[int] = None, backup: bool = False) -> bool:
         """
         Generate residue RSCC references for the entire PDB archive, throughtout bins of
         [0.1, 1.0], [1.0, 1.1], ..., [3.4,3.5], [3.5, 50], or within the optional resolution_range
@@ -174,14 +189,22 @@ class ResidueRsccReferenceGenerator:
                     logger.error("Stop process resolution bin %s due to other ERROR: %s", resol_bin, e)
                     return False
                 self.resolution_bin = {}  # reset, empty self.resolution_bin data for the run on the next bin
-        output_file = os.path.join(self.__cachePath, "rscc-thresholds.json")  # final output file
         try:
-            self.writeReference(output_file)
+            self.writeReference()
         except OutputError as e:
-            logger.error("Failed to write RSCC reference data to file %s ERROR %s", output_file, e)
+            logger.error("Failed to write ligand quality reference data to file, STOP. ERROR: %s", e)
             return False
-        logger.info("Finished generating RSCC reference data file at %s", output_file)
-        return True
+        #
+        logger.info("Finished generation workflow for RSCC reference data.")
+        ok = True
+        #
+        if backup and self.testCache():
+            logger.info("Backing up data to stash...")
+            okB = self.backup(self.__cfgOb, self.__configName, useStash=True, useGit=False)
+            logger.info("%r RSCC backup status (%r)", self.__dirName, okB)
+            ok = ok and okB
+        #
+        return ok
 
     def generateBin(self, db: Database, resolution_bin: list[int]):
         """
@@ -714,15 +737,15 @@ class ResidueRsccReferenceGenerator:
 
     def calculatePercentiles(self):
         """
-        Calculate percentile statistics for RSCC values in the current resolution bin, and mutate self.data
+        Calculate percentile statistics for RSCC values in the current resolution bin, and mutate self.data_rscc
         This method:
         - Reads the resolution range from self.resolution_bin["resolution"] (expected as [high, low])
-            and formats it as the string "high-low" to use as a key in self.data.
+            and formats it as the string "high-low" to use as a key in self.data_rscc.
         - Iterates over residue types in self.l_standard_residue.
         - For each residue type, obtains the list of RSCC values from self.resolution_bin["residues"][residue_type].
         - If values are present, computes the 1st, 5th, 25th and 50th (median) percentiles
             using numpy.percentile and records these along with the count under
-            self.data[resolution][residue_type].
+            self.data_rscc[resolution][residue_type].
         - If no values are present for a residue type, logs a warning and skips it.
         :raises KeyError:
                 If expected keys ("resolution" or "residues") are missing from self.resolution_bin.
@@ -756,7 +779,7 @@ class ResidueRsccReferenceGenerator:
                 np.percentile(l_value, [1, 5, 25, 50]),
                 3
             )
-            self.data[residue_type][resolution_index] = [p25, p5, p1]
+            self.data_rscc[residue_type][resolution_index] = [p25, p5, p1]
             self.data_ref[residue_type][resolution_str] = {
                 "count": count,
                 "median": median,
@@ -788,22 +811,24 @@ class ResidueRsccReferenceGenerator:
             raise OutputError(f"writeTracking failed to write tracking data to {output_file}: {e}") from e
         logger.info("Wrote tracking data to output files %s", output_file)
 
-    def writeReference(self, output_file: str):
+    def writeReference(self):
         """
-        Write the generated self.data to a json file for Mol* to read
-
-        :param output_file: Path to the output json file.
+        Write the generated self.data_rscc to a json file for Mol* to read
         """
-        if not self.data:
+        fU = FileUtil()
+        fU.mkdir(self.__dirPath)
+        #
+        output_file = self.__getRcssRefDataPath()
+        if not self.data_rscc:
             raise OutputError("No data to write. Please run generate() first.")
-        if type(self.data) is not dict:
+        if type(self.data_rscc) is not dict:
             raise OutputError("Data format incorrect. Expected a dictionary after generate()")
         try:
             with open(output_file, "w", encoding="utf-8") as f:
-                json.dump(self.data, f, indent=2)
+                json.dump(self.data_rscc, f, indent=2)
         except Exception as e:
             raise OutputError(f"writeReference failed to write data to {output_file}: {e}") from e
-        logger.info("Wrote data to output files %s", output_file)
+        logger.info("Finished generating RSCC reference data file at %s", output_file)
 
     def writeReviewReference(self, output_file: str):
         """

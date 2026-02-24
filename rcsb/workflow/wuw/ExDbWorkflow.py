@@ -508,21 +508,17 @@ class ExDbWorkflow(object):
                 ligandGen = LigandQualityReferenceGenerator(
                     cfgOb=self.__cfgOb,
                     cachePath=self.__cachePath,
-                    configPath=self.__configPath,
-                    mockTopPath=self.__mockTopPath,
                     configName=self.__configName,
                 )
-                ok = ligandGen.generate()
+                ok = ligandGen.generate(backup=True)
             elif op == "residue_rscc_ref_gen":
                 logger.info("Starting workflow ResidueRsccReferenceGenerator.generate()")
                 rsccGen = ResidueRsccReferenceGenerator(
                     cfgOb=self.__cfgOb,
                     cachePath=self.__cachePath,
-                    configPath=self.__configPath,
-                    mockTopPath=self.__mockTopPath,
                     configName=self.__configName,
                 )
-                ok = rsccGen.generate()
+                ok = rsccGen.generate(backup=True)
         #
         logger.info("Completed operation %r with status %r\n", op, ok)
         if not ok:

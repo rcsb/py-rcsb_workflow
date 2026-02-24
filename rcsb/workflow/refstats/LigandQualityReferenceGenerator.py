@@ -16,7 +16,9 @@ import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
+from rcsb.utils.io.FileUtil import FileUtil
 from rcsb.db.mongo.Connection import Connection
+from rcsb.utils.chemref.RcsbLigandScoreProvider import RcsbLigandScoreProvider
 
 logger = logging.getLogger(__name__)
 
@@ -34,10 +36,11 @@ class OutputError(Exception):
 
 
 class LigandQualityReferenceGenerator:
-    """ This class generates ligand quality reference data by performing the following steps:
-    Query ligand quality metrics from RCSB MongoDB resource;
-    Process the ligand quality data by filtering, aggregating, and formatting;
-    Generate ligand reference data through PCA;
+    """
+    This class generates ligand quality reference data by performing the following steps:
+    1. Query ligand quality metrics from RCSB MongoDB resource;
+    2. Process the ligand quality data by filtering, aggregating, and formatting;
+    3. Generate ligand reference data through PCA;
         Attributes:
             data: final output of each pdb_ligand combination and their quality scores
             qdata: direct data from MongoDB query
@@ -50,6 +53,16 @@ class LigandQualityReferenceGenerator:
     """
     def __init__(self, cfgOb, cachePath, **kwargs):
         """Initiate the class and the MongoDB connection"""
+        self.__cfgOb = cfgOb
+        self.__configName = kwargs.get("configName", "site_info_configuration")
+        self.__cachePath = cachePath
+        self.__dirName = "rcsb-ligand-score"
+        self.__dirPath = os.path.join(self.__cachePath, self.__dirName)
+        #
+        self.__resourceName = "MONGO_DB"
+        self.__databaseName = kwargs.get("databaseName", "pdbx_core")
+        self.__collectionName = kwargs.get("collectionName", "pdbx_core_nonpolymer_entity_instance")
+        #
         # initilize output data of each pdb_ligand combination and their quality scores, which is a list of
         # dictionaries with keys of pdb_ligand, mogul_bonds_RMSZ, mogul_angles_RMSZ, RSR, RSCC, fit_pc1, geo_pc1
         self.refDataL = []
@@ -57,26 +70,29 @@ class LigandQualityReferenceGenerator:
         # initialize query data record from MongoDB, which is a list of dictionaries with keys of pdb_ligand, mogul_bonds_RMSZ,
         # mogul_angles_RMSZ, RSR, RSCC, and count (number of instances for the same ligand in the same PDB entry)
         self.qDataL = None
-        _ = kwargs
-        self.__cfgOb = cfgOb
-        self.__cachePath = cachePath
-        # self.__configName = cfgOb.getDefaultSectionName()
-        self.__resourceName = "MONGO_DB"
-        #
-        self.__databaseName = kwargs.get("databaseName", "pdbx_core")
-        self.__collectionName = kwargs.get("collectionName", "pdbx_core_nonpolymer_entity_instance")
-        # self.__databaseName = kwargs.get("databaseName", "dw")
-        # self.__collectionName = kwargs.get("collectionName", "core_nonpolymer_entity_instance")
-        #
 
-    def generate(self, pdb_ids: list[str] = None) -> bool:
+    def __getLigandScoreDataPath(self):
+        """Return the path to final desired output file.
+
+        Note that this must be identical to what is defined in rcsb.utils.chemref.RcsbLigandScoreProvider,
+        in order to support backup and restore functionalities to BL.
+        """
+        return os.path.join(self.__dirPath, "ligand_score_reference.csv")
+
+    def generate(self, pdb_ids: list[str] = None, backup: bool = False) -> bool:
         """
         Full pipeline to generate ligand quality reference data by running the steps of
         query -> filter -> reduce -> analyze.
 
-        :param pdb_ids: List of specified PDB IDs, default to [] which leads to all PDB structures being queried.
-        :return: The same object with updated self.data of ligand quality reference data.
+        Args:
+            pdb_ids (list): List of specified PDB IDs, default to [] which leads to all PDB structures being queried.
+            backup (bool): Whether to backup generated file to stash (default False).
+
+        Returns:
+            (bool): True for success or False otherwise
+            Also updates/modifies the self.qDataL and self.refDataL attributes.
         """
+        #
         # fetch ligand quality data from MongoDB, and process the data
         try:
             self.qDataL = self.fetchLigand(pdb_ids)
@@ -94,15 +110,25 @@ class LigandQualityReferenceGenerator:
             logger.error("Failed to analyze ligand quality data, STOP. ERROR: %s", e)
             return False
         # output the reference data to file
-        output_file = os.path.join(self.__cachePath, "ligand_score_reference.csv")  # final output file
         try:
-            self.writeReference(output_file)
+            self.writeReference()
         except OutputError as e:
             logger.error("Failed to write ligand quality reference data to file, STOP. ERROR: %s", e)
             return False
-        # proper finishing log
-        logger.info("Finished generating ligand quality reference data file at %s", output_file)
-        return True
+        #
+        logger.info("Finished generation workflow for ligand quality reference data.")
+        ok = True
+        #
+        logger.info("Refreshing RcsbLigandScoreProvider instance...")
+        rlsP = RcsbLigandScoreProvider(cachePath=self.__cachePath, useCache=True)
+        rlsP.reload()
+        if backup and rlsP.testCache():
+            logger.info("Backing up data to stash...")
+            okB = rlsP.backup(self.__cfgOb, self.__configName, useStash=True, useGit=False)
+            logger.info("%r ligand score backup status (%r)", self.__dirName, okB)
+            ok = ok and okB
+        #
+        return ok
 
     def fetchLigand(self, pdb_ids: list[str] = None):
         """
@@ -294,19 +320,24 @@ class LigandQualityReferenceGenerator:
             logger.info("Change sign of the first principal components to ensure correct directionality.")
         return principal_components[:, 0].tolist()
 
-    def writeReference(self, output_file: str):
+    def writeReference(self):
         """
         Write the generated ligand quality reference data to a csv file.
-
-        :param output_file: Path to the output csv file.
         """
+        fU = FileUtil()
+        fU.mkdir(self.__dirPath)
+        #
+        output_file = self.__getLigandScoreDataPath()
+        #
         if not self.refDataL:
             raise OutputError("No data to write. Please run generate() first.")
         if type(self.refDataL) is not list:
             raise OutputError("Data format incorrect. Expected a list of dictionaries after generate().")
         if type(self.refDataL[0]) is not dict:
             raise OutputError("Data format incorrect. Expected a list of dictionaries after generate().")
+        #
         fieldnames = self.refDataL[0].keys()
+        #
         try:
             with open(output_file, mode="w", newline="", encoding="utf-8") as file:
                 writer = csv.DictWriter(file, fieldnames=fieldnames)
@@ -314,3 +345,5 @@ class LigandQualityReferenceGenerator:
                 writer.writerows(self.refDataL)  # write all rows
         except Exception as e:
             raise OutputError(f"Failed to write ligand quality reference data to file: {e}") from e
+        #
+        logger.info("Finished generating ligand quality reference data file at %s", output_file)

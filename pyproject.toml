@@ -42,6 +42,7 @@ dependencies = [
     "rcsb.utils.chem >= 0.84",
     "rcsb.utils.seq >= 0.84",
     "rcsb.utils.targets >= 0.83",
+    "rcsb.utils.chemref >= 0.98",
     "rcsb.utils.seqalign >= 0.32",
     "rcsb.exdb >= 1.33",
 ]

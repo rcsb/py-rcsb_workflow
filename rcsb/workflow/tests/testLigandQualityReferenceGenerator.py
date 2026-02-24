@@ -25,7 +25,7 @@ TOPDIR = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 
 
 class LigandQualityReferenceGeneratorTests(unittest.TestCase):
-    debugFlag = True
+    debugFlag = False
 
     def setUp(self):
         self.__isMac = platform.system() == "Darwin"
@@ -46,9 +46,11 @@ class LigandQualityReferenceGeneratorTests(unittest.TestCase):
                 collectionName="core_nonpolymer_entity_instance"
             )
         else:  # production testing
-            self.__cfgOb = ConfigUtil(configPath=configPath,
-                                      defaultSectionName="site_info_configuration",
-                                      mockTopPath=self.__mockTopPath)
+            self.__cfgOb = ConfigUtil(
+                configPath=configPath,
+                defaultSectionName="site_info_configuration",
+                mockTopPath=self.__mockTopPath
+            )
             # self.__workflowFixture()
             self.cRLRG = LigandQualityReferenceGenerator(self.__cfgOb, cachePath=self.__cachePath)
         self.__startTime = time.time()
