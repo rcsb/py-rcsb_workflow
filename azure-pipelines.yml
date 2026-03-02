@@ -8,6 +8,7 @@
 #       8-Dec-2020 jdw py39 only
 #      16-Oct-2024 dwp update to python 3.10
 #       8-Dec-2025 dwp update to python 3.12
+#      18-Feb-2026 dwp update to python 3.13
 #
 name: $(BuildDefinitionName)_$(Date:yyyyMMdd)$(Rev:.rr)
 
@@ -31,7 +32,7 @@ jobs:
     parameters:
       {
         tox: "format_pep8",
-        python: "3.12",
+        python: "3.13",
         os: "linux",
         fixtures: "mongodb,mmseqs2",
       }
@@ -39,7 +40,7 @@ jobs:
     parameters:
       {
         tox: "lint_pylint",
-        python: "3.12",
+        python: "3.13",
         os: "linux",
         fixtures: "mongodb,mmseqs2",
       }
@@ -47,7 +48,7 @@ jobs:
     parameters:
       {
         tox: "test_coverage",
-        python: "3.12",
+        python: "3.13",
         os: "linux",
         fixtures: "mongodb,mmseqs2",
       }
@@ -55,16 +56,16 @@ jobs:
   - template: azure-template-tox-job.yml
     parameters:
       {
-        tox: "py312",
-        python: "3.12",
+        tox: "py313",
+        python: "3.13",
         os: "linux",
         fixtures: "mongodb,mmseqs2",
       }
   #
   #- template: azure-template-tox-job.yml
   #  parameters:
-  #    { tox: "py312", python: "3.12", os: "macos", fixtures: "mongodb" }
+  #    { tox: "py313", python: "3.13", os: "macos", fixtures: "mongodb" }
   #
   - template: azure-template-publish-job.yml
-    parameters: { tox: "py312", python: "3.12", os: "linux" }
+    parameters: { tox: "py313", python: "3.13", os: "linux" }
   #

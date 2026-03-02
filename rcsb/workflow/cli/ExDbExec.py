@@ -14,6 +14,7 @@
 #  22-Oct-2024 dwp Add ccd_img_gen and ccd_file_gen operations
 #                  (latter will only be used briefly, as will stop generating SDF and Mol2 files in Dec 2024)
 #  31-Jan-2025 mjt Moved this script from rcsb.exdb (to remove circluar dependencies)
+#  10-Jan-2025  cs Add ligand_quality_ref_gen and residue_rscc_ref_gen operations
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
@@ -58,6 +59,8 @@ def main():
             "upd_resource_stash",
             "ccd_img_gen",
             "ccd_file_gen",
+            "ligand_quality_ref_gen",
+            "residue_rscc_ref_gen",
         ]
     )
     parser.add_argument(
@@ -129,6 +132,8 @@ def main():
         "upd_entry_info",
         "upd_glycan_idx",
         "upd_resource_stash",
+        "ligand_quality_ref_gen",
+        "residue_rscc_ref_gen",
     ]:
         okR = exWf.buildExdbResource(op, **loadD)
     elif op in [

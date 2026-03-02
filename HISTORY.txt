@@ -59,3 +59,5 @@
 15-Oct-2025 - V0.63 Add ChemSearchIndex from weekly-update-workflow so it can be a cli call instead
  8-Dec-2025 - V0.64 Switch to 'pyproject.toml' file and update test pipelines to python 3.12
  6-Jan-2026 - V0.65 Reduce resource utilization for test suites
+ 2-Mar-2026 - V0.66 Add refstats subpackage for ligand and RSCC reference generation;
+                    Update test pipelines to python 3.13

@@ -145,7 +145,7 @@ jobs:
               export PIP_EXTRA_INDEX_URL="https://pypi.anaconda.org/OpenEye/simple"
               ${{ format('python -m tox -e {0}', parameters.tox) }}
             displayName: "Running tox task"
-      - ? ${{ if and(not(startsWith(parameters.tox, 'py')), startsWith(parameters.python, '3.12')) }}
+      - ? ${{ if and(not(startsWith(parameters.tox, 'py')), startsWith(parameters.python, '3.13')) }}
         : - script: |
               export OE_LICENSE=$(oelicense.secureFilePath)
               export CONFIG_SUPPORT_TOKEN_ENV=$(VAR_CONFIG_SUPPORT_TOKEN_ENV)

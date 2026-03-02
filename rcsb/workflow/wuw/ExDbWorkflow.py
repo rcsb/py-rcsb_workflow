@@ -10,6 +10,7 @@
 #  25-Apr-2024 dwp Add arguments and methods to support CLI usage from weekly-update workflow
 #  20-Aug-2024 dwp Add LoadTargetCofactors step; change name of UpdateTargetsCofactors step to UpdateTargetsData
 #  31-Jan-2025 mjt Moved this script from rcsb.exdb (to remove circluar dependencies)
+#  10-Jan-2026  cs Added ligand quality and residue RSCC reference data generation workflows
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
@@ -28,6 +29,8 @@ from rcsb.utils.dictionary.NeighborInteractionWorkflow import NeighborInteractio
 from rcsb.workflow.targets.ProteinTargetSequenceExecutionWorkflow import ProteinTargetSequenceExecutionWorkflow
 from rcsb.workflow.chem.ChemCompImageWorkflow import ChemCompImageWorkflow
 from rcsb.workflow.chem.ChemCompFileWorkflow import ChemCompFileWorkflow
+from rcsb.workflow.refstats.LigandQualityReferenceGenerator import LigandQualityReferenceGenerator
+from rcsb.workflow.refstats.ResidueRsccReferenceGenerator import ResidueRsccReferenceGenerator
 from rcsb.exdb.chemref.ChemRefEtlWorker import ChemRefEtlWorker
 from rcsb.exdb.seq.ReferenceSequenceAnnotationAdapter import ReferenceSequenceAnnotationAdapter
 from rcsb.exdb.seq.ReferenceSequenceAnnotationProvider import ReferenceSequenceAnnotationProvider
@@ -354,6 +357,8 @@ class ExDbWorkflow(object):
             "upd_entry_info",
             "upd_glycan_idx",
             "upd_resource_stash",
+            "ligand_quality_ref_gen",
+            "residue_rscc_ref_gen",
         ]:
             logger.error("Unsupported operation %r - exiting", op)
             return False
@@ -498,6 +503,22 @@ class ExDbWorkflow(object):
                     cachePath=self.__cachePath,
                 )
                 ok = dmWf.buildResourceCache()
+            elif op == "ligand_quality_ref_gen":
+                logger.info("Starting workflow LigandQualityReferenceGenerator.generate()")
+                ligandGen = LigandQualityReferenceGenerator(
+                    cfgOb=self.__cfgOb,
+                    cachePath=self.__cachePath,
+                    configName=self.__configName,
+                )
+                ok = ligandGen.generate(backup=True)
+            elif op == "residue_rscc_ref_gen":
+                logger.info("Starting workflow ResidueRsccReferenceGenerator.generate()")
+                rsccGen = ResidueRsccReferenceGenerator(
+                    cfgOb=self.__cfgOb,
+                    cachePath=self.__cachePath,
+                    configName=self.__configName,
+                )
+                ok = rsccGen.generate(backup=True)
         #
         logger.info("Completed operation %r with status %r\n", op, ok)
         if not ok:

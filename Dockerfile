@@ -2,7 +2,7 @@
 # and packages needed for running ETL workflow
 
 # Use an official Python image as a base image
-FROM python:3.12-slim-bookworm
+FROM python:3.13-slim-bookworm
 
 # Set the working directory inside the container
 WORKDIR /app
