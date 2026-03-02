@@ -25,7 +25,7 @@ TOPDIR = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 
 
 class LigandQualityReferenceGeneratorTests(unittest.TestCase):
-    debugFlag = True
+    debugFlag = False
 
     def setUp(self):
         self.__isMac = platform.system() == "Darwin"
