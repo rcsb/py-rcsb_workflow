@@ -71,14 +71,13 @@ class LigandQualityReferenceGenerator:
         # mogul_angles_RMSZ, RSR, RSCC, and count (number of instances for the same ligand in the same PDB entry)
         self.qDataL = None
 
-    def generate(self, pdb_ids: list[str] = None, backup: bool = False, output_file: str = None) -> bool:
+    def generate(self, pdb_ids: list[str] = None, backup: bool = False) -> bool:
         """
         Full pipeline to generate ligand quality reference data by running the steps of
         query -> filter -> reduce -> analyze.
 
         Args:
             pdb_ids (list): List of specified PDB IDs, default to [] which leads to all PDB structures being queried.
-            output_file (str): Specify output file. Default None, which uses path defined in RcsbLigandScoreProvider.
             backup (bool): Whether to backup generated file to stash (default False).
 
         Returns:
@@ -88,7 +87,7 @@ class LigandQualityReferenceGenerator:
         #
         # fetch ligand quality data from MongoDB, and process the data
         try:
-            self.qDataL = self.fetchLigand(pdb_ids)
+            self.qDataL = self.fetchLigand(pdb_ids=pdb_ids)
         except DatabaseError as e:
             logger.error("Failed to fetch ligand quality data, STOP. ERROR: %s", e)
             return False
@@ -104,9 +103,8 @@ class LigandQualityReferenceGenerator:
             return False
         # output the reference data to file
         try:
-            if output_file is None:
-                rlsP = RcsbLigandScoreProvider(cachePath=self.__cachePath, useCache=True)
-                output_file = rlsP.getLigandScoreDataPath()
+            rlsP = RcsbLigandScoreProvider(cachePath=self.__cachePath, useCache=True)
+            output_file = rlsP.getLigandScoreDataPath()
             self.writeReference(output_file=output_file)
         except OutputError as e:
             logger.error("Failed to write ligand quality reference data to file, STOP. ERROR: %s", e)
