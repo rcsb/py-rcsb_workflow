@@ -69,7 +69,7 @@ class LigandQualityReferenceGeneratorTests(unittest.TestCase):
         Test fetchLigand on several PDB IDs.
         """
         pdb_ids = ["6WJC", "1C0T", "1DT4", "2HYV", "XXXX"]  # 1C0T with ligand, 1DT4 without ligand, XXXX invalid ID
-        qdata = self.cRLRG.fetchLigand(pdb_ids)
+        qdata = self.cRLRG.fetchLigand(pdb_ids=pdb_ids)
         self.assertTrue(qdata)
         logger.info("query on %s with response %s", pdb_ids, qdata)
         l_pdb_id = []
@@ -108,7 +108,7 @@ class LigandQualityReferenceGeneratorTests(unittest.TestCase):
         Test analyze function on several PDB IDs.
         """
         pdb_ids = ["1C0T", "1DT4", "6WJC", "4HHB"]
-        qdata = self.cRLRG.fetchLigand(pdb_ids)
+        qdata = self.cRLRG.fetchLigand(pdb_ids=pdb_ids)
         refdata = self.cRLRG.analyzeLigand(qdata)
         self.assertTrue(refdata)
         # Write to output file
@@ -137,31 +137,29 @@ class LigandQualityReferenceGeneratorTests(unittest.TestCase):
         Test generate function that runs the full pipeline on several PDB IDs.
         """
         pdb_ids = ["1C0T", "1DT4", "6WJC", "4HHB"]
-        self.assertTrue(self.cRLRG.generate(pdb_ids))
+        csv_output_file = os.path.join(self.__cachePath, "ligand_score_reference.csv")
+        self.assertTrue(self.cRLRG.generate(pdb_ids=pdb_ids, output_file=csv_output_file))
         self.assertTrue(self.cRLRG.refDataL)
+        self.assertTrue(os.path.exists(csv_output_file), "Output CSV file does not exist.")
         # Write to output file
         output_file = os.path.join(self.__cachePath, "testLigandQualityReferenceGenerator_generate.json")
         with open(output_file, "w", encoding="utf-8") as file:
             json.dump(self.cRLRG.refDataL, file, indent=2)
         logger.info("Wrote data to output file %s", output_file)
-        # Write reference data to csv
-        csv_output_file = os.path.join(self.__cachePath, "ligand_score_reference.csv")
-        self.assertTrue(os.path.exists(csv_output_file), "Output CSV file does not exist.")
 
     def testGenerateAll(self):
         """
         Test generate function that runs the full pipeline on all PDB structures.
         """
-        self.assertTrue(self.cRLRG.generate())
+        csv_output_file = os.path.join(self.__cachePath, "ligand_score_reference.csv")
+        self.assertTrue(self.cRLRG.generate(output_file=csv_output_file))
         self.assertTrue(self.cRLRG.refDataL)
+        self.assertTrue(os.path.exists(csv_output_file), "Output CSV file does not exist.")
         # Write to output file
         output_file = os.path.join(self.__cachePath, "testLigandQualityReferenceGenerator_generateAll.json")
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(self.cRLRG.refDataL, f, indent=2)
         logger.info("Wrote data to output file %s", output_file)
-        # Write reference data to csv
-        csv_output_file = os.path.join(self.__cachePath, "ligand_score_reference.csv")
-        self.assertTrue(os.path.exists(csv_output_file), "Output CSV file does not exist.")
 
 
 def genLigandRef():
