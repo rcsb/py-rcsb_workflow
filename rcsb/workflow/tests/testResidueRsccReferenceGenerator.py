@@ -201,11 +201,11 @@ class ResidueRsccReferenceGeneratorTests(unittest.TestCase):
             self.cRRRG.processResidue()
             logger.info(self.cRRRG.resolution_bin["tracking"])
             self.cRRRG.calculatePercentiles()
-            self.assertTrue(self.cRRRG.data)
+            self.assertTrue(self.cRRRG.data_rscc)
             # Write to output file
             output_file = os.path.join(self.__cachePath, "testResidueRsccReferenceGenerator_calculatePercentiles.json")
             with open(output_file, "w", encoding="utf-8") as f:
-                json.dump(self.cRRRG.data, f, indent=2)
+                json.dump(self.cRRRG.data_rscc, f, indent=2)
             logger.info("Wrote data to output files %s", output_file)
 
     @unittest.skipUnless(debugFlag, "Skip individual debug tests")
@@ -217,7 +217,7 @@ class ResidueRsccReferenceGeneratorTests(unittest.TestCase):
             db = client[self.__databaseName]
             self.cRRRG.generateBin(db, [0.1, 0.5])
             # self.cRRRG.generateBin([1, 1.1])
-            self.assertTrue(self.cRRRG.data)
+            self.assertTrue(self.cRRRG.data_rscc)
             # Write to output file
             output_file = os.path.join(self.__cachePath, "testResidueRsccReferenceGenerator_generateBin.json")
             self.cRRRG.writeReference(output_file)
