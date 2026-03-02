@@ -121,12 +121,12 @@ class ResidueRsccReferenceGenerator(StashableBase):
         # (3) Metadata by keys of: "resolution", "tracking".
         #
 
-    def __getRcssRefDataPath(self):
+    def getRcssRefDataPath(self):
         return os.path.join(self.__dirPath, "rscc-thresholds.json")
 
     def testCache(self):
         fU = FileUtil()
-        rscc_data_file = self.__getRcssRefDataPath()
+        rscc_data_file = self.getRcssRefDataPath()
         #
         if self.data_rscc and fU.exists(rscc_data_file):
             logger.info("RSCC percentile data (%d) from file %s", len(self.data_rscc), rscc_data_file)
@@ -190,7 +190,8 @@ class ResidueRsccReferenceGenerator(StashableBase):
                     return False
                 self.resolution_bin = {}  # reset, empty self.resolution_bin data for the run on the next bin
         try:
-            self.writeReference()
+            output_file = self.getRcssRefDataPath()
+            self.writeReference(output_file=output_file)
         except OutputError as e:
             logger.error("Failed to write ligand quality reference data to file, STOP. ERROR: %s", e)
             return False
@@ -811,14 +812,15 @@ class ResidueRsccReferenceGenerator(StashableBase):
             raise OutputError(f"writeTracking failed to write tracking data to {output_file}: {e}") from e
         logger.info("Wrote tracking data to output files %s", output_file)
 
-    def writeReference(self):
+    def writeReference(self, output_file):
         """
         Write the generated self.data_rscc to a json file for Mol* to read
+
+        :param output_file: Path to the output json file.
         """
         fU = FileUtil()
         fU.mkdir(self.__dirPath)
         #
-        output_file = self.__getRcssRefDataPath()
         if not self.data_rscc:
             raise OutputError("No data to write. Please run generate() first.")
         if type(self.data_rscc) is not dict:

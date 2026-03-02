@@ -26,7 +26,7 @@ TOPDIR = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 
 
 class ResidueRsccReferenceGeneratorTests(unittest.TestCase):
-    debugFlag = False
+    debugFlag = True
 
     def setUp(self):
         self.__isMac = platform.system() == "Darwin"
@@ -233,8 +233,8 @@ class ResidueRsccReferenceGeneratorTests(unittest.TestCase):
         """
         Test generate on all PDB entries.
         """
-        self.cRRRG.generate([1.9, 2.1])
-        output_file = os.path.join(self.__cachePath, "rscc-thresholds.json")
+        self.cRRRG.generate(resolution_range=[1.9, 2.1])
+        output_file = self.cRRRG.getRcssRefDataPath()
         self.assertTrue(os.path.exists(output_file), "Output JSON file does not exist.")
         output_file_tsv = os.path.join(self.__cachePath, "testResidueRsccReferenceGenerator_generate.tsv")
         self.cRRRG.writeReviewReference(output_file_tsv)
