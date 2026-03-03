@@ -28,6 +28,7 @@ on:
   push:
     branches:
       - master
+      - dev-dwp
 
 jobs:
   run-workflow:
