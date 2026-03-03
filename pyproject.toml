@@ -47,8 +47,8 @@ dependencies = [
     "rcsb.exdb >= 1.33",
     #
     # Explicit branch overrides
-    "rcsb.utils.dictionary @ git+https://github.com/rcsb/py-rcsb_utils_dictionary.git@ro-4854",
-    "rcsb.utils.insilico3d @ git+https://github.com/rcsb/py-rcsb_utils_insilico3d.git@development-dwp",
+    "rcsb.utils.dictionary@git+https://github.com/rcsb/py-rcsb_utils_dictionary.git@ro-4854",
+    "rcsb.utils.insilico3d@git+https://github.com/rcsb/py-rcsb_utils_insilico3d.git@development-dwp",
 ]
 
 [project.optional-dependencies]
@@ -65,6 +65,9 @@ chem_search_index_cli = "rcsb.workflow.cli.ChemSearchIndexExec:main"
 
 
 # ----------------  hatch configuration ----------------
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [tool.hatch.build.targets.sdist]
 include = [
     "/rcsb/**",
