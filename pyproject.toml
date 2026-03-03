@@ -48,7 +48,7 @@ dependencies = [
     #
     # Explicit branch overrides
     "rcsb.utils.dictionary@git+https://github.com/rcsb/py-rcsb_utils_dictionary.git@ro-4854",
-    "rcsb.utils.insilico3d@git+https://github.com/rcsb/py-rcsb_utils_insilico3d.git@development-dwp",
+    # "rcsb.utils.insilico3d@git+https://github.com/rcsb/py-rcsb_utils_insilico3d.git@development-dwp",
 ]
 
 [project.optional-dependencies]
@@ -66,6 +66,7 @@ chem_search_index_cli = "rcsb.workflow.cli.ChemSearchIndexExec:main"
 
 # ----------------  hatch configuration ----------------
 [tool.hatch.metadata]
+# This allows for references to specfic GitHub branches within the list of dependencies/requirements above
 allow-direct-references = true
 
 [tool.hatch.build.targets.sdist]
