@@ -45,6 +45,10 @@ dependencies = [
     "rcsb.utils.chemref >= 0.98",
     "rcsb.utils.seqalign >= 0.32",
     "rcsb.exdb >= 1.33",
+    #
+    # Explicit branch overrides
+    "rcsb.utils.dictionary @ git+https://github.com/rcsb/py-rcsb_utils_dictionary.git@ro-4854",
+    "rcsb.utils.insilico3d @ git+https://github.com/rcsb/py-rcsb_utils_insilico3d.git@development-dwp",
 ]
 
 [project.optional-dependencies]
