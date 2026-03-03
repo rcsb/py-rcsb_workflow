@@ -33,7 +33,10 @@ RUN mkdir -p /opt/mmseqs2 \
 RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "wheel>=0.43.0" "setuptools>=40.8.0" \
     && pip install --no-cache-dir "pymongo>=4.10.1" \
     # Use pip instead of hatch or uv, since the latter will only install CLIs into the virtual envs
-    && pip install --no-cache-dir . --extra-index-url https://pypi.anaconda.org/OpenEye/simple
+    && pip install --no-cache-dir . --extra-index-url https://pypi.anaconda.org/OpenEye/simple \
+    && pip install --no-cache-dir git+https://github.com/rcsb/py-rcsb_utils_dictionary.git@ro-4854 \
+    && pip install --no-cache-dir git+https://github.com/rcsb/py-rcsb_utils_insilico3d.git@development-dwp
+
 
 # Install node modules
 WORKDIR /opt/modules/node_modules
