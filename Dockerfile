@@ -33,16 +33,27 @@ RUN mkdir -p /opt/mmseqs2 \
 RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "wheel>=0.43.0" "setuptools>=40.8.0" \
     && pip install --no-cache-dir "pymongo>=4.10.1" \
     # Use pip instead of hatch or uv, since the latter will only install CLIs into the virtual envs
-    # && pip install --no-cache-dir . --extra-index-url https://pypi.anaconda.org/OpenEye/simple \
-    # && pip install --no-cache-dir git+https://github.com/rcsb/py-rcsb_utils_insilico3d.git@development-dwp \
-    # && pip install --no-cache-dir git+https://github.com/rcsb/py-rcsb_utils_dictionary.git@ro-4854 \
-    && pip install --no-cache-dir \
-        . \
-        git+https://github.com/rcsb/py-rcsb_utils_dictionary.git@ro-4854 \
-        git+https://github.com/rcsb/py-rcsb_utils_insilico3d.git@development-dwp \
-        --extra-index-url https://pypi.anaconda.org/OpenEye/simple \
+    && pip install --no-cache-dir . --extra-index-url https://pypi.anaconda.org/OpenEye/simple \
+    \
+    # Clone py-rcsb_db without submodules and install
+    && git clone --depth 1 --branch development-dwp --recurse-submodules=no \
+        https://github.com/rcsb/py-rcsb_db.git /tmp/py-rcsb_db \
+    && pip install --no-cache-dir /tmp/py-rcsb_db \
+    && rm -rf /tmp/py-rcsb_db \
+    \
+    # Clone py-rcsb_utils_dictionary without submodules and install
+    && git clone --depth 1 --branch ro-4854 --recurse-submodules=no \
+        https://github.com/rcsb/py-rcsb_utils_dictionary.git /tmp/py-rcsb_utils_dictionary \
+    && pip install --no-cache-dir /tmp/py-rcsb_utils_dictionary \
+    && rm -rf /tmp/py-rcsb_utils_dictionary \
+    \
+    # Clone py-rcsb_utils_insilico3d without submodules and install
+    && git clone --depth 1 --branch development-dwp --recurse-submodules=no \
+        https://github.com/rcsb/py-rcsb_utils_insilico3d.git /tmp/py-rcsb_utils_insilico3d \
+    && pip install --no-cache-dir /tmp/py-rcsb_utils_insilico3d \
+    && rm -rf /tmp/py-rcsb_utils_insilico3d \
+    \
     && pip freeze
-
 
 # Install node modules
 WORKDIR /opt/modules/node_modules
