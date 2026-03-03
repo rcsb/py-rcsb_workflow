@@ -703,11 +703,11 @@ class ResidueRsccReferenceGenerator(StashableBase):
                 d_occupancy_ordinal = self.resolution_bin["metrics"][instance_id]["AVERAGE_OCCUPANCY"]
                 # validate the sequence ordinals match among RSCC, NATOMS_EDS, and AVERAGE_OCCUPANCY
                 if not d_rscc_ordinal.keys() == d_natoms_ordinal.keys() == d_occupancy_ordinal.keys():
-                    logger.error("%s has unmatching sequence ordinal for at least one residue on RSCC, natoms, and occupancy, skip", instance_id)
+                    logger.warning("%s has unmatching sequence ordinal for at least one residue on RSCC, natoms, and occupancy, skip", instance_id)
                     continue
                 # validate the RSCC sequence ordinals are a subset of the overall sequence
                 if not d_rscc_ordinal.keys() <= d_residue_ordinal.keys():
-                    logger.error("%s has RSCC values with sequence ordinal unmatch the sequence, might be microheterogeneity, skip", instance_id)
+                    logger.warning("%s has RSCC values with sequence ordinal unmatch the sequence, might be microheterogeneity, skip", instance_id)
                     continue
                 # enumerate through each residue in RSCC dict, retrieve metrics and residue type by sequence ordinal
                 for ordinal, rscc in d_rscc_ordinal.items():
