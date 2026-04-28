@@ -35,6 +35,14 @@ RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "wheel>=0.43.0" "setuptoo
     # Use pip instead of hatch or uv, since the latter will only install CLIs into the virtual envs
     && pip install --no-cache-dir . --extra-index-url https://pypi.anaconda.org/OpenEye/simple
 
+    # Clone py-rcsb_utils_dictionary without submodules and install
+    && git clone --depth 1 --branch ro-4917-4342 --recurse-submodules=no \
+        https://github.com/rcsb/py-rcsb_utils_dictionary.git /tmp/py-rcsb_utils_dictionary \
+    && pip install --no-cache-dir /tmp/py-rcsb_utils_dictionary \
+    && rm -rf /tmp/py-rcsb_utils_dictionary \
+    \
+    && pip freeze
+
 # Install node modules
 WORKDIR /opt/modules/node_modules
 RUN npm i molrender@0.9.0

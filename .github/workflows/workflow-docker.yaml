@@ -28,6 +28,7 @@ on:
   push:
     branches:
       - master
+      - dev-bv
 
 jobs:
   run-workflow:
