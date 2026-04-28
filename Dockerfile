@@ -1,4 +1,4 @@
-# Dockerfile for building image with all ExDB CLI commands 
+# Dockerfile for building image with all ExDB CLI commands
 # and packages needed for running ETL workflow
 
 # Use an official Python image as a base image
