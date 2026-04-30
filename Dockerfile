@@ -19,7 +19,7 @@ RUN apt-get update && \
         default-libmysqlclient-dev=1.1.* wget=1.21.* libcairo2=1.16.* git=1:2.* \
         nodejs=18.20.4+dfsg-1~deb12u1 libnode108=18.20.4+dfsg-1~deb12u1 npm=9.2.0~ds1-1 \
         libx11-dev=2:1.8.4-2+deb12u2 libxi-dev=2:1.8-1+b1 libxext-dev=2:1.3.4-1+b1 mesa-common-dev=22.3.6-1+deb12u1 \
-        libgl1-mesa-dev=22.3.6-1+deb12u1 xvfb=2:21.* xauth=1:1.1.2-1 tzdata=* cmake=3.* bison=2:* flex=2.* \
+        libgl1-mesa-dev=22.3.6-1+deb12u1 xvfb=2:21.* xauth=1:1.1.2-1 tzdata=* \
     && rm -rf /var/lib/apt/lists/*
 
 # Install mmseqs2
@@ -32,33 +32,8 @@ RUN mkdir -p /opt/mmseqs2 \
 # Install Python dependencies and the package
 RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "wheel>=0.43.0" "setuptools>=40.8.0" \
     && pip install --no-cache-dir "pymongo>=4.10.1" \
-    && pip install --no-cache-dir . --extra-index-url https://pypi.anaconda.org/OpenEye/simple \
-    \
-    # Clone py-rcsb_exdb without submodules and install
-    && git clone --depth 1 --branch ro-4852 --recurse-submodules=no \
-        https://github.com/rcsb/py-rcsb_exdb.git /tmp/py-rcsb_exdb \
-    && pip install --no-cache-dir /tmp/py-rcsb_exdb \
-    && rm -rf /tmp/py-rcsb_exdb \
-    \
-    # Clone py-rcsb_db without submodules and install
-    && git clone --depth 1 --branch ro-4852 --recurse-submodules=no \
-        https://github.com/rcsb/py-rcsb_db.git /tmp/py-rcsb_db \
-    && pip install --no-cache-dir /tmp/py-rcsb_db \
-    && rm -rf /tmp/py-rcsb_db \
-    \
-    # Clone py-rcsb_utils_dictionary without submodules and install
-    && git clone --depth 1 --branch ro-4852 --recurse-submodules=no \
-        https://github.com/rcsb/py-rcsb_utils_dictionary.git /tmp/py-rcsb_utils_dictionary \
-    && pip install --no-cache-dir /tmp/py-rcsb_utils_dictionary \
-    && rm -rf /tmp/py-rcsb_utils_dictionary \
-    \
-    # Clone py-rcsb_utils_insilico3d without submodules and install
-    && git clone --depth 1 --branch ro-4852 --recurse-submodules=no \
-        https://github.com/rcsb/py-rcsb_utils_insilico3d.git /tmp/py-rcsb_utils_insilico3d \
-    && pip install --no-cache-dir /tmp/py-rcsb_utils_insilico3d \
-    && rm -rf /tmp/py-rcsb_utils_insilico3d \
-    \
-    && pip freeze
+    # Use pip instead of hatch or uv, since the latter will only install CLIs into the virtual envs
+    && pip install --no-cache-dir . --extra-index-url https://pypi.anaconda.org/OpenEye/simple
 
 # Install node modules
 WORKDIR /opt/modules/node_modules
