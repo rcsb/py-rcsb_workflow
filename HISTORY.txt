@@ -61,3 +61,4 @@
  6-Jan-2026 - V0.65 Reduce resource utilization for test suites
  2-Mar-2026 - V0.66 Add refstats subpackage for ligand and RSCC reference generation;
                     Update test pipelines to python 3.13
+ 7-May-2026 - V0.67 Configure logging at start of CLI executable scripts
