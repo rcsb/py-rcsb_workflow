@@ -64,7 +64,8 @@ class ProteinTargetSequenceWorkflow(object):
         self.__configName = cfgOb.getDefaultSectionName()
         self.__cachePath = os.path.abspath(cachePath)
         self.__umP = None
-        self.__defaultResourceNameList = ["sabdab", "card", "drugbank", "chembl", "pdbprent"]
+        # self.__defaultResourceNameList = ["sabdab", "card", "drugbank", "chembl", "pdbprent"]
+        self.__defaultResourceNameList = ["sabdab", "card", "chembl", "pdbprent"]
 
     def testCache(self):
         return True
