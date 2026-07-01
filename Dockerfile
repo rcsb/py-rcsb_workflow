@@ -53,6 +53,12 @@ RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "wheel>=0.43.0" "setuptoo
     && pip install --no-cache-dir /tmp/py-rcsb_utils_repository \
     && rm -rf /tmp/py-rcsb_utils_repository \
     \
+    # Clone py-rcsb_utils_seq without submodules and install
+    && git clone --depth 1 --branch ro-5076 --recurse-submodules=no \
+        https://github.com/rcsb/py-rcsb_utils_seq.git /tmp/py-rcsb_utils_seq \
+    && pip install --no-cache-dir /tmp/py-rcsb_utils_seq \
+    && rm -rf /tmp/py-rcsb_utils_seq \
+    \
     && pip freeze
 
 # Install node modules
