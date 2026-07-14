@@ -35,6 +35,12 @@ RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "wheel>=0.43.0" "setuptoo
     # Use pip instead of hatch or uv, since the latter will only install CLIs into the virtual envs
     && pip install --no-cache-dir . --extra-index-url https://pypi.anaconda.org/OpenEye/simple \
     \
+    # Clone py-rcsb_exdb without submodules and install
+    && git clone --depth 1 --branch ro-5076 --recurse-submodules=no \
+        https://github.com/rcsb/py-rcsb_exdb.git /tmp/py-rcsb_exdb \
+    && pip install --no-cache-dir /tmp/py-rcsb_exdb \
+    && rm -rf /tmp/py-rcsb_exdb \
+    \
     # Clone py-rcsb_db without submodules and install
     && git clone --depth 1 --branch ro-5076 --recurse-submodules=no \
         https://github.com/rcsb/py-rcsb_db.git /tmp/py-rcsb_db \
