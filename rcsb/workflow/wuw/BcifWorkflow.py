@@ -37,6 +37,7 @@ class BcifWorkflow:
         self.outputHash = bool(args.outputHash)
         self.inputHash = bool(args.inputHash)
         self.batchSize = int(args.batchSize)
+        self.shortlink = bool(args.shortlink)
         # config
         self.pdbxDict = args.pdbxDict
         self.maDict = args.maDict
