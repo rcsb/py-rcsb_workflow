@@ -181,23 +181,22 @@ def singleTask(
     if shortlink:
         # Use remote path without hash
         cifFilePath = os.path.join(remotePath, remoteFileName)
-    else:
-        if not remotePath.startswith("http"):
-            # local file
-            cifFilePath = os.path.join(remotePath, remoteFileName)
-            if inputHash:
-                cifFilePath = os.path.join(
-                    remotePath,
-                    getHash(getInputPdbId(pdbId, contentType), contentType),
-                    remoteFileName,
-                )
-            if not os.path.exists(cifFilePath):
-                logger.warning("%s not found", cifFilePath)
-                return
-        else:
-            cifFilePath = getRemoteFilePath(
-                getInputPdbId(pdbId, contentType), contentType, remotePath, remoteFileName
+    elif not remotePath.startswith("http"):
+        # local file
+        cifFilePath = os.path.join(remotePath, remoteFileName)
+        if inputHash:
+            cifFilePath = os.path.join(
+                remotePath,
+                getHash(getInputPdbId(pdbId, contentType), contentType),
+                remoteFileName,
             )
+        if not os.path.exists(cifFilePath):
+            logger.warning("%s not found", cifFilePath)
+            return
+    else:
+        cifFilePath = getRemoteFilePath(
+            getInputPdbId(pdbId, contentType), contentType, remotePath, remoteFileName
+        )
 
     # form output bcifFilePath
     bcifFilePath = getBcifFilePath(
