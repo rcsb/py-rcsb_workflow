@@ -84,5 +84,6 @@ class BcifWorkflow:
             self.maDict,
             self.rcsbDict,
             self.ihmDict,
-            self.flrDict
+            self.flrDict,
+            self.shortlink,
         )
