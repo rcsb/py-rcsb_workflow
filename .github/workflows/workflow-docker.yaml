@@ -28,7 +28,6 @@ on:
   push:
     branches:
       - master
-      - mt/bcif-shortlink
 
 jobs:
   run-workflow:

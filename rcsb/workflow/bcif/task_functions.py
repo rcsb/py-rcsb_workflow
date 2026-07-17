@@ -181,7 +181,6 @@ def singleTask(
     if shortlink:
         # Use remote path without hash
         cifFilePath = os.path.join(remotePath, remoteFileName)
-        logger.info("Using shortlink for remote path: %s", cifFilePath)
     elif not remotePath.startswith("http"):
         # local file
         cifFilePath = os.path.join(remotePath, remoteFileName)
