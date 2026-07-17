@@ -63,3 +63,4 @@
                     Update test pipelines to python 3.13
  7-May-2026 - V0.67 Configure logging at start of CLI executable scripts
 11-May-2026 - V0.68 Temporarily skip DrugBank data processing until dataset becomes available
+17-Jul-2026 - V0.69 Add shortlink support for bcif generation
