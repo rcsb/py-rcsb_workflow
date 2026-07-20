@@ -126,6 +126,14 @@ def main():
         default="https://raw.githubusercontent.com/ihmwg/flrCIF/refs/heads/master/dist/mmcif_ihm_flr_ext.dic",
         required=False,
     )
+    parser.add_argument(
+        "--shortlink",
+        action="store_true",
+        default=False,
+        required=False,
+        help="Build remote file path without a hash",
+    )
+    
     # logging
     parser.add_argument("--log_file_path", required=False)
     parser.add_argument("--debug", action="store_true", default=False, required=False)
