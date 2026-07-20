@@ -50,6 +50,7 @@ def convertCifFilesToBcif(
     rcsbDict: str,
     ihmDict: str,
     flrDict: str,
+    shortlink: bool,
 ):
     """
     Converts CIF files to BCIF format based on a given list file.
@@ -107,6 +108,7 @@ def convertCifFilesToBcif(
                 contentType,
                 dictionaryApi,
                 temppath,
+                shortlink,
             )
             singleTask(*args)
     elif batchSize > 1:
@@ -125,6 +127,7 @@ def convertCifFilesToBcif(
                 contentType,
                 dictionaryApi,
                 temppath,
+                shortlink,
             )
             results.append(pool.apply_async(singleTask, args))
         for r in results:
@@ -167,6 +170,7 @@ def singleTask(
     contentType: str,
     dictionaryApi: DictionaryApi,
     temppath: str,
+    shortlink: bool,
 ) -> None:
     remoteFileName = "%s%s" % (
         getInputPdbId(pdbId, contentType),
@@ -174,7 +178,10 @@ def singleTask(
     )
 
     # form input cifFilePath
-    if not remotePath.startswith("http"):
+    if shortlink:
+        # Use remote path without hash
+        cifFilePath = os.path.join(remotePath, remoteFileName)
+    elif not remotePath.startswith("http"):
         # local file
         cifFilePath = os.path.join(remotePath, remoteFileName)
         if inputHash:
