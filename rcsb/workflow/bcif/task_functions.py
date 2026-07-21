@@ -243,7 +243,7 @@ def getOutputContentType(contentType: str) -> str:
 
 def getHash(pdbId: str, contentType: str) -> str:
     """get upper/lowercase pdb id prior to getting hash"""
-    result = pdbId[1:3]
+    result = pdbId[-3:1]
     if contentType == ContentTypeEnum.COMPUTATIONAL.value:
         result = os.path.join(pdbId[0:2], pdbId[-6:-4], pdbId[-4:-2])
     return result

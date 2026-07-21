@@ -28,6 +28,7 @@ on:
   push:
     branches:
       - master
+      - mt-bcif-hash
 
 jobs:
   run-workflow:
