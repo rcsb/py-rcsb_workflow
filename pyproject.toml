@@ -37,7 +37,7 @@ dependencies = [
     "pymongo >= 4.8.0",
     #
     "mmcif >= 1.0.0",
-    "rcsb.utils.io >= 1.49",
+    "rcsb.utils.io >= 1.54",
     "rcsb.db >= 1.814",
     "rcsb.utils.chem >= 0.84",
     "rcsb.utils.seq >= 0.84",
