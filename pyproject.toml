@@ -62,6 +62,10 @@ chem_search_index_cli = "rcsb.workflow.cli.ChemSearchIndexExec:main"
 
 
 # ----------------  hatch configuration ----------------
+# TODO: remove once the rcsb.utils.io mt/s3 direct reference is replaced with a PyPI version
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [tool.hatch.build.targets.sdist]
 include = [
     "/rcsb/**",
