@@ -35,9 +35,12 @@ def main():
     okS = False
     if okI:
         # Store chemical indices for future use -
-        sftpHost = args.blHostName
+        if args.blHostName.startswith("s3://"):
+            remoteHost = args.blHostName
+        else:
+            remoteHost = "sftp://" + args.blHostName
         okS = ccidxWf.stashIndices(
-            "sftp://" + sftpHost,
+            remoteHost,
             args.blUploadPathUnsynced,
             bundleLabel=args.channel.upper(),
             userName=args.sftpUserName,
