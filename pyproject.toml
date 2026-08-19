@@ -40,7 +40,7 @@ dependencies = [
     # TODO: "rcsb.utils.io >= 1.54"
     "rcsb.utils.io @ git+https://github.com/rcsb/py-rcsb_utils_io.git@mt/s3",
     "rcsb.db >= 1.814",
-    # TODO: "rcsb.utils.chem >= 0.87"
+    # #TODO: "rcsb.utils.chem >= 0.87"
     "rcsb.utils.chem @ git+https://github.com/rcsb/py-rcsb_utils_chem.git@mt/s3support",
     "rcsb.utils.seq >= 0.84",
     "rcsb.utils.targets >= 0.83",
