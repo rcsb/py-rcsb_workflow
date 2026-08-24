@@ -35,7 +35,7 @@ def main():
     okS = False
     if okI:
         # Store chemical indices for future use -
-        if args.blHostName.startswith("s3://"):
+        if args.blHostName.startswith(("s3://", "minio://")):
             remoteHost = args.blHostName
         else:
             remoteHost = "sftp://" + args.blHostName

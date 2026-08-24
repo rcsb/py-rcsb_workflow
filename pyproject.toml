@@ -37,8 +37,7 @@ dependencies = [
     "pymongo >= 4.8.0",
     #
     "mmcif >= 1.0.0",
-    # TODO: "rcsb.utils.io >= 1.54"
-    "rcsb.utils.io @ git+https://github.com/rcsb/py-rcsb_utils_io.git@mt/s3",
+    "rcsb.utils.io >= 1.54",
     "rcsb.db >= 1.814",
     # #TODO: "rcsb.utils.chem >= 0.87"
     "rcsb.utils.chem @ git+https://github.com/rcsb/py-rcsb_utils_chem.git@mt/s3support",
@@ -64,6 +63,9 @@ chem_search_index_cli = "rcsb.workflow.cli.ChemSearchIndexExec:main"
 
 # ----------------  hatch configuration ----------------
 [tool.hatch.metadata]
+# How to use: In the "dependencies" list use
+#    "rcsb.utils.io @ git+https://github.com/rcsb/py-rcsb_utils_io.git@branch_name"
+# to install a specific branch of a package from GitHub
 allow-direct-references = true
 
 [tool.hatch.build.targets.sdist]

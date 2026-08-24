@@ -28,7 +28,6 @@ on:
   push:
     branches:
       - master
-      - mt/s3stash
 
 jobs:
   run-workflow:
