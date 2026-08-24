@@ -65,3 +65,4 @@
 11-May-2026 - V0.68 Temporarily skip DrugBank data processing until dataset becomes available
 17-Jul-2026 - V0.69 Add shortlink support for bcif generation
 21-Jul-2026 - V0.70 Bcif hash support for extended ids
+19-Aug-2026 - V0.71 Support s3 stash and s3/minio for chem search
