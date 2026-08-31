@@ -45,6 +45,7 @@ dependencies = [
     "rcsb.utils.chemref >= 0.98",
     "rcsb.utils.seqalign >= 0.32",
     "rcsb.exdb >= 1.35",
+    "rcsb.utils.config >= 0.43",
 ]
 
 [project.optional-dependencies]
