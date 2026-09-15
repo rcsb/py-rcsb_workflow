@@ -11,6 +11,8 @@
 #  20-Aug-2024 dwp Add LoadTargetCofactors step; change name of UpdateTargetsCofactors step to UpdateTargetsData
 #  31-Jan-2025 mjt Moved this script from rcsb.exdb (to remove circluar dependencies)
 #  10-Jan-2026  cs Added ligand quality and residue RSCC reference data generation workflows
+#  15-Sep-2026 dwp Abort the 'upd_targets' operation when an upstream data fetch fails, so that
+#                  incomplete FASTA/search databases are never built or stashed
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
@@ -417,12 +419,24 @@ class ExDbWorkflow(object):
                     configName=self.__configName,
                     cachePath=self.__cachePath,
                 )
+                # Each fetch step below sources data from the exchange database. A failure there
+                # (e.g. a Mongo timeout) leaves the corresponding resource empty, so abort rather
+                # than continue on to build and stash incomplete FASTA and search databases.
                 ok = ptsWf.fetchProteinEntityData()
                 logger.info("fetchProteinEntityData status %r", ok)
+                if not ok:
+                    logger.error("Aborting operation %r - fetchProteinEntityData failed", op)
+                    return False
                 ok = ptsWf.fetchChemicalReferenceMappingData() and ok
                 logger.info("fetchChemicalReferenceMappingData status %r", ok)
+                if not ok:
+                    logger.error("Aborting operation %r - fetchChemicalReferenceMappingData failed", op)
+                    return False
                 ok = ptsWf.fetchLigandNeighborMappingData() and ok
                 logger.info("fetchLigandNeighborMappingData status %r", ok)
+                if not ok:
+                    logger.error("Aborting operation %r - fetchLigandNeighborMappingData failed", op)
+                    return False
                 ok = ptsWf.exportFasta(reloadPharos=False, fromDbPharos=False) and ok
                 logger.info("exportFasta status %r", ok)
                 ok = ptsWf.createSearchDatabases() and ok
