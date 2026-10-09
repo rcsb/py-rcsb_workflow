@@ -1,0 +1,16 @@
+{
+  "queries": {
+    "1a6y_A": {
+      "chains": [
+        {
+          "molecule_type": "protein",
+          "chain_ids": [
+            "A"
+          ],
+          "sequence": "TKLNGMVLLCKVCGDVASGFHYGVLACEGCKGFFRRSIQQNIQYKRCLKNENCSIVRINRNRCQQCRFKKCLSVGMSRDAVRFGRIPKREKQRM",
+          "main_msa_file_paths": "/msas/1a6y_A"
+        }
+      ]
+    }
+  }
+}
