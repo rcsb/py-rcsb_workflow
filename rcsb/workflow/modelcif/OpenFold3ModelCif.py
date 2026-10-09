@@ -235,12 +235,17 @@ def writeBcif(system, modelPath, paePath):
     writer.serialize(paePath, [paeContainer])
 
 
-def convertOpenFold3Outputs(of3OutputDir, queryJsonPaths, outputDir, of3Version, checkpoint):
+def findQueryDirs(of3OutputDir):
+    """Return the OpenFold3 query directories (those holding seed_* directories) under of3OutputDir, at any depth."""
+    seedDirs = glob.glob(os.path.join(of3OutputDir, "**", "seed_*"), recursive=True)
+    return sorted({os.path.dirname(d) for d in seedDirs if os.path.isdir(d)})
+
+
+def convertOpenFold3Outputs(of3OutputDir, outputDir, of3Version, checkpoint):
     """Convert the top-ranked sample of every query of an OpenFold3 run to ModelCIF BinaryCIF.
 
     Args:
-        of3OutputDir (str): OpenFold3 output directory, holding one or more job_*/<query> directories
-        queryJsonPaths (list): OpenFold3 query json files, listing the queries to convert
+        of3OutputDir (str): OpenFold3 output directory; query directories (<query>/seed_*) are found at any depth
         outputDir (str): directory for <query>_model.bcif and <query>_pae.bcif
         of3Version (str): OpenFold3 version, recorded in the ModelCIF software
         checkpoint (str): OpenFold3 checkpoint file name, recorded in the ModelCIF software
@@ -248,18 +253,13 @@ def convertOpenFold3Outputs(of3OutputDir, queryJsonPaths, outputDir, of3Version,
     Returns:
         list: queries that could not be converted; a failed query does not stop the others
     """
-    queries = {}
-    for queryJsonPath in queryJsonPaths:
-        with open(queryJsonPath, "r", encoding="utf-8") as fh:
-            queries.update(json.load(fh)["queries"])
     os.makedirs(outputDir, exist_ok=True)
-
     failed = []
-    for query in sorted(queries):
-        queryDirs = glob.glob(os.path.join(of3OutputDir, "job_*", query))
-        top = getTopSample(queryDirs[0]) if queryDirs else None
+    for queryDir in findQueryDirs(of3OutputDir):
+        query = os.path.basename(queryDir)
+        top = getTopSample(queryDir)
         if top is None:
-            logger.error("%s: no OpenFold3 outputs", query)
+            logger.error("%s: no OpenFold3 sample outputs in %s", query, queryDir)
             failed.append(query)
             continue
         modelCifPath, prefix, scores = top

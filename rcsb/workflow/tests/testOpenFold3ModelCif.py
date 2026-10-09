@@ -7,9 +7,9 @@
 """
 Test conversion of OpenFold3 predictions to ModelCIF BinaryCIF files.
 
-The test data is a trimmed OpenFold3 0.5 output for 1a6y_A (94 residues): two samples'
-aggregated confidences, and the model and full confidences of the top-ranked one. Its
-PAE matrix is synthetic.
+The test data is an OpenFold3 0.5 output for 1a6y_A cut down to its first 4 residues:
+two samples' aggregated confidences, and the model and full confidences of the
+top-ranked one. Its PAE matrix is synthetic.
 """
 
 __docformat__ = "google en"
@@ -32,7 +32,7 @@ logger = logging.getLogger()
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 TEST_DATA = os.path.join(HERE, "test-data", "openfold3")
-NUM_RESIDUES = 94
+NUM_RESIDUES = 4
 
 
 class OpenFold3ModelCifTests(unittest.TestCase):
@@ -44,19 +44,13 @@ class OpenFold3ModelCifTests(unittest.TestCase):
 
     def testTopSample(self):
         """The sample with the highest ranking score is chosen, not the first one."""
-        queryDir = os.path.join(TEST_DATA, "outputs", "job_0", "1a6y_A")
+        queryDir = os.path.join(TEST_DATA, "1a6y_A")
         modelCifPath, _, scores = getTopSample(queryDir)
         self.assertTrue(modelCifPath.endswith("_sample_4_model.cif"))
         self.assertAlmostEqual(scores["sample_ranking_score"], 0.198238)
 
     def testConvert(self):
-        failed = convertOpenFold3Outputs(
-            os.path.join(TEST_DATA, "outputs"),
-            [os.path.join(TEST_DATA, "query.json")],
-            self.outDir,
-            "0.5",
-            "of3-ob-2025-06-30-174k.pt",
-        )
+        failed = convertOpenFold3Outputs(TEST_DATA, self.outDir, "0.5", "of3-ob-2025-06-30-174k.pt")
         self.assertEqual(failed, [])
         # only the two BinaryCIF files are written
         self.assertEqual(sorted(os.listdir(self.outDir)), ["1a6y_A_model.bcif", "1a6y_A_pae.bcif"])
@@ -87,12 +81,19 @@ class OpenFold3ModelCifTests(unittest.TestCase):
         self.assertEqual(system.title, "OpenFold3 prediction of 1a6y_A")
         self.assertEqual(len(system.repositories), 1)
 
-    def testMissingQuery(self):
-        """A query without OpenFold3 outputs is reported as failed."""
-        queryJson = os.path.join(self.outDir, "query.json")
-        with open(queryJson, "w", encoding="utf-8") as fh:
-            fh.write('{"queries": {"9zzz_A": {"chains": []}}}')
-        failed = convertOpenFold3Outputs(os.path.join(TEST_DATA, "outputs"), [queryJson], os.path.join(self.outDir, "out"), "0.5", "ckpt")
+    def testNestedQueryDirs(self):
+        """Query directories are found at any depth, e.g. under one directory per job."""
+        runDir = os.path.join(self.outDir, "run")
+        shutil.copytree(TEST_DATA, os.path.join(runDir, "job_0"))
+        failed = convertOpenFold3Outputs(runDir, os.path.join(self.outDir, "out"), "0.5", "ckpt")
+        self.assertEqual(failed, [])
+        self.assertEqual(sorted(os.listdir(os.path.join(self.outDir, "out"))), ["1a6y_A_model.bcif", "1a6y_A_pae.bcif"])
+
+    def testQueryWithoutSamples(self):
+        """A query directory without any OpenFold3 samples is reported as failed."""
+        runDir = os.path.join(self.outDir, "run")
+        os.makedirs(os.path.join(runDir, "9zzz_A", "seed_1"))
+        failed = convertOpenFold3Outputs(runDir, os.path.join(self.outDir, "out"), "0.5", "ckpt")
         self.assertEqual(failed, ["9zzz_A"])
 
 
@@ -100,7 +101,8 @@ def suiteOpenFold3ModelCif():
     suiteSelect = unittest.TestSuite()
     suiteSelect.addTest(OpenFold3ModelCifTests("testTopSample"))
     suiteSelect.addTest(OpenFold3ModelCifTests("testConvert"))
-    suiteSelect.addTest(OpenFold3ModelCifTests("testMissingQuery"))
+    suiteSelect.addTest(OpenFold3ModelCifTests("testNestedQueryDirs"))
+    suiteSelect.addTest(OpenFold3ModelCifTests("testQueryWithoutSamples"))
     return suiteSelect
 
 
