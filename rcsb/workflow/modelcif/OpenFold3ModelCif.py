@@ -7,13 +7,14 @@
 """
 Convert OpenFold3 predictions to ModelCIF, written as BinaryCIF.
 
-For every query of an OpenFold3 run, takes the top-ranked sample (highest
-sample_ranking_score) and writes two files:
+For every query of an OpenFold3 run, takes the best samples (by default the one with
+the highest sample_ranking_score) and writes:
 
-    <query>_model.bcif   ModelCIF: coordinates, per-residue pLDDT (mean over the
-                         residue's atoms), global pLDDT and pTM
-    <query>_pae.bcif     associated file with the full PAE matrix, linked from the
-                         model file (ma_entry_associated_files)
+    <query>_model.bcif   ModelCIF: the samples as ranked models, with coordinates,
+                         per-residue pLDDT (mean over the residue's atoms), global
+                         pLDDT and pTM
+    <query>_pae.bcif     optional associated file with the models' full PAE matrices,
+                         linked from the model file (ma_entry_associated_files)
 
 ModelCIF is assembled with python-modelcif and converted to BinaryCIF with py-mmcif
 (>= 1.2.0, for fixed-point encoding of float columns). Text mmCIF is only buffered
@@ -30,6 +31,7 @@ import io
 import json
 import logging
 import os
+import re
 
 import ihm
 import modelcif
@@ -99,77 +101,109 @@ def _chemComp(alphabet, compId):
     return ihm.LPeptideChemComp(compId, "X", "X")
 
 
-def getTopSample(queryDir):
-    """Return (model mmCIF path, sample path prefix, aggregated scores) of the
-    sample with the highest sample_ranking_score under an OpenFold3 query directory,
-    or None if there is none."""
-    best, bestScore = None, None
+def getRankedSamples(queryDir, rankBy="sample_ranking_score", descending=True):
+    """Return the samples under an OpenFold3 query directory, best first.
+
+    Args:
+        queryDir (str): OpenFold3 query directory, holding seed_* directories
+        rankBy (str): key of the aggregated confidence scores to rank by
+        descending (bool): True if higher values are better
+
+    Returns:
+        list: (model mmCIF path, sample path prefix, aggregated scores) per sample, best first; ties keep file order
+    """
+    samples = []
     for aggFile in sorted(glob.glob(os.path.join(queryDir, "seed_*", "*_confidences_aggregated.json"))):
         with open(aggFile, "r", encoding="utf-8") as fh:
             scores = json.load(fh)
+        if rankBy not in scores:
+            msg = "%s has no score %r; available: %s" % (aggFile, rankBy, sorted(scores))
+            raise KeyError(msg)
         prefix = aggFile[: -len("_confidences_aggregated.json")]
-        if bestScore is None or scores["sample_ranking_score"] > bestScore:
-            best, bestScore = (prefix + "_model.cif", prefix, scores), scores["sample_ranking_score"]
-    return best
+        samples.append((prefix + "_model.cif", prefix, scores))
+    return sorted(samples, key=lambda s: s[2][rankBy], reverse=descending)
 
 
-def buildModelCif(query, modelCifPath, pae, scores, of3Version, checkpoint):
-    """Return the ModelCIF system of one OpenFold3 prediction.
+def _sampleName(prefix):
+    """OpenFold3 seed and sample of a sample path prefix, e.g. 'seed 42 sample 1'."""
+    match = re.search(r"_seed_(\d+)_sample_(\d+)$", os.path.basename(prefix))
+    return "seed %s sample %s" % match.groups() if match else os.path.basename(prefix)
+
+
+def _readResidues(modelCifPath):
+    """Atom rows of an OpenFold3 mmCIF model grouped by residue, in sequence order."""
+    residues = {}
+    for row in readAtomSite(modelCifPath):
+        residues.setdefault(int(row["label_seq_id"]), []).append(row)
+    return [residues[i] for i in sorted(residues)]
+
+
+def buildModelCif(query, samples, of3Version, checkpoint, rankBy="sample_ranking_score"):
+    """Return the ModelCIF system of one OpenFold3 query, with one model per sample.
 
     Args:
         query (str): query name, e.g. 1a6y_A
-        modelCifPath (str): OpenFold3 mmCIF model, with per-atom pLDDT in the B-factor column
-        pae (list): PAE matrix, one row per token (residue)
-        scores (dict): OpenFold3 aggregated confidence scores of the sample
+        samples (list): (model mmCIF path, sample path prefix, aggregated scores, PAE matrix or None) per
+            sample, in rank order. Models have per-atom pLDDT in the B-factor column; PAE has one row per
+            token (residue). All samples must be of the same sequence.
         of3Version (str): OpenFold3 version
         checkpoint (str): OpenFold3 checkpoint file name
+        rankBy (str): score the samples were ranked by, recorded in the model names
 
     Returns:
-        modelcif.System: the PAE file is only linked, as <query>_pae.bcif; writeBcif writes it
+        modelcif.System: models in rank order in one model group; if there is PAE, the associated file
+        is only linked, as <query>_pae.bcif, and writeBcif writes it
     """
-    rows = readAtomSite(modelCifPath)
-    residues = {}
-    for row in rows:
-        residues.setdefault(int(row["label_seq_id"]), []).append(row)
-    seqIds = sorted(residues)
-    compIds = [residues[i][0]["label_comp_id"] for i in seqIds]
-
+    first = _readResidues(samples[0][0])
+    compIds = [res[0]["label_comp_id"] for res in first]
     alphabet = ihm.LPeptideAlphabet()
     entity = modelcif.Entity([_chemComp(alphabet, c) for c in compIds], description="%s model" % query)
     asym = modelcif.AsymUnit(entity, details="Model of %s" % query, id="A")
     assembly = modelcif.Assembly([asym], name="Modeled assembly")
 
-    atoms = [
-        modelcif.model.Atom(
-            asym_unit=asym,
-            seq_id=seqIds.index(int(r["label_seq_id"])) + 1,
-            atom_id=r["label_atom_id"],
-            type_symbol=r["type_symbol"],
-            x=float(r["Cartn_x"]),
-            y=float(r["Cartn_y"]),
-            z=float(r["Cartn_z"]),
-            biso=float(r["B_iso_or_equiv"]),
-            occupancy=1.0,
-            het=r["group_PDB"] == "HETATM",
-        )
-        for r in rows
-    ]
-    model = _OpenFold3Model(atoms, assembly=assembly, name="Top-ranked OpenFold3 sample")
+    models = []
+    hasPae = False
+    for rank, (modelCifPath, prefix, scores, pae) in enumerate(samples, start=1):
+        residues = first if rank == 1 else _readResidues(modelCifPath)
+        if [res[0]["label_comp_id"] for res in residues] != compIds:
+            msg = "%s: %s is not of the same sequence as the top-ranked sample" % (query, modelCifPath)
+            raise ValueError(msg)
+        atoms = [
+            modelcif.model.Atom(
+                asym_unit=asym,
+                seq_id=seqId,
+                atom_id=r["label_atom_id"],
+                type_symbol=r["type_symbol"],
+                x=float(r["Cartn_x"]),
+                y=float(r["Cartn_y"]),
+                z=float(r["Cartn_z"]),
+                biso=float(r["B_iso_or_equiv"]),
+                occupancy=1.0,
+                het=r["group_PDB"] == "HETATM",
+            )
+            for seqId, res in enumerate(residues, start=1)
+            for r in res
+        ]
+        name = "OpenFold3 %s, rank %d by %s" % (_sampleName(prefix), rank, rankBy)
+        model = _OpenFold3Model(atoms, assembly=assembly, name=name)
 
-    # per-atom pLDDT is in the B-factor column; average it per residue
-    plddt = [sum(float(a["B_iso_or_equiv"]) for a in residues[i]) / len(residues[i]) for i in seqIds]
-    model.qa_metrics.append(_GlobalPLDDT(scores["avg_plddt"]))
-    model.qa_metrics.append(_GlobalPTM(scores["ptm"]))
-    for n, value in enumerate(plddt, start=1):
-        model.qa_metrics.append(_LocalPLDDT(asym.residue(n), round(value, 2)))
+        # per-atom pLDDT is in the B-factor column; average it per residue
+        model.qa_metrics.append(_GlobalPLDDT(scores["avg_plddt"]))
+        model.qa_metrics.append(_GlobalPTM(scores["ptm"]))
+        for seqId, res in enumerate(residues, start=1):
+            plddt = sum(float(a["B_iso_or_equiv"]) for a in res) / len(res)
+            model.qa_metrics.append(_LocalPLDDT(asym.residue(seqId), round(plddt, 2)))
 
-    if len(pae) != len(seqIds):
-        # PAE is per token, one per residue only for standard polymer residues
-        msg = "%s: PAE has %d tokens but the model %d residues" % (query, len(pae), len(seqIds))
-        raise ValueError(msg)
-    for i, paeRow in enumerate(pae, start=1):
-        for j, value in enumerate(paeRow, start=1):
-            model.qa_metrics.append(_LocalPairwisePAE(asym.residue(i), asym.residue(j), round(value, 2)))
+        if pae is not None:
+            if len(pae) != len(residues):
+                # PAE is per token, one per residue only for standard polymer residues
+                msg = "%s: PAE has %d tokens but the model %d residues" % (query, len(pae), len(residues))
+                raise ValueError(msg)
+            for i, paeRow in enumerate(pae, start=1):
+                for j, value in enumerate(paeRow, start=1):
+                    model.qa_metrics.append(_LocalPairwisePAE(asym.residue(i), asym.residue(j), round(value, 2)))
+            hasPae = True
+        models.append(model)
 
     software = modelcif.Software(
         name="OpenFold3",
@@ -184,7 +218,7 @@ def buildModelCif(query, modelCifPath, pae, scores, of3Version, checkpoint):
 
     system = modelcif.System(title="OpenFold3 prediction of %s" % query, id=query.upper())
     system.authors.append("RCSB PDB")
-    group = modelcif.model.ModelGroup([model], name="OpenFold3 prediction")
+    group = modelcif.model.ModelGroup(models, name="OpenFold3 prediction, ranked by %s" % rankBy)
     system.model_groups.append(group)
     protocol = modelcif.protocol.Protocol()
     protocol.steps.append(
@@ -193,24 +227,25 @@ def buildModelCif(query, modelCifPath, pae, scores, of3Version, checkpoint):
             output_data=group,
             software=software,
             name="OpenFold3 inference",
-            details="Single-chain prediction from precomputed OpenProteinSet MSAs, no templates; the top-ranked of the diffusion samples.",
+            details="Diffusion samples of an OpenFold3 prediction, the best %d by %s." % (len(models), rankBy),
         )
     )
     system.protocols.append(protocol)
 
-    # Only the link: with no categories given, modelcif does not write the file
-    # itself (it would write it to disk); writeBcif moves the PAE category there.
-    system.repositories.append(
-        modelcif.associated.Repository(
-            "",
-            [modelcif.associated.QAMetricsFile("%s_pae.bcif" % query, binary=True, details="Predicted aligned error")],
+    if hasPae:
+        # Only the link: with no categories given, modelcif does not write the file
+        # itself (it would write it to disk); writeBcif moves the PAE category there.
+        system.repositories.append(
+            modelcif.associated.Repository(
+                "",
+                [modelcif.associated.QAMetricsFile("%s_pae.bcif" % query, binary=True, details="Predicted aligned error")],
+            )
         )
-    )
     return system
 
 
-def writeBcif(system, modelPath, paePath):
-    """Write a ModelCIF system as two BinaryCIF files, the model and the associated PAE.
+def writeBcif(system, modelPath, paePath=None):
+    """Write a ModelCIF system as BinaryCIF: the model file and, if the system has PAE, the associated PAE file.
 
     The whole system is dumped to an in-memory mmCIF buffer and parsed with py-mmcif;
     the pairwise QA category then moves to its own container, with an entry and
@@ -222,17 +257,20 @@ def writeBcif(system, modelPath, paePath):
     containers = []
     PdbxReader(buffer).read(containers)
     model = containers[0]
-    pairwise = model.getObj(PAIRWISE_CATEGORY)
-    model.remove(PAIRWISE_CATEGORY)
-
-    paeContainer = DataContainer("%s_pae" % system.id)
-    paeContainer.append(DataCategory("entry", ["id"], [["%s_pae" % system.id]]))
-    paeContainer.append(DataCategory("entry_link", ["id", "entry_id", "details"], [["1", system.id, "Predicted aligned error of the model"]]))
-    paeContainer.append(pairwise)
-
     writer = BinaryCifWriter(dictionaryApi=None)
+
+    pairwise = model.getObj(PAIRWISE_CATEGORY)
+    if pairwise is not None:
+        if paePath is None:
+            msg = "%s has PAE but no PAE file path was given" % system.id
+            raise ValueError(msg)
+        model.remove(PAIRWISE_CATEGORY)
+        paeContainer = DataContainer("%s_pae" % system.id)
+        paeContainer.append(DataCategory("entry", ["id"], [["%s_pae" % system.id]]))
+        paeContainer.append(DataCategory("entry_link", ["id", "entry_id", "details"], [["1", system.id, "Predicted aligned error of the models"]]))
+        paeContainer.append(pairwise)
+        writer.serialize(paePath, [paeContainer])
     writer.serialize(modelPath, [model])
-    writer.serialize(paePath, [paeContainer])
 
 
 def findQueryDirs(of3OutputDir):
@@ -241,14 +279,21 @@ def findQueryDirs(of3OutputDir):
     return sorted({os.path.dirname(d) for d in seedDirs if os.path.isdir(d)})
 
 
-def convertOpenFold3Outputs(of3OutputDir, outputDir, of3Version, checkpoint):
-    """Convert the top-ranked sample of every query of an OpenFold3 run to ModelCIF BinaryCIF.
+def convertOpenFold3Outputs(of3OutputDir, outputDir, of3Version, checkpoint, numModels=1, rankBy="sample_ranking_score", descending=True, withPae=True):
+    """Convert the best samples of every query of an OpenFold3 run to ModelCIF BinaryCIF.
+
+    Writes <query>_model.bcif per query, with the selected samples as ranked models, and with
+    withPae <query>_pae.bcif, the associated file with their PAE matrices.
 
     Args:
         of3OutputDir (str): OpenFold3 output directory; query directories (<query>/seed_*) are found at any depth
-        outputDir (str): directory for <query>_model.bcif and <query>_pae.bcif
+        outputDir (str): directory for the output files
         of3Version (str): OpenFold3 version, recorded in the ModelCIF software
         checkpoint (str): OpenFold3 checkpoint file name, recorded in the ModelCIF software
+        numModels (int): number of samples per query, best first; 0 for all
+        rankBy (str): key of the OpenFold3 aggregated confidence scores to rank samples by
+        descending (bool): True if higher values of rankBy are better
+        withPae (bool): include PAE, read from the samples' full confidences (*_confidences.json)
 
     Returns:
         list: queries that could not be converted; a failed query does not stop the others
@@ -257,22 +302,27 @@ def convertOpenFold3Outputs(of3OutputDir, outputDir, of3Version, checkpoint):
     failed = []
     for queryDir in findQueryDirs(of3OutputDir):
         query = os.path.basename(queryDir)
-        top = getTopSample(queryDir)
-        if top is None:
-            logger.error("%s: no OpenFold3 sample outputs in %s", query, queryDir)
-            failed.append(query)
-            continue
-        modelCifPath, prefix, scores = top
         try:
-            with open(prefix + "_confidences.json", "r", encoding="utf-8") as fh:
-                pae = json.load(fh)["pae"]
-            system = buildModelCif(query, modelCifPath, pae, scores, of3Version, checkpoint)
+            ranked = getRankedSamples(queryDir, rankBy, descending)
+            if not ranked:
+                logger.error("%s: no OpenFold3 sample outputs in %s", query, queryDir)
+                failed.append(query)
+                continue
+            selected = ranked[:numModels] if numModels > 0 else ranked
+            samples = []
+            for modelCifPath, prefix, scores in selected:
+                pae = None
+                if withPae:
+                    with open(prefix + "_confidences.json", "r", encoding="utf-8") as fh:
+                        pae = json.load(fh)["pae"]
+                samples.append((modelCifPath, prefix, scores, pae))
+            system = buildModelCif(query, samples, of3Version, checkpoint, rankBy)
             writeBcif(
                 system,
                 os.path.join(outputDir, "%s_model.bcif" % query),
-                os.path.join(outputDir, "%s_pae.bcif" % query),
+                os.path.join(outputDir, "%s_pae.bcif" % query) if withPae else None,
             )
-            logger.info("%s: converted %s", query, os.path.basename(prefix))
+            logger.info("%s: converted %s", query, ", ".join(_sampleName(prefix) for _, prefix, _, _ in samples))
         except Exception:  # pylint: disable=broad-exception-caught
             logger.exception("%s: ModelCIF conversion failed", query)
             failed.append(query)

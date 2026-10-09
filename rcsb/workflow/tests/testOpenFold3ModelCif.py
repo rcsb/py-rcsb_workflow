@@ -25,7 +25,7 @@ import unittest
 
 import modelcif.reader
 from mmcif.io.BinaryCifReader import BinaryCifReader
-from rcsb.workflow.modelcif.OpenFold3ModelCif import convertOpenFold3Outputs, getTopSample
+from rcsb.workflow.modelcif.OpenFold3ModelCif import convertOpenFold3Outputs, getRankedSamples
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
 logger = logging.getLogger()
@@ -33,6 +33,7 @@ logger = logging.getLogger()
 HERE = os.path.abspath(os.path.dirname(__file__))
 TEST_DATA = os.path.join(HERE, "test-data", "openfold3")
 NUM_RESIDUES = 4
+SAMPLE_PREFIX = "1a6y_A_seed_2746317213_sample_"
 
 
 class OpenFold3ModelCifTests(unittest.TestCase):
@@ -42,12 +43,17 @@ class OpenFold3ModelCifTests(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.outDir)
 
-    def testTopSample(self):
-        """The sample with the highest ranking score is chosen, not the first one."""
+    def testRankedSamples(self):
+        """Samples are ranked best first by the chosen score, in either order."""
         queryDir = os.path.join(TEST_DATA, "1a6y_A")
-        modelCifPath, _, scores = getTopSample(queryDir)
-        self.assertTrue(modelCifPath.endswith("_sample_4_model.cif"))
-        self.assertAlmostEqual(scores["sample_ranking_score"], 0.198238)
+        ranked = getRankedSamples(queryDir)
+        self.assertEqual([os.path.basename(m) for m, _, _ in ranked], [SAMPLE_PREFIX + "4_model.cif", SAMPLE_PREFIX + "3_model.cif"])
+        self.assertAlmostEqual(ranked[0][2]["sample_ranking_score"], 0.198238)
+        # sample 3 has less disorder, so it comes first when lower is better
+        ranked = getRankedSamples(queryDir, rankBy="disorder", descending=False)
+        self.assertTrue(ranked[0][0].endswith(SAMPLE_PREFIX + "3_model.cif"))
+        with self.assertRaises(KeyError):
+            getRankedSamples(queryDir, rankBy="no_such_score")
 
     def testConvert(self):
         failed = convertOpenFold3Outputs(TEST_DATA, self.outDir, "0.5", "of3-ob-2025-06-30-174k.pt")
@@ -96,13 +102,59 @@ class OpenFold3ModelCifTests(unittest.TestCase):
         failed = convertOpenFold3Outputs(runDir, os.path.join(self.outDir, "out"), "0.5", "ckpt")
         self.assertEqual(failed, ["9zzz_A"])
 
+    def __twoSampleRun(self):
+        """Copy of the test data where sample 3 also has a model and full confidences (those of sample 4)."""
+        runDir = os.path.join(self.outDir, "run")
+        shutil.copytree(TEST_DATA, runDir)
+        seedDir = os.path.join(runDir, "1a6y_A", "seed_2746317213")
+        for suffix in ("_model.cif", "_confidences.json"):
+            shutil.copy(os.path.join(seedDir, SAMPLE_PREFIX + "4" + suffix), os.path.join(seedDir, SAMPLE_PREFIX + "3" + suffix))
+        return runDir
+
+    def testAllModels(self):
+        """With numModels 0, every sample becomes a ranked model, and the PAE file holds the PAE of each."""
+        outDir = os.path.join(self.outDir, "out")
+        failed = convertOpenFold3Outputs(self.__twoSampleRun(), outDir, "0.5", "ckpt", numModels=0)
+        self.assertEqual(failed, [])
+        [model] = BinaryCifReader().deserialize(os.path.join(outDir, "1a6y_A_model.bcif"))
+        modelList = model.getObj("ma_model_list")
+        self.assertEqual(modelList.getRowCount(), 2)
+        self.assertIn("seed 2746317213 sample 4, rank 1", modelList.getValue("model_name", 0))
+        self.assertIn("seed 2746317213 sample 3, rank 2", modelList.getValue("model_name", 1))
+        self.assertEqual(model.getObj("ma_qa_metric_local").getRowCount(), 2 * NUM_RESIDUES)
+        [pae] = BinaryCifReader().deserialize(os.path.join(outDir, "1a6y_A_pae.bcif"))
+        pairwise = pae.getObj("ma_qa_metric_local_pairwise")
+        self.assertEqual(pairwise.getRowCount(), 2 * NUM_RESIDUES * NUM_RESIDUES)
+        self.assertEqual(sorted({str(pairwise.getValue("model_id", i)) for i in range(pairwise.getRowCount())}), ["1", "2"])
+
+    def testSkipPae(self):
+        """Without PAE, only the model file is written, with no associated file and no full confidences needed."""
+        runDir = os.path.join(self.outDir, "run")
+        shutil.copytree(TEST_DATA, runDir)
+        os.remove(os.path.join(runDir, "1a6y_A", "seed_2746317213", SAMPLE_PREFIX + "4_confidences.json"))
+        outDir = os.path.join(self.outDir, "out")
+        failed = convertOpenFold3Outputs(runDir, outDir, "0.5", "ckpt", withPae=False)
+        self.assertEqual(failed, [])
+        self.assertEqual(os.listdir(outDir), ["1a6y_A_model.bcif"])
+        [model] = BinaryCifReader().deserialize(os.path.join(outDir, "1a6y_A_model.bcif"))
+        self.assertIsNone(model.getObj("ma_entry_associated_files"))
+        self.assertEqual(model.getObj("ma_qa_metric_local").getRowCount(), NUM_RESIDUES)
+
+    def testUnknownRankScore(self):
+        """Ranking by a score OpenFold3 does not report fails the query."""
+        failed = convertOpenFold3Outputs(TEST_DATA, os.path.join(self.outDir, "out"), "0.5", "ckpt", rankBy="no_such_score")
+        self.assertEqual(failed, ["1a6y_A"])
+
 
 def suiteOpenFold3ModelCif():
     suiteSelect = unittest.TestSuite()
-    suiteSelect.addTest(OpenFold3ModelCifTests("testTopSample"))
+    suiteSelect.addTest(OpenFold3ModelCifTests("testRankedSamples"))
     suiteSelect.addTest(OpenFold3ModelCifTests("testConvert"))
     suiteSelect.addTest(OpenFold3ModelCifTests("testNestedQueryDirs"))
     suiteSelect.addTest(OpenFold3ModelCifTests("testQueryWithoutSamples"))
+    suiteSelect.addTest(OpenFold3ModelCifTests("testAllModels"))
+    suiteSelect.addTest(OpenFold3ModelCifTests("testSkipPae"))
+    suiteSelect.addTest(OpenFold3ModelCifTests("testUnknownRankScore"))
     return suiteSelect
 
 
