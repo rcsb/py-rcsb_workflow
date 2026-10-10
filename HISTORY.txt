@@ -68,3 +68,4 @@
 19-Aug-2026 - V0.71 Support s3 stash and s3/minio for chem search
  9-Oct-2026 - V0.72 Add modelcif subpackage and modelcif_exec_cli to convert OpenFold3 predictions to ModelCIF BinaryCIF;
                     Add modelcif dependency, require mmcif >= 1.2.0
+                    modelcif_exec_cli rounds PAE to multiples of --paeStep (default 0.5 A) for smaller PAE files

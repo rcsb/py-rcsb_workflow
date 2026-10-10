@@ -25,7 +25,7 @@ import unittest
 
 import modelcif.reader
 from mmcif.io.BinaryCifReader import BinaryCifReader
-from rcsb.workflow.modelcif.OpenFold3ModelCif import convertOpenFold3Outputs, getRankedSamples
+from rcsb.workflow.modelcif.OpenFold3ModelCif import convertOpenFold3Outputs, getRankedSamples, roundToStep
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
 logger = logging.getLogger()
@@ -140,6 +140,36 @@ class OpenFold3ModelCifTests(unittest.TestCase):
         self.assertIsNone(model.getObj("ma_entry_associated_files"))
         self.assertEqual(model.getObj("ma_qa_metric_local").getRowCount(), NUM_RESIDUES)
 
+    def testRoundToStep(self):
+        """Values round half up to multiples of the step, without float noise."""
+        self.assertEqual(roundToStep(0.25, 0.5), 0.5)
+        self.assertEqual(roundToStep(0.74, 0.5), 0.5)
+        self.assertEqual(roundToStep(31.53, 0.5), 31.5)
+        self.assertEqual(roundToStep(0.31, 0.1), 0.3)
+        self.assertEqual(roundToStep(3.17, 0.01), 3.17)
+        self.assertEqual(roundToStep(13.5, 1), 14)
+
+    def __paeValues(self, outDir):
+        [pae] = BinaryCifReader().deserialize(os.path.join(outDir, "1a6y_A_pae.bcif"))
+        pairwise = pae.getObj("ma_qa_metric_local_pairwise")
+        return [float(pairwise.getValue("metric_value", i)) for i in range(NUM_RESIDUES)]
+
+    def testPaeStep(self):
+        """PAE is rounded to multiples of paeStep (0.5 by default), which the PAE metric description records."""
+        # first PAE row of the test data: 0.5, 0.8, 1.1, 1.4
+        failed = convertOpenFold3Outputs(TEST_DATA, self.outDir, "0.5", "ckpt")
+        self.assertEqual(failed, [])
+        self.assertEqual(self.__paeValues(self.outDir), [0.5, 1.0, 1.0, 1.5])
+        [model] = BinaryCifReader().deserialize(os.path.join(self.outDir, "1a6y_A_model.bcif"))
+        metrics = model.getObj("ma_qa_metric")
+        descriptions = [metrics.getValue("description", i) for i in range(metrics.getRowCount())]
+        self.assertIn("Predicted aligned error, in Angstrom, rounded to multiples of 0.5", descriptions)
+
+        outDir = os.path.join(self.outDir, "out")
+        failed = convertOpenFold3Outputs(TEST_DATA, outDir, "0.5", "ckpt", paeStep=0.01)
+        self.assertEqual(failed, [])
+        self.assertEqual(self.__paeValues(outDir), [0.5, 0.8, 1.1, 1.4])
+
     def testUnknownRankScore(self):
         """Ranking by a score OpenFold3 does not report fails the query."""
         failed = convertOpenFold3Outputs(TEST_DATA, os.path.join(self.outDir, "out"), "0.5", "ckpt", rankBy="no_such_score")
@@ -155,6 +185,8 @@ def suiteOpenFold3ModelCif():
     suiteSelect.addTest(OpenFold3ModelCifTests("testAllModels"))
     suiteSelect.addTest(OpenFold3ModelCifTests("testSkipPae"))
     suiteSelect.addTest(OpenFold3ModelCifTests("testUnknownRankScore"))
+    suiteSelect.addTest(OpenFold3ModelCifTests("testRoundToStep"))
+    suiteSelect.addTest(OpenFold3ModelCifTests("testPaeStep"))
     return suiteSelect
 
 

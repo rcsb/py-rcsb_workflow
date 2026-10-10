@@ -35,6 +35,13 @@ def main():
     )
     parser.add_argument("--rankOrder", choices=["desc", "asc"], default="desc", help="desc if higher scores are better (default), asc if lower")
     parser.add_argument("--skipPae", action="store_true", default=False, help="Write only the model file, without the associated PAE file")
+    parser.add_argument(
+        "--paeStep",
+        type=float,
+        default=0.5,
+        help="Round PAE values to multiples of this step, in Angstrom (default: 0.5, OpenFold3's PAE bin width). "
+        "PAE is by far the largest part of the output; coarser steps make it compress much better. 0.01 keeps OpenFold3's precision",
+    )
     args = parser.parse_args()
 
     logger.info("Converting OpenFold3 outputs in %s to ModelCIF in %s", args.of3OutputDir, args.outputDir)
@@ -43,6 +50,9 @@ def main():
         raise ValueError(msg)
     if args.numModels < 0:
         msg = "--numModels must be 0 (all) or positive, got %d" % args.numModels
+        raise ValueError(msg)
+    if args.paeStep <= 0:
+        msg = "--paeStep must be positive, got %g" % args.paeStep
         raise ValueError(msg)
     failed = convertOpenFold3Outputs(
         args.of3OutputDir,
@@ -53,6 +63,7 @@ def main():
         rankBy=args.rankBy,
         descending=args.rankOrder == "desc",
         withPae=not args.skipPae,
+        paeStep=args.paeStep,
     )
     if failed:
         msg = "ModelCIF conversion failed for %d queries: %s" % (len(failed), failed)
