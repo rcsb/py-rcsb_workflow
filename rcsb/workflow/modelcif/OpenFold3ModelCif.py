@@ -21,7 +21,8 @@ output (one row per residue pair), so it is rounded to multiples of a step, 0.5 
 by default (OpenFold3's PAE bin width). That only pays off with gzip: BinaryCIF takes
 about 2 bytes per PAE row at any step, while gzip compresses the coarser values much
 better (1010 residues: 2.1 MB uncompressed at any step; gzipped 1.1 MB at 0.01 A and
-0.34 MB at 0.5 A).
+0.34 MB at 0.5 A). pLDDT, per atom (B-factor column) and per residue, is rounded to
+multiples of 0.1 by default, which makes the model file about 14% smaller.
 
 ModelCIF is assembled with python-modelcif and converted to BinaryCIF with py-mmcif
 (>= 1.2.0, for fixed-point encoding of float columns). Text mmCIF is only buffered
@@ -169,7 +170,7 @@ def _readResidues(modelCifPath):
     return [residues[i] for i in sorted(residues)]
 
 
-def buildModelCif(query, samples, of3Version, checkpoint, rankBy="sample_ranking_score", paeStep=0.5, gzipped=True):
+def buildModelCif(query, samples, of3Version, checkpoint, rankBy="sample_ranking_score", paeStep=0.5, gzipped=True, plddtStep=0.1):
     """Return the ModelCIF system of one OpenFold3 query, with one model per sample.
 
     Args:
@@ -182,6 +183,8 @@ def buildModelCif(query, samples, of3Version, checkpoint, rankBy="sample_ranking
         rankBy (str): score the samples were ranked by, recorded in the model names
         paeStep (float): PAE values are rounded to multiples of this step, in Angstrom
         gzipped (bool): the PAE file will be gzipped, so it is linked as <query>_pae.bcif.gz
+        plddtStep (float): per-atom (B-factor) and per-residue pLDDT values are rounded to multiples of this step;
+            per-residue values are means of the unrounded per-atom values
 
     Returns:
         modelcif.System: models in rank order in one model group; if there is PAE, the associated file
@@ -189,6 +192,9 @@ def buildModelCif(query, samples, of3Version, checkpoint, rankBy="sample_ranking
     """
     if paeStep <= 0:
         msg = "PAE step must be positive, got %r" % paeStep
+        raise ValueError(msg)
+    if plddtStep <= 0:
+        msg = "pLDDT step must be positive, got %r" % plddtStep
         raise ValueError(msg)
     first = _readResidues(samples[0][0])
     compIds = [res[0]["label_comp_id"] for res in first]
@@ -213,7 +219,7 @@ def buildModelCif(query, samples, of3Version, checkpoint, rankBy="sample_ranking
                 x=float(r["Cartn_x"]),
                 y=float(r["Cartn_y"]),
                 z=float(r["Cartn_z"]),
-                biso=float(r["B_iso_or_equiv"]),
+                biso=roundToStep(float(r["B_iso_or_equiv"]), plddtStep),
                 occupancy=1.0,
                 het=r["group_PDB"] == "HETATM",
             )
@@ -228,7 +234,7 @@ def buildModelCif(query, samples, of3Version, checkpoint, rankBy="sample_ranking
         model.qa_metrics.append(_GlobalPTM(scores["ptm"]))
         for seqId, res in enumerate(residues, start=1):
             plddt = sum(float(a["B_iso_or_equiv"]) for a in res) / len(res)
-            model.qa_metrics.append(_LocalPLDDT(asym.residue(seqId), round(plddt, 2)))
+            model.qa_metrics.append(_LocalPLDDT(asym.residue(seqId), roundToStep(plddt, plddtStep)))
 
         if pae is not None:
             if len(pae) != len(residues):
@@ -251,6 +257,7 @@ def buildModelCif(query, samples, of3Version, checkpoint, rankBy="sample_ranking
     )
     for metric in (_GlobalPLDDT, _LocalPLDDT, _GlobalPTM, _LocalPairwisePAE):
         metric.software = software
+    _LocalPLDDT.description = "Per-residue pLDDT, mean over the residue's atoms; per-atom pLDDT is in the B-factor column. Both rounded to multiples of %g" % plddtStep
     _LocalPairwisePAE.description = "Predicted aligned error, in Angstrom, rounded to multiples of %g" % paeStep
 
     system = modelcif.System(title="OpenFold3 prediction of %s" % query, id=query.upper())
@@ -340,7 +347,9 @@ def findQueryDirs(of3OutputDir):
     return sorted({os.path.dirname(d) for d in seedDirs if os.path.isdir(d)})
 
 
-def convertOpenFold3Outputs(of3OutputDir, outputDir, of3Version, checkpoint, numModels=1, rankBy="sample_ranking_score", descending=True, withPae=True, paeStep=0.5, gzipped=True):
+def convertOpenFold3Outputs(
+    of3OutputDir, outputDir, of3Version, checkpoint, numModels=1, rankBy="sample_ranking_score", descending=True, withPae=True, paeStep=0.5, gzipped=True, plddtStep=0.1
+):
     """Convert the best samples of every query of an OpenFold3 run to ModelCIF BinaryCIF.
 
     Writes <query>_model.bcif.gz per query, with the selected samples as ranked models, and with
@@ -357,6 +366,7 @@ def convertOpenFold3Outputs(of3OutputDir, outputDir, of3Version, checkpoint, num
         withPae (bool): include PAE, read from the samples' full confidences (*_confidences.json)
         paeStep (float): PAE values are rounded to multiples of this step, in Angstrom
         gzipped (bool): gzip the output files; needed for coarser paeStep values to make the PAE file smaller
+        plddtStep (float): per-atom (B-factor) and per-residue pLDDT values are rounded to multiples of this step
 
     Returns:
         list: the converted queries
@@ -382,7 +392,7 @@ def convertOpenFold3Outputs(of3OutputDir, outputDir, of3Version, checkpoint, num
                     with open(prefix + "_confidences.json", "r", encoding="utf-8") as fh:
                         pae = json.load(fh)["pae"]
                 samples.append((modelCifPath, prefix, scores, pae))
-            system = buildModelCif(query, samples, of3Version, checkpoint, rankBy, paeStep, gzipped)
+            system = buildModelCif(query, samples, of3Version, checkpoint, rankBy, paeStep=paeStep, gzipped=gzipped, plddtStep=plddtStep)
             writeBcif(
                 system,
                 os.path.join(outputDir, _bcifName(query, "model", gzipped)),

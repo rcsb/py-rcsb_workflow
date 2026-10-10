@@ -52,6 +52,12 @@ def main():
         "PAE is by far the largest part of the output; coarser steps make it compress much better with --gzip. 0.01 keeps OpenFold3's precision",
     )
     parser.add_argument(
+        "--plddtStep",
+        type=float,
+        default=0.1,
+        help="Round pLDDT values, per atom (B-factor column) and per residue, to multiples of this step (default: 0.1). " "0.001 keeps OpenFold3's per-atom precision",
+    )
+    parser.add_argument(
         "--gzip",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -69,6 +75,9 @@ def main():
     if args.paeStep <= 0:
         msg = "--paeStep must be positive, got %g" % args.paeStep
         raise ValueError(msg)
+    if args.plddtStep <= 0:
+        msg = "--plddtStep must be positive, got %g" % args.plddtStep
+        raise ValueError(msg)
     convertOpenFold3Outputs(
         args.of3OutputDir,
         args.outputDir,
@@ -80,6 +89,7 @@ def main():
         withPae=not args.skipPae,
         paeStep=args.paeStep,
         gzipped=args.gzip,
+        plddtStep=args.plddtStep,
     )
     logger.info("ModelCIF conversion completed")
 

@@ -70,3 +70,4 @@
                     Add modelcif dependency, require mmcif >= 1.2.0
                     modelcif_exec_cli rounds PAE to multiples of --paeStep (default 0.5 A) for smaller PAE files
                     modelcif_exec_cli gzips its output (.bcif.gz) unless --no-gzip
+                    modelcif_exec_cli rounds pLDDT (per atom and per residue) to multiples of --plddtStep (default 0.1)

@@ -26,7 +26,7 @@ import unittest
 
 import modelcif.reader
 from mmcif.io.BinaryCifReader import BinaryCifReader
-from rcsb.workflow.modelcif.OpenFold3ModelCif import ModelCifConversionError, convertOpenFold3Outputs, getRankedSamples, roundToStep
+from rcsb.workflow.modelcif.OpenFold3ModelCif import ModelCifConversionError, convertOpenFold3Outputs, getRankedSamples, readAtomSite, roundToStep
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
 logger = logging.getLogger()
@@ -35,6 +35,7 @@ HERE = os.path.abspath(os.path.dirname(__file__))
 TEST_DATA = os.path.join(HERE, "test-data", "openfold3")
 NUM_RESIDUES = 4
 SAMPLE_PREFIX = "1a6y_A_seed_2746317213_sample_"
+OF3_MODEL = os.path.join(TEST_DATA, "1a6y_A", "seed_2746317213", SAMPLE_PREFIX + "4_model.cif")
 
 
 class OpenFold3ModelCifTests(unittest.TestCase):
@@ -73,12 +74,11 @@ class OpenFold3ModelCifTests(unittest.TestCase):
         self.assertEqual(files.getValue("file_url", 0), "1a6y_A_pae.bcif.gz")
         self.assertEqual(files.getValue("file_format", 0), "bcif")
 
-        # per-residue pLDDT is the mean of the residue's per-atom values (B-factors)
+        # per-residue pLDDT is the mean of the residue's unrounded per-atom values (OpenFold3's B-factors), rounded to 0.1
         local = model.getObj("ma_qa_metric_local")
         self.assertEqual(local.getRowCount(), NUM_RESIDUES)
-        atomSite = model.getObj("atom_site")
-        firstResidue = [float(atomSite.getValue("B_iso_or_equiv", i)) for i in range(atomSite.getRowCount()) if str(atomSite.getValue("label_seq_id", i)) == "1"]
-        self.assertAlmostEqual(float(local.getValue("metric_value", 0)), sum(firstResidue) / len(firstResidue), places=2)
+        firstResidue = [float(a["B_iso_or_equiv"]) for a in readAtomSite(OF3_MODEL) if a["label_seq_id"] == "1"]
+        self.assertAlmostEqual(float(local.getValue("metric_value", 0)), roundToStep(sum(firstResidue) / len(firstResidue), 0.1))
 
         # the model file is valid ModelCIF for python-modelcif
         with gzip.open(os.path.join(self.outDir, "1a6y_A_model.bcif.gz"), "rb") as fh:
@@ -176,6 +176,24 @@ class OpenFold3ModelCifTests(unittest.TestCase):
         self.assertEqual(converted, ["1a6y_A"])
         self.assertEqual(self.__paeValues(outDir), [0.5, 0.8, 1.1, 1.4])
 
+    def __bFactors(self, outDir):
+        [model] = BinaryCifReader().deserialize(os.path.join(outDir, "1a6y_A_model.bcif.gz"))
+        atomSite = model.getObj("atom_site")
+        return [float(atomSite.getValue("B_iso_or_equiv", i)) for i in range(atomSite.getRowCount())]
+
+    def testPlddtStep(self):
+        """Per-atom pLDDT (B-factors) is rounded to multiples of plddtStep, 0.1 by default."""
+        of3 = [float(a["B_iso_or_equiv"]) for a in readAtomSite(OF3_MODEL)]
+        convertOpenFold3Outputs(TEST_DATA, self.outDir, "0.5", "ckpt")
+        rounded = self.__bFactors(self.outDir)
+        self.assertEqual(rounded, [roundToStep(v, 0.1) for v in of3])
+        self.assertNotEqual(rounded, of3)
+
+        outDir = os.path.join(self.outDir, "out")
+        convertOpenFold3Outputs(TEST_DATA, outDir, "0.5", "ckpt", plddtStep=0.001)
+        for value, of3Value in zip(self.__bFactors(outDir), of3):
+            self.assertAlmostEqual(value, of3Value, delta=0.0005)
+
     def testNoGzip(self):
         """Without gzip, plain .bcif files are written, and the model file links the plain PAE file."""
         converted = convertOpenFold3Outputs(TEST_DATA, self.outDir, "0.5", "ckpt", gzipped=False)
@@ -206,6 +224,7 @@ def suiteOpenFold3ModelCif():
     suiteSelect.addTest(OpenFold3ModelCifTests("testRoundToStep"))
     suiteSelect.addTest(OpenFold3ModelCifTests("testPaeStep"))
     suiteSelect.addTest(OpenFold3ModelCifTests("testNoGzip"))
+    suiteSelect.addTest(OpenFold3ModelCifTests("testPlddtStep"))
     return suiteSelect
 
 
