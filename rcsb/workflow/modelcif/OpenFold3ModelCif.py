@@ -10,14 +10,18 @@ Convert OpenFold3 predictions to ModelCIF, written as BinaryCIF.
 For every query of an OpenFold3 run, takes the best samples (by default the one with
 the highest sample_ranking_score) and writes:
 
-    <query>_model.bcif   ModelCIF: the samples as ranked models, with coordinates,
-                         per-residue pLDDT (mean over the residue's atoms), global
-                         pLDDT and pTM
-    <query>_pae.bcif     optional associated file with the models' full PAE matrices,
-                         linked from the model file (ma_entry_associated_files)
+    <query>_model.bcif.gz   ModelCIF: the samples as ranked models, with coordinates,
+                            per-residue pLDDT (mean over the residue's atoms), global
+                            pLDDT and pTM
+    <query>_pae.bcif.gz     optional associated file with the models' full PAE matrices,
+                            linked from the model file (ma_entry_associated_files)
 
-PAE is by far the largest part of the output (one row per residue pair), so it is
-rounded to multiples of a step, 0.5 Angstrom by default (OpenFold3's PAE bin width).
+Files are gzipped by default (.bcif without). PAE is by far the largest part of the
+output (one row per residue pair), so it is rounded to multiples of a step, 0.5 Angstrom
+by default (OpenFold3's PAE bin width). That only pays off with gzip: BinaryCIF takes
+about 2 bytes per PAE row at any step, while gzip compresses the coarser values much
+better (1010 residues: 2.1 MB uncompressed at any step; gzipped 1.1 MB at 0.01 A and
+0.34 MB at 0.5 A).
 
 ModelCIF is assembled with python-modelcif and converted to BinaryCIF with py-mmcif
 (>= 1.2.0, for fixed-point encoding of float columns). Text mmCIF is only buffered
@@ -31,12 +35,15 @@ __license__ = "Apache 2.0"
 
 import decimal
 import glob
+import gzip
 import io
 import json
 import logging
 import math
 import os
 import re
+import shutil
+import tempfile
 
 import ihm
 import modelcif
@@ -149,7 +156,7 @@ def _readResidues(modelCifPath):
     return [residues[i] for i in sorted(residues)]
 
 
-def buildModelCif(query, samples, of3Version, checkpoint, rankBy="sample_ranking_score", paeStep=0.5):
+def buildModelCif(query, samples, of3Version, checkpoint, rankBy="sample_ranking_score", paeStep=0.5, gzipped=True):
     """Return the ModelCIF system of one OpenFold3 query, with one model per sample.
 
     Args:
@@ -161,10 +168,11 @@ def buildModelCif(query, samples, of3Version, checkpoint, rankBy="sample_ranking
         checkpoint (str): OpenFold3 checkpoint file name
         rankBy (str): score the samples were ranked by, recorded in the model names
         paeStep (float): PAE values are rounded to multiples of this step, in Angstrom
+        gzipped (bool): the PAE file will be gzipped, so it is linked as <query>_pae.bcif.gz
 
     Returns:
         modelcif.System: models in rank order in one model group; if there is PAE, the associated file
-        is only linked, as <query>_pae.bcif, and writeBcif writes it
+        is only linked, as <query>_pae.bcif(.gz), and writeBcif writes it
     """
     if paeStep <= 0:
         msg = "PAE step must be positive, got %r" % paeStep
@@ -254,18 +262,42 @@ def buildModelCif(query, samples, of3Version, checkpoint, rankBy="sample_ranking
         system.repositories.append(
             modelcif.associated.Repository(
                 "",
-                [modelcif.associated.QAMetricsFile("%s_pae.bcif" % query, binary=True, details="Predicted aligned error")],
+                [modelcif.associated.QAMetricsFile(_bcifName(query, "pae", gzipped), binary=True, details="Predicted aligned error")],
             )
         )
     return system
 
 
+def _bcifName(query, kind, gzipped):
+    """Output file name, e.g. 1a6y_A_pae.bcif.gz."""
+    return "%s_%s.bcif%s" % (query, kind, ".gz" if gzipped else "")
+
+
+def _serialize(writer, filePath, containers):
+    """Write containers as BinaryCIF, gzipped if filePath ends in .gz; the file appears only once complete."""
+    fd, tmpPath = tempfile.mkstemp(suffix=".bcif", dir=os.path.dirname(os.path.abspath(filePath)))
+    os.close(fd)
+    try:
+        # serialize logs errors and returns False rather than raising
+        if not writer.serialize(tmpPath, containers):
+            msg = "Failed to write BinaryCIF %s" % filePath
+            raise IOError(msg)
+        if filePath.endswith(".gz"):
+            with open(tmpPath, "rb") as src, gzip.open(filePath, "wb") as dst:
+                shutil.copyfileobj(src, dst)
+        else:
+            os.replace(tmpPath, filePath)
+    finally:
+        if os.path.exists(tmpPath):
+            os.remove(tmpPath)
+
+
 def writeBcif(system, modelPath, paePath=None):
     """Write a ModelCIF system as BinaryCIF: the model file and, if the system has PAE, the associated PAE file.
 
-    The whole system is dumped to an in-memory mmCIF buffer and parsed with py-mmcif;
-    the pairwise QA category then moves to its own container, with an entry and
-    entry_link header like modelcif gives associated files.
+    Paths ending in .gz are gzipped. The whole system is dumped to an in-memory mmCIF
+    buffer and parsed with py-mmcif; the pairwise QA category then moves to its own
+    container, with an entry and entry_link header like modelcif gives associated files.
     """
     buffer = io.StringIO()
     modelcif.dumper.write(buffer, [system])
@@ -285,8 +317,8 @@ def writeBcif(system, modelPath, paePath=None):
         paeContainer.append(DataCategory("entry", ["id"], [["%s_pae" % system.id]]))
         paeContainer.append(DataCategory("entry_link", ["id", "entry_id", "details"], [["1", system.id, "Predicted aligned error of the models"]]))
         paeContainer.append(pairwise)
-        writer.serialize(paePath, [paeContainer])
-    writer.serialize(modelPath, [model])
+        _serialize(writer, paePath, [paeContainer])
+    _serialize(writer, modelPath, [model])
 
 
 def findQueryDirs(of3OutputDir):
@@ -295,11 +327,11 @@ def findQueryDirs(of3OutputDir):
     return sorted({os.path.dirname(d) for d in seedDirs if os.path.isdir(d)})
 
 
-def convertOpenFold3Outputs(of3OutputDir, outputDir, of3Version, checkpoint, numModels=1, rankBy="sample_ranking_score", descending=True, withPae=True, paeStep=0.5):
+def convertOpenFold3Outputs(of3OutputDir, outputDir, of3Version, checkpoint, numModels=1, rankBy="sample_ranking_score", descending=True, withPae=True, paeStep=0.5, gzipped=True):
     """Convert the best samples of every query of an OpenFold3 run to ModelCIF BinaryCIF.
 
-    Writes <query>_model.bcif per query, with the selected samples as ranked models, and with
-    withPae <query>_pae.bcif, the associated file with their PAE matrices.
+    Writes <query>_model.bcif.gz per query, with the selected samples as ranked models, and with
+    withPae <query>_pae.bcif.gz, the associated file with their PAE matrices (.bcif without gzipped).
 
     Args:
         of3OutputDir (str): OpenFold3 output directory; query directories (<query>/seed_*) are found at any depth
@@ -311,6 +343,7 @@ def convertOpenFold3Outputs(of3OutputDir, outputDir, of3Version, checkpoint, num
         descending (bool): True if higher values of rankBy are better
         withPae (bool): include PAE, read from the samples' full confidences (*_confidences.json)
         paeStep (float): PAE values are rounded to multiples of this step, in Angstrom
+        gzipped (bool): gzip the output files; needed for coarser paeStep values to make the PAE file smaller
 
     Returns:
         list: queries that could not be converted; a failed query does not stop the others
@@ -333,11 +366,11 @@ def convertOpenFold3Outputs(of3OutputDir, outputDir, of3Version, checkpoint, num
                     with open(prefix + "_confidences.json", "r", encoding="utf-8") as fh:
                         pae = json.load(fh)["pae"]
                 samples.append((modelCifPath, prefix, scores, pae))
-            system = buildModelCif(query, samples, of3Version, checkpoint, rankBy, paeStep)
+            system = buildModelCif(query, samples, of3Version, checkpoint, rankBy, paeStep, gzipped)
             writeBcif(
                 system,
-                os.path.join(outputDir, "%s_model.bcif" % query),
-                os.path.join(outputDir, "%s_pae.bcif" % query) if withPae else None,
+                os.path.join(outputDir, _bcifName(query, "model", gzipped)),
+                os.path.join(outputDir, _bcifName(query, "pae", gzipped)) if withPae else None,
             )
             logger.info("%s: converted %s", query, ", ".join(_sampleName(prefix) for _, prefix, _, _ in samples))
         except Exception:  # pylint: disable=broad-exception-caught

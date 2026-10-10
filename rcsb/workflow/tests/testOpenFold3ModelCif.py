@@ -17,6 +17,7 @@ __author__ = "Jose Duarte"
 __email__ = "jose.duarte@rcsb.org"
 __license__ = "Apache 2.0"
 
+import gzip
 import logging
 import os
 import shutil
@@ -59,17 +60,17 @@ class OpenFold3ModelCifTests(unittest.TestCase):
         failed = convertOpenFold3Outputs(TEST_DATA, self.outDir, "0.5", "of3-ob-2025-06-30-174k.pt")
         self.assertEqual(failed, [])
         # only the two BinaryCIF files are written
-        self.assertEqual(sorted(os.listdir(self.outDir)), ["1a6y_A_model.bcif", "1a6y_A_pae.bcif"])
+        self.assertEqual(sorted(os.listdir(self.outDir)), ["1a6y_A_model.bcif.gz", "1a6y_A_pae.bcif.gz"])
 
-        [model] = BinaryCifReader().deserialize(os.path.join(self.outDir, "1a6y_A_model.bcif"))
-        [pae] = BinaryCifReader().deserialize(os.path.join(self.outDir, "1a6y_A_pae.bcif"))
+        [model] = BinaryCifReader().deserialize(os.path.join(self.outDir, "1a6y_A_model.bcif.gz"))
+        [pae] = BinaryCifReader().deserialize(os.path.join(self.outDir, "1a6y_A_pae.bcif.gz"))
 
         # PAE is only in the associated file, which the model file links to
         self.assertIsNone(model.getObj("ma_qa_metric_local_pairwise"))
         self.assertEqual(pae.getObj("ma_qa_metric_local_pairwise").getRowCount(), NUM_RESIDUES * NUM_RESIDUES)
         self.assertEqual(pae.getObj("entry_link").getValue("entry_id", 0), "1A6Y_A")
         files = model.getObj("ma_entry_associated_files")
-        self.assertEqual(files.getValue("file_url", 0), "1a6y_A_pae.bcif")
+        self.assertEqual(files.getValue("file_url", 0), "1a6y_A_pae.bcif.gz")
         self.assertEqual(files.getValue("file_format", 0), "bcif")
 
         # per-residue pLDDT is the mean of the residue's per-atom values (B-factors)
@@ -80,7 +81,7 @@ class OpenFold3ModelCifTests(unittest.TestCase):
         self.assertAlmostEqual(float(local.getValue("metric_value", 0)), sum(firstResidue) / len(firstResidue), places=2)
 
         # the model file is valid ModelCIF for python-modelcif
-        with open(os.path.join(self.outDir, "1a6y_A_model.bcif"), "rb") as fh:
+        with gzip.open(os.path.join(self.outDir, "1a6y_A_model.bcif.gz"), "rb") as fh:
             systems = modelcif.reader.read(fh, format="BCIF")
         self.assertEqual(len(systems), 1)
         system = systems[0]
@@ -93,7 +94,7 @@ class OpenFold3ModelCifTests(unittest.TestCase):
         shutil.copytree(TEST_DATA, os.path.join(runDir, "job_0"))
         failed = convertOpenFold3Outputs(runDir, os.path.join(self.outDir, "out"), "0.5", "ckpt")
         self.assertEqual(failed, [])
-        self.assertEqual(sorted(os.listdir(os.path.join(self.outDir, "out"))), ["1a6y_A_model.bcif", "1a6y_A_pae.bcif"])
+        self.assertEqual(sorted(os.listdir(os.path.join(self.outDir, "out"))), ["1a6y_A_model.bcif.gz", "1a6y_A_pae.bcif.gz"])
 
     def testQueryWithoutSamples(self):
         """A query directory without any OpenFold3 samples is reported as failed."""
@@ -116,13 +117,13 @@ class OpenFold3ModelCifTests(unittest.TestCase):
         outDir = os.path.join(self.outDir, "out")
         failed = convertOpenFold3Outputs(self.__twoSampleRun(), outDir, "0.5", "ckpt", numModels=0)
         self.assertEqual(failed, [])
-        [model] = BinaryCifReader().deserialize(os.path.join(outDir, "1a6y_A_model.bcif"))
+        [model] = BinaryCifReader().deserialize(os.path.join(outDir, "1a6y_A_model.bcif.gz"))
         modelList = model.getObj("ma_model_list")
         self.assertEqual(modelList.getRowCount(), 2)
         self.assertIn("seed 2746317213 sample 4, rank 1", modelList.getValue("model_name", 0))
         self.assertIn("seed 2746317213 sample 3, rank 2", modelList.getValue("model_name", 1))
         self.assertEqual(model.getObj("ma_qa_metric_local").getRowCount(), 2 * NUM_RESIDUES)
-        [pae] = BinaryCifReader().deserialize(os.path.join(outDir, "1a6y_A_pae.bcif"))
+        [pae] = BinaryCifReader().deserialize(os.path.join(outDir, "1a6y_A_pae.bcif.gz"))
         pairwise = pae.getObj("ma_qa_metric_local_pairwise")
         self.assertEqual(pairwise.getRowCount(), 2 * NUM_RESIDUES * NUM_RESIDUES)
         self.assertEqual(sorted({str(pairwise.getValue("model_id", i)) for i in range(pairwise.getRowCount())}), ["1", "2"])
@@ -135,8 +136,8 @@ class OpenFold3ModelCifTests(unittest.TestCase):
         outDir = os.path.join(self.outDir, "out")
         failed = convertOpenFold3Outputs(runDir, outDir, "0.5", "ckpt", withPae=False)
         self.assertEqual(failed, [])
-        self.assertEqual(os.listdir(outDir), ["1a6y_A_model.bcif"])
-        [model] = BinaryCifReader().deserialize(os.path.join(outDir, "1a6y_A_model.bcif"))
+        self.assertEqual(os.listdir(outDir), ["1a6y_A_model.bcif.gz"])
+        [model] = BinaryCifReader().deserialize(os.path.join(outDir, "1a6y_A_model.bcif.gz"))
         self.assertIsNone(model.getObj("ma_entry_associated_files"))
         self.assertEqual(model.getObj("ma_qa_metric_local").getRowCount(), NUM_RESIDUES)
 
@@ -150,7 +151,7 @@ class OpenFold3ModelCifTests(unittest.TestCase):
         self.assertEqual(roundToStep(13.5, 1), 14)
 
     def __paeValues(self, outDir):
-        [pae] = BinaryCifReader().deserialize(os.path.join(outDir, "1a6y_A_pae.bcif"))
+        [pae] = BinaryCifReader().deserialize(os.path.join(outDir, "1a6y_A_pae.bcif.gz"))
         pairwise = pae.getObj("ma_qa_metric_local_pairwise")
         return [float(pairwise.getValue("metric_value", i)) for i in range(NUM_RESIDUES)]
 
@@ -160,7 +161,7 @@ class OpenFold3ModelCifTests(unittest.TestCase):
         failed = convertOpenFold3Outputs(TEST_DATA, self.outDir, "0.5", "ckpt")
         self.assertEqual(failed, [])
         self.assertEqual(self.__paeValues(self.outDir), [0.5, 1.0, 1.0, 1.5])
-        [model] = BinaryCifReader().deserialize(os.path.join(self.outDir, "1a6y_A_model.bcif"))
+        [model] = BinaryCifReader().deserialize(os.path.join(self.outDir, "1a6y_A_model.bcif.gz"))
         metrics = model.getObj("ma_qa_metric")
         descriptions = [metrics.getValue("description", i) for i in range(metrics.getRowCount())]
         self.assertIn("Predicted aligned error, in Angstrom, rounded to multiples of 0.5", descriptions)
@@ -169,6 +170,16 @@ class OpenFold3ModelCifTests(unittest.TestCase):
         failed = convertOpenFold3Outputs(TEST_DATA, outDir, "0.5", "ckpt", paeStep=0.01)
         self.assertEqual(failed, [])
         self.assertEqual(self.__paeValues(outDir), [0.5, 0.8, 1.1, 1.4])
+
+    def testNoGzip(self):
+        """Without gzip, plain .bcif files are written, and the model file links the plain PAE file."""
+        failed = convertOpenFold3Outputs(TEST_DATA, self.outDir, "0.5", "ckpt", gzipped=False)
+        self.assertEqual(failed, [])
+        self.assertEqual(sorted(os.listdir(self.outDir)), ["1a6y_A_model.bcif", "1a6y_A_pae.bcif"])
+        with open(os.path.join(self.outDir, "1a6y_A_pae.bcif"), "rb") as fh:
+            self.assertNotEqual(fh.read(2), b"\x1f\x8b")
+        [model] = BinaryCifReader().deserialize(os.path.join(self.outDir, "1a6y_A_model.bcif"))
+        self.assertEqual(model.getObj("ma_entry_associated_files").getValue("file_url", 0), "1a6y_A_pae.bcif")
 
     def testUnknownRankScore(self):
         """Ranking by a score OpenFold3 does not report fails the query."""
@@ -187,6 +198,7 @@ def suiteOpenFold3ModelCif():
     suiteSelect.addTest(OpenFold3ModelCifTests("testUnknownRankScore"))
     suiteSelect.addTest(OpenFold3ModelCifTests("testRoundToStep"))
     suiteSelect.addTest(OpenFold3ModelCifTests("testPaeStep"))
+    suiteSelect.addTest(OpenFold3ModelCifTests("testNoGzip"))
     return suiteSelect
 
 
