@@ -69,7 +69,7 @@ def main():
     if args.paeStep <= 0:
         msg = "--paeStep must be positive, got %g" % args.paeStep
         raise ValueError(msg)
-    failed = convertOpenFold3Outputs(
+    convertOpenFold3Outputs(
         args.of3OutputDir,
         args.outputDir,
         args.of3Version,
@@ -81,9 +81,6 @@ def main():
         paeStep=args.paeStep,
         gzipped=args.gzip,
     )
-    if failed:
-        msg = "ModelCIF conversion failed for %d queries: %s" % (len(failed), failed)
-        raise ValueError(msg)
     logger.info("ModelCIF conversion completed")
 
 

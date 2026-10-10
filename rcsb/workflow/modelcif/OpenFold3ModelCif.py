@@ -66,6 +66,19 @@ OPENFOLD3_URL = "https://github.com/aqlaboratory/openfold-3"
 PAIRWISE_CATEGORY = "ma_qa_metric_local_pairwise"
 
 
+class ModelCifConversionError(Exception):
+    """One or more queries of an OpenFold3 run could not be converted.
+
+    Attributes:
+        errors (dict): query name to the exception that stopped its conversion
+    """
+
+    def __init__(self, errors):
+        self.errors = errors
+        details = "; ".join("%s: %s: %s" % (query, type(err).__name__, err) for query, err in errors.items())
+        super().__init__("ModelCIF conversion failed for %d queries: %s" % (len(errors), details))
+
+
 class _OpenFold3Model(modelcif.model.AbInitioModel):
     """Model whose atoms come from the OpenFold3 mmCIF atom_site table."""
 
@@ -346,18 +359,21 @@ def convertOpenFold3Outputs(of3OutputDir, outputDir, of3Version, checkpoint, num
         gzipped (bool): gzip the output files; needed for coarser paeStep values to make the PAE file smaller
 
     Returns:
-        list: queries that could not be converted; a failed query does not stop the others
+        list: the converted queries
+
+    Raises:
+        ModelCifConversionError: if any query could not be converted, after trying all others
     """
     os.makedirs(outputDir, exist_ok=True)
-    failed = []
+    converted = []
+    errors = {}
     for queryDir in findQueryDirs(of3OutputDir):
         query = os.path.basename(queryDir)
         try:
             ranked = getRankedSamples(queryDir, rankBy, descending)
             if not ranked:
-                logger.error("%s: no OpenFold3 sample outputs in %s", query, queryDir)
-                failed.append(query)
-                continue
+                msg = "no OpenFold3 sample outputs in %s" % queryDir
+                raise ValueError(msg)
             selected = ranked[:numModels] if numModels > 0 else ranked
             samples = []
             for modelCifPath, prefix, scores in selected:
@@ -373,7 +389,11 @@ def convertOpenFold3Outputs(of3OutputDir, outputDir, of3Version, checkpoint, num
                 os.path.join(outputDir, _bcifName(query, "pae", gzipped)) if withPae else None,
             )
             logger.info("%s: converted %s", query, ", ".join(_sampleName(prefix) for _, prefix, _, _ in samples))
-        except Exception:  # pylint: disable=broad-exception-caught
-            logger.exception("%s: ModelCIF conversion failed", query)
-            failed.append(query)
-    return failed
+            converted.append(query)
+        except Exception as err:  # pylint: disable=broad-exception-caught
+            # one query's failure must not stop the others; all failures are raised together below
+            errors[query] = err
+    if errors:
+        # chained to the first failure, so its traceback is kept
+        raise ModelCifConversionError(errors) from next(iter(errors.values()))
+    return converted

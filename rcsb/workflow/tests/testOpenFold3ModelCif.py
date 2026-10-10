@@ -26,7 +26,7 @@ import unittest
 
 import modelcif.reader
 from mmcif.io.BinaryCifReader import BinaryCifReader
-from rcsb.workflow.modelcif.OpenFold3ModelCif import convertOpenFold3Outputs, getRankedSamples, roundToStep
+from rcsb.workflow.modelcif.OpenFold3ModelCif import ModelCifConversionError, convertOpenFold3Outputs, getRankedSamples, roundToStep
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
 logger = logging.getLogger()
@@ -57,8 +57,8 @@ class OpenFold3ModelCifTests(unittest.TestCase):
             getRankedSamples(queryDir, rankBy="no_such_score")
 
     def testConvert(self):
-        failed = convertOpenFold3Outputs(TEST_DATA, self.outDir, "0.5", "of3-ob-2025-06-30-174k.pt")
-        self.assertEqual(failed, [])
+        converted = convertOpenFold3Outputs(TEST_DATA, self.outDir, "0.5", "of3-ob-2025-06-30-174k.pt")
+        self.assertEqual(converted, ["1a6y_A"])
         # only the two BinaryCIF files are written
         self.assertEqual(sorted(os.listdir(self.outDir)), ["1a6y_A_model.bcif.gz", "1a6y_A_pae.bcif.gz"])
 
@@ -92,16 +92,21 @@ class OpenFold3ModelCifTests(unittest.TestCase):
         """Query directories are found at any depth, e.g. under one directory per job."""
         runDir = os.path.join(self.outDir, "run")
         shutil.copytree(TEST_DATA, os.path.join(runDir, "job_0"))
-        failed = convertOpenFold3Outputs(runDir, os.path.join(self.outDir, "out"), "0.5", "ckpt")
-        self.assertEqual(failed, [])
+        converted = convertOpenFold3Outputs(runDir, os.path.join(self.outDir, "out"), "0.5", "ckpt")
+        self.assertEqual(converted, ["1a6y_A"])
         self.assertEqual(sorted(os.listdir(os.path.join(self.outDir, "out"))), ["1a6y_A_model.bcif.gz", "1a6y_A_pae.bcif.gz"])
 
     def testQueryWithoutSamples(self):
-        """A query directory without any OpenFold3 samples is reported as failed."""
+        """A query directory without any OpenFold3 samples fails, after the other queries are converted."""
         runDir = os.path.join(self.outDir, "run")
+        shutil.copytree(TEST_DATA, runDir)
         os.makedirs(os.path.join(runDir, "9zzz_A", "seed_1"))
-        failed = convertOpenFold3Outputs(runDir, os.path.join(self.outDir, "out"), "0.5", "ckpt")
-        self.assertEqual(failed, ["9zzz_A"])
+        outDir = os.path.join(self.outDir, "out")
+        with self.assertRaises(ModelCifConversionError) as ctx:
+            convertOpenFold3Outputs(runDir, outDir, "0.5", "ckpt")
+        self.assertEqual(list(ctx.exception.errors), ["9zzz_A"])
+        self.assertIn("no OpenFold3 sample outputs", str(ctx.exception))
+        self.assertEqual(sorted(os.listdir(outDir)), ["1a6y_A_model.bcif.gz", "1a6y_A_pae.bcif.gz"])
 
     def __twoSampleRun(self):
         """Copy of the test data where sample 3 also has a model and full confidences (those of sample 4)."""
@@ -115,8 +120,8 @@ class OpenFold3ModelCifTests(unittest.TestCase):
     def testAllModels(self):
         """With numModels 0, every sample becomes a ranked model, and the PAE file holds the PAE of each."""
         outDir = os.path.join(self.outDir, "out")
-        failed = convertOpenFold3Outputs(self.__twoSampleRun(), outDir, "0.5", "ckpt", numModels=0)
-        self.assertEqual(failed, [])
+        converted = convertOpenFold3Outputs(self.__twoSampleRun(), outDir, "0.5", "ckpt", numModels=0)
+        self.assertEqual(converted, ["1a6y_A"])
         [model] = BinaryCifReader().deserialize(os.path.join(outDir, "1a6y_A_model.bcif.gz"))
         modelList = model.getObj("ma_model_list")
         self.assertEqual(modelList.getRowCount(), 2)
@@ -134,8 +139,8 @@ class OpenFold3ModelCifTests(unittest.TestCase):
         shutil.copytree(TEST_DATA, runDir)
         os.remove(os.path.join(runDir, "1a6y_A", "seed_2746317213", SAMPLE_PREFIX + "4_confidences.json"))
         outDir = os.path.join(self.outDir, "out")
-        failed = convertOpenFold3Outputs(runDir, outDir, "0.5", "ckpt", withPae=False)
-        self.assertEqual(failed, [])
+        converted = convertOpenFold3Outputs(runDir, outDir, "0.5", "ckpt", withPae=False)
+        self.assertEqual(converted, ["1a6y_A"])
         self.assertEqual(os.listdir(outDir), ["1a6y_A_model.bcif.gz"])
         [model] = BinaryCifReader().deserialize(os.path.join(outDir, "1a6y_A_model.bcif.gz"))
         self.assertIsNone(model.getObj("ma_entry_associated_files"))
@@ -158,8 +163,8 @@ class OpenFold3ModelCifTests(unittest.TestCase):
     def testPaeStep(self):
         """PAE is rounded to multiples of paeStep (0.5 by default), which the PAE metric description records."""
         # first PAE row of the test data: 0.5, 0.8, 1.1, 1.4
-        failed = convertOpenFold3Outputs(TEST_DATA, self.outDir, "0.5", "ckpt")
-        self.assertEqual(failed, [])
+        converted = convertOpenFold3Outputs(TEST_DATA, self.outDir, "0.5", "ckpt")
+        self.assertEqual(converted, ["1a6y_A"])
         self.assertEqual(self.__paeValues(self.outDir), [0.5, 1.0, 1.0, 1.5])
         [model] = BinaryCifReader().deserialize(os.path.join(self.outDir, "1a6y_A_model.bcif.gz"))
         metrics = model.getObj("ma_qa_metric")
@@ -167,14 +172,14 @@ class OpenFold3ModelCifTests(unittest.TestCase):
         self.assertIn("Predicted aligned error, in Angstrom, rounded to multiples of 0.5", descriptions)
 
         outDir = os.path.join(self.outDir, "out")
-        failed = convertOpenFold3Outputs(TEST_DATA, outDir, "0.5", "ckpt", paeStep=0.01)
-        self.assertEqual(failed, [])
+        converted = convertOpenFold3Outputs(TEST_DATA, outDir, "0.5", "ckpt", paeStep=0.01)
+        self.assertEqual(converted, ["1a6y_A"])
         self.assertEqual(self.__paeValues(outDir), [0.5, 0.8, 1.1, 1.4])
 
     def testNoGzip(self):
         """Without gzip, plain .bcif files are written, and the model file links the plain PAE file."""
-        failed = convertOpenFold3Outputs(TEST_DATA, self.outDir, "0.5", "ckpt", gzipped=False)
-        self.assertEqual(failed, [])
+        converted = convertOpenFold3Outputs(TEST_DATA, self.outDir, "0.5", "ckpt", gzipped=False)
+        self.assertEqual(converted, ["1a6y_A"])
         self.assertEqual(sorted(os.listdir(self.outDir)), ["1a6y_A_model.bcif", "1a6y_A_pae.bcif"])
         with open(os.path.join(self.outDir, "1a6y_A_pae.bcif"), "rb") as fh:
             self.assertNotEqual(fh.read(2), b"\x1f\x8b")
@@ -182,9 +187,11 @@ class OpenFold3ModelCifTests(unittest.TestCase):
         self.assertEqual(model.getObj("ma_entry_associated_files").getValue("file_url", 0), "1a6y_A_pae.bcif")
 
     def testUnknownRankScore(self):
-        """Ranking by a score OpenFold3 does not report fails the query."""
-        failed = convertOpenFold3Outputs(TEST_DATA, os.path.join(self.outDir, "out"), "0.5", "ckpt", rankBy="no_such_score")
-        self.assertEqual(failed, ["1a6y_A"])
+        """Ranking by a score OpenFold3 does not report fails the query, with the cause chained."""
+        with self.assertRaises(ModelCifConversionError) as ctx:
+            convertOpenFold3Outputs(TEST_DATA, os.path.join(self.outDir, "out"), "0.5", "ckpt", rankBy="no_such_score")
+        self.assertEqual(list(ctx.exception.errors), ["1a6y_A"])
+        self.assertIsInstance(ctx.exception.__cause__, KeyError)
 
 
 def suiteOpenFold3ModelCif():
