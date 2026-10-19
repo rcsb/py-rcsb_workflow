@@ -21,3 +21,4 @@ def idHash(structure_id):
     if structure_id.lower().startswith("pdb_") or len(structure_id) == 4:
         return f"{structure_id[-3:-1]}/"
     raise RuntimeError("Unsupported structure id %s" % structure_id)
+
