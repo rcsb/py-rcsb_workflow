@@ -4,6 +4,9 @@
 # Use an official Python image as a base image
 FROM python:3.13-slim-bookworm
 
+# Branch of the rcsb dependency repos to install (override with --build-arg EXT_BRANCH=...)
+ARG EXT_BRANCH=ext-ids
+
 # Set the working directory inside the container
 WORKDIR /app
 ENV PATH=$PATH:/root/.local/bin
@@ -33,50 +36,17 @@ RUN mkdir -p /opt/mmseqs2 \
 RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "wheel>=0.43.0" "setuptools>=40.8.0" \
     && pip install --no-cache-dir "pymongo>=4.10.1" \
     # Use pip instead of hatch or uv, since the latter will only install CLIs into the virtual envs
-    && pip install --no-cache-dir . --extra-index-url https://pypi.anaconda.org/OpenEye/simple \
-    \
-    # Clone py-rcsb_exdb without submodules and install
-    && git clone --depth 1 --branch ext-ids --recurse-submodules=no \
-        https://github.com/rcsb/py-rcsb_exdb.git /tmp/py-rcsb_exdb \
-    && pip install --no-cache-dir /tmp/py-rcsb_exdb \
-    && rm -rf /tmp/py-rcsb_exdb \
-    \
-    # Clone py-rcsb_db without submodules and install
-    && git clone --depth 1 --branch ext-ids --recurse-submodules=no \
-        https://github.com/rcsb/py-rcsb_db.git /tmp/py-rcsb_db \
-    && pip install --no-cache-dir /tmp/py-rcsb_db \
-    && rm -rf /tmp/py-rcsb_db \
-    \
-    # Clone py-rcsb_utils_dictionary without submodules and install
-    && git clone --depth 1 --branch ext-ids --recurse-submodules=no \
-        https://github.com/rcsb/py-rcsb_utils_dictionary.git /tmp/py-rcsb_utils_dictionary \
-    && pip install --no-cache-dir /tmp/py-rcsb_utils_dictionary \
-    && rm -rf /tmp/py-rcsb_utils_dictionary \
-    \
-    # Clone py-rcsb_utils_repository without submodules and install
-    && git clone --depth 1 --branch ext-ids --recurse-submodules=no \
-        https://github.com/rcsb/py-rcsb_utils_repository.git /tmp/py-rcsb_utils_repository \
-    && pip install --no-cache-dir /tmp/py-rcsb_utils_repository \
-    && rm -rf /tmp/py-rcsb_utils_repository \
-    \
-    # Clone py-rcsb_utils_targets without submodules and install
-    && git clone --depth 1 --branch ext-ids --recurse-submodules=no \
-        https://github.com/rcsb/py-rcsb_utils_targets.git /tmp/py-rcsb_utils_targets \
-    && pip install --no-cache-dir /tmp/py-rcsb_utils_targets \
-    && rm -rf /tmp/py-rcsb_utils_targets \
-    \
-    # Clone py-rcsb_utils_seq without submodules and install
-    && git clone --depth 1 --branch ext-ids --recurse-submodules=no \
-        https://github.com/rcsb/py-rcsb_utils_seq.git /tmp/py-rcsb_utils_seq \
-    && pip install --no-cache-dir /tmp/py-rcsb_utils_seq \
-    && rm -rf /tmp/py-rcsb_utils_seq \
-    \
-    # Clone py-rcsb_utils_chemref without submodules and install
-    && git clone --depth 1 --branch ext-ids --recurse-submodules=no \
-        https://github.com/rcsb/py-rcsb_utils_chemref.git /tmp/py-rcsb_utils_chemref \
-    && pip install --no-cache-dir /tmp/py-rcsb_utils_chemref \
-    && rm -rf /tmp/py-rcsb_utils_chemref \
-    \
+    # Install this package together with the EXT_BRANCH versions of its rcsb dependencies in a single resolve,
+    # so the branch versions are used instead of the PyPI releases. GitHub archive tarballs don't include
+    # submodules (mock-data).
+    && pip install --no-cache-dir --extra-index-url https://pypi.anaconda.org/OpenEye/simple . \
+        "rcsb.exdb @ https://github.com/rcsb/py-rcsb_exdb/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
+        "rcsb.db @ https://github.com/rcsb/py-rcsb_db/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
+        "rcsb.utils.dictionary @ https://github.com/rcsb/py-rcsb_utils_dictionary/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
+        "rcsb.utils.repository @ https://github.com/rcsb/py-rcsb_utils_repository/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
+        "rcsb.utils.targets @ https://github.com/rcsb/py-rcsb_utils_targets/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
+        "rcsb.utils.seq @ https://github.com/rcsb/py-rcsb_utils_seq/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
+        "rcsb.utils.chemref @ https://github.com/rcsb/py-rcsb_utils_chemref/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
     && pip freeze
 
 # Install node modules
