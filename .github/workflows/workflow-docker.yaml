@@ -28,7 +28,7 @@ on:
   push:
     branches:
       - master
-      - ro-5076
+      - ext-ids
 
 jobs:
   run-workflow:

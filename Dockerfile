@@ -36,43 +36,43 @@ RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "wheel>=0.43.0" "setuptoo
     && pip install --no-cache-dir . --extra-index-url https://pypi.anaconda.org/OpenEye/simple \
     \
     # Clone py-rcsb_exdb without submodules and install
-    && git clone --depth 1 --branch ro-5076 --recurse-submodules=no \
+    && git clone --depth 1 --branch ext-ids --recurse-submodules=no \
         https://github.com/rcsb/py-rcsb_exdb.git /tmp/py-rcsb_exdb \
     && pip install --no-cache-dir /tmp/py-rcsb_exdb \
     && rm -rf /tmp/py-rcsb_exdb \
     \
     # Clone py-rcsb_db without submodules and install
-    && git clone --depth 1 --branch ro-5076 --recurse-submodules=no \
+    && git clone --depth 1 --branch ext-ids --recurse-submodules=no \
         https://github.com/rcsb/py-rcsb_db.git /tmp/py-rcsb_db \
     && pip install --no-cache-dir /tmp/py-rcsb_db \
     && rm -rf /tmp/py-rcsb_db \
     \
     # Clone py-rcsb_utils_dictionary without submodules and install
-    && git clone --depth 1 --branch ro-5076 --recurse-submodules=no \
+    && git clone --depth 1 --branch ext-ids --recurse-submodules=no \
         https://github.com/rcsb/py-rcsb_utils_dictionary.git /tmp/py-rcsb_utils_dictionary \
     && pip install --no-cache-dir /tmp/py-rcsb_utils_dictionary \
     && rm -rf /tmp/py-rcsb_utils_dictionary \
     \
     # Clone py-rcsb_utils_repository without submodules and install
-    && git clone --depth 1 --branch ro-5076 --recurse-submodules=no \
+    && git clone --depth 1 --branch ext-ids --recurse-submodules=no \
         https://github.com/rcsb/py-rcsb_utils_repository.git /tmp/py-rcsb_utils_repository \
     && pip install --no-cache-dir /tmp/py-rcsb_utils_repository \
     && rm -rf /tmp/py-rcsb_utils_repository \
     \
     # Clone py-rcsb_utils_targets without submodules and install
-    && git clone --depth 1 --branch ro-5076 --recurse-submodules=no \
+    && git clone --depth 1 --branch ext-ids --recurse-submodules=no \
         https://github.com/rcsb/py-rcsb_utils_targets.git /tmp/py-rcsb_utils_targets \
     && pip install --no-cache-dir /tmp/py-rcsb_utils_targets \
     && rm -rf /tmp/py-rcsb_utils_targets \
     \
     # Clone py-rcsb_utils_seq without submodules and install
-    && git clone --depth 1 --branch ro-5076 --recurse-submodules=no \
+    && git clone --depth 1 --branch ext-ids --recurse-submodules=no \
         https://github.com/rcsb/py-rcsb_utils_seq.git /tmp/py-rcsb_utils_seq \
     && pip install --no-cache-dir /tmp/py-rcsb_utils_seq \
     && rm -rf /tmp/py-rcsb_utils_seq \
     \
     # Clone py-rcsb_utils_chemref without submodules and install
-    && git clone --depth 1 --branch ro-5076 --recurse-submodules=no \
+    && git clone --depth 1 --branch ext-ids --recurse-submodules=no \
         https://github.com/rcsb/py-rcsb_utils_chemref.git /tmp/py-rcsb_utils_chemref \
     && pip install --no-cache-dir /tmp/py-rcsb_utils_chemref \
     && rm -rf /tmp/py-rcsb_utils_chemref \
