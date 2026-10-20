@@ -11,6 +11,7 @@
 #  10-Dec-2024 dwp Specify 'max-seqs' for mmseqs search to override default value
 #  13-Feb-2025 dwp Remove IMGT from feature building after service became unavailable February 2025
 #  19-Feb-2025 dwp Bring back IMGT
+#  20-Oct-2026 dwp Add plastic-degrading enzyme resource 'plastic-enzyme' (FASTA export, search, annotations)
 ##
 """
 Execution workflow for protein target data ETL operations.
@@ -177,7 +178,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
                 reloadPharos=reloadPharos,
                 fromDbPharos=fromDbPharos,
                 # resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos"],
-                resourceNameList=["sabdab", "card", "chembl", "pharos"],
+                resourceNameList=["sabdab", "card", "chembl", "pharos", "plastic-enzyme"],
                 backupPharos=True,
                 remotePrefix=self.__stashRemotePrefix
             )
@@ -201,7 +202,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
         try:
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
             # ok = ptsW.createSearchDatabases(resourceNameList=["sabdab", "card", "drugbank", "chembl", "pharos", "pdbprent"], addTaxonomy=True, timeOutSeconds=3600, verbose=False)
-            ok = ptsW.createSearchDatabases(resourceNameList=["sabdab", "card", "chembl", "pharos", "pdbprent"], addTaxonomy=True, timeOutSeconds=3600, verbose=False)
+            ok = ptsW.createSearchDatabases(resourceNameList=["sabdab", "card", "chembl", "pharos", "plastic-enzyme", "pdbprent"], addTaxonomy=True, timeOutSeconds=3600, verbose=False)
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return ok
@@ -237,7 +238,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
             ok1 = ptsW.search(
                 referenceResourceName="pdbprent",
                 # resourceNameList=["sabdab", "drugbank", "chembl", "pharos"],
-                resourceNameList=["sabdab", "chembl", "pharos"],
+                resourceNameList=["sabdab", "chembl", "pharos", "plastic-enzyme"],
                 identityCutoff=0.95,
                 sensitivity=4.5,
                 timeOutSeconds=1000,
@@ -265,7 +266,7 @@ class ProteinTargetSequenceExecutionWorkflow(object):
             ptsW = ProteinTargetSequenceWorkflow(self.__cfgOb, self.__cachePath)
             ok = ptsW.buildFeatureData(
                 referenceResourceName="pdbprent",
-                resourceNameList=["sabdab", "card", "imgt"],
+                resourceNameList=["sabdab", "card", "imgt", "plastic-enzyme"],
                 useTaxonomy=False,
                 backup=True,
                 remotePrefix=self.__stashRemotePrefix
