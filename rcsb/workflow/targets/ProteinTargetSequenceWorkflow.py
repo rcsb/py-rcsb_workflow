@@ -20,7 +20,8 @@
 #  10-Dec-2024 dwp Add support for 'max-seqs' flag in mmseqs search
 #  13-Feb-2025 dwp Remove IMGT from feature building after service became unavailable February 2025
 #  19-Feb-2025 dwp Bring back IMGT
-#  20-Oct-2026 dwp Add plastic-degrading enzyme (PAZy and PlasticDB) resource 'plastic-enzyme'
+#  20-Oct-2026 dwp Add plastic-degrading enzyme (PAZy and PlasticDB) resource 'plastic-enzyme' (fetched from the source
+#                  sites unless useCache and valid cached data, with fallback to the stashed backup)
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
@@ -214,10 +215,17 @@ class ProteinTargetSequenceWorkflow(object):
                     ok = stP.exportFasta(fastaPath)
             elif resourceName == "plastic-enzyme":
                 peP = PlasticEnzymeAnnotationProvider(cachePath=self.__cachePath, useCache=useCache)
-                if not (useCache and peP.testSourceCache()):
+                if not (useCache and peP.testSourceCache()) and not peP.fetchPlasticEnzymeData():
+                    # Fall back to the stashed backup, then refresh whichever source is still reachable
+                    logger.warning("Fetching plastic enzyme data failed - restoring the stashed backup")
+                    okR = peP.restore(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
+                    logger.info("Plastic enzyme stash restore status (%r)", okR)
+                    peP = PlasticEnzymeAnnotationProvider(cachePath=self.__cachePath, useCache=True)
                     peP.fetchPlasticEnzymeData()
                 if peP.testSourceCache():
                     ok = peP.exportFasta(fastaPath)
+                else:
+                    logger.error("Plastic enzyme source data is unavailable from the source sites and the stash")
             elif resourceName == "pdbprent":
                 pEx = PolymerEntityExtractor(self.__cfgOb)
                 detailsPath = self.__getDetailsPath(resourceName)
