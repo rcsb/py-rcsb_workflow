@@ -47,6 +47,14 @@ def main() -> None:
     parser.add_argument("--baseUrl", help="Base url for model file. This will supercede any local bcif.")
     parser.add_argument("--modelFileExtension", default=".bcif.gz", help="Model file type (.bcif.gz, .bcif, .cif).")
     parser.add_argument("--tmpDir", default="/tmp", help="Temporary dir for downloading model file over url.")
+    parser.add_argument(
+        "--s3Url",
+        help="S3 location (e.g. s3://bucket/structures/) to upload jpgs to, flat. Also switches the timestamp check to S3. Uses AWS_ENDPOINT_URL and AWS credential env vars.",
+    )
+    parser.add_argument(
+        "--s3TimestampFile",
+        help="Output of 's5cmd ls s3://bucket/structures/*_model-1.jpeg' (times in UTC). Ids it shows as current skip the S3 lookup.",
+    )
     args = vars(parser.parse_args())
 
     imgWF = PdbCsmImageWorkflow()

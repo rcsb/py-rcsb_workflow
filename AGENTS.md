@@ -11,7 +11,6 @@ The `rcsb.workflow` Python package: CLI entry points that the weekly update work
 - `rcsb/workflow/{bcif,chem,refstats,targets}/`: other workflow logic.
 - `rcsb/workflow/tests/`: unittest tests (`test*.py`, fixtures `fixture*.py`).
 - `rcsb/mock-data`: git submodule with test data.
-- `structure-images/`: Node job that renders structure JPEGs and uploads them to SeaweedFS S3. It builds a separate image (`rcsb/structure-images`) from its own Dockerfile and runs in parallel with `imgs_exec_cli`. See its [README](structure-images/README.md).
 
 ## Checks
 
