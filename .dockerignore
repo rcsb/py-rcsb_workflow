@@ -32,3 +32,6 @@ Thumbs.db
 
 # Other local configs
 *.swp
+
+# Separate image, built from its own Dockerfile
+structure-images/
