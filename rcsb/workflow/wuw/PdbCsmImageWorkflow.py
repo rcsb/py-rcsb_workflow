@@ -31,6 +31,10 @@ import urllib
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]-%(module)s.%(funcName)s: %(message)s")
 logger = logging.getLogger()
 
+# Shard boundaries for listing S3 in parallel. Shard i lists keys in [bound[i], bound[i+1]) after the prefix,
+# so together the shards cover every key whatever character it starts with.
+S3_LIST_SHARD_BOUNDS = ["", *"123456789abcdefghijklmnopqrstuvwxyz"]
+
 
 class PdbCsmImageWorkflow:
 
@@ -87,7 +91,7 @@ class PdbCsmImageWorkflow:
         # get existing jpg timestamps in S3 #
         s3TimeStampDict = {}
         if s3Url and s3TimestampFile:
-            s3TimeStampDict = self.readS3TimestampFile(s3TimestampFile, targetFileSuffix)
+            s3TimeStampDict = self.readS3TimestampFile(s3TimestampFile)
             logger.info("Read %s S3 jpg timestamps from %s", len(s3TimeStampDict), s3TimestampFile)
 
         # verify output is MISSING or OLD before including ID #
@@ -224,23 +228,56 @@ class PdbCsmImageWorkflow:
         # compare timestamps
         return targetTimeStamp < datetime.datetime.strptime(timeStamp, "%Y-%m-%dT%H:%M:%S%z").timestamp()
 
-    def readS3TimestampFile(self, filePath, targetFileSuffix):
-        """Read 's5cmd ls' output lines ('2026/10/20 14:03:11   52431  1abc_model-1.jpeg', UTC) into {name: epoch seconds}."""
+    def genS3TimestampFile(self, **kwargs: dict) -> None:
+        """List every '<id><targetFileSuffix>' jpg under s3Url and write '<id> <lastModified>' lines to s3TimestampFile.
+
+        Run once before the parallel genJpgs tasks so each can find its delta without asking S3 about every id.
+        """
+        s3Url = kwargs.get("s3Url")
+        s3TimestampFile = kwargs.get("s3TimestampFile")
+        targetFileSuffix = kwargs.get("targetFileSuffix")
+        if not (s3Url and s3TimestampFile):
+            raise ValueError("genS3TimestampFile requires --s3Url and --s3TimestampFile")
+        bucket, prefix = self.splitS3Url(s3Url)
+        listPrefix = prefix + "/" if prefix else ""
+        client = self.getS3Client()
+
+        def listShard(i):
+            lines = []
+            stopAt = listPrefix + S3_LIST_SHARD_BOUNDS[i + 1] if i + 1 < len(S3_LIST_SHARD_BOUNDS) else None
+            params = {"Bucket": bucket, "Prefix": listPrefix}
+            if S3_LIST_SHARD_BOUNDS[i]:
+                params["StartAfter"] = listPrefix + S3_LIST_SHARD_BOUNDS[i]
+            for page in client.get_paginator("list_objects_v2").paginate(**params):
+                for obj in page.get("Contents", []):
+                    key = obj["Key"]
+                    if stopAt and key >= stopAt:
+                        return lines
+                    fileName = key[len(listPrefix) :]
+                    if fileName.endswith(targetFileSuffix) and "/" not in fileName:
+                        lines.append(f"{fileName[: -len(targetFileSuffix)].lower()} {obj['LastModified'].strftime('%Y-%m-%dT%H:%M:%S%z')}")
+            return lines
+
+        with ThreadPoolExecutor(max_workers=len(S3_LIST_SHARD_BOUNDS)) as executor:
+            lines = sorted(line for shard in executor.map(listShard, range(len(S3_LIST_SHARD_BOUNDS))) for line in shard)
+        Path(s3TimestampFile).parent.mkdir(parents=True, exist_ok=True)
+        Path(s3TimestampFile).write_text("".join(line + "\n" for line in lines), encoding="utf-8")
+        logger.info("Wrote %s jpg timestamps from s3://%s/%s to %s", len(lines), bucket, listPrefix, s3TimestampFile)
+
+    def readS3TimestampFile(self, filePath):
+        """Read a genS3TimestampFile file ('1abc 2026-10-20T14:03:11+0000' lines) into {name: epoch seconds}."""
         timeStampDict = {}
         with open(filePath, encoding="utf-8") as ifh:
             for line in ifh:
                 fields = line.split()
-                if len(fields) < 4 or not fields[-1].endswith(targetFileSuffix):
-                    continue
-                name = fields[-1].rpartition("/")[2][: -len(targetFileSuffix)].lower()
-                lastModified = datetime.datetime.strptime(f"{fields[0]} {fields[1]}", "%Y/%m/%d %H:%M:%S").replace(tzinfo=datetime.timezone.utc)
-                timeStampDict[name] = lastModified.timestamp()
+                if len(fields) == 2:
+                    timeStampDict[fields[0].lower()] = datetime.datetime.strptime(fields[1], "%Y-%m-%dT%H:%M:%S%z").timestamp()
         return timeStampDict
 
     def confirmS3OutOfDate(self, idList, holdingsFileDict, s3Url, targetFileSuffix, numThreads=32):
         """Re-check idList against the jpg timestamps in S3 (one HEAD request per id) and return the ids still out of date."""
-        bucket, _, prefix = s3Url.partition("://")[2].strip("/").partition("/")
-        client = boto3.client("s3", endpoint_url=os.environ.get("AWS_ENDPOINT_URL"))
+        bucket, prefix = self.splitS3Url(s3Url)
+        client = self.getS3Client()
 
         def getTimeStamp(name):
             key = "/".join(filter(None, [prefix, name + targetFileSuffix]))
@@ -256,3 +293,12 @@ class PdbCsmImageWorkflow:
         idListToDo = [name for name, t in zip(idList, timeStamps) if self.isOutOfDate(name, t, holdingsFileDict)]
         logger.info("S3 check: %s of %s candidate ids are missing or out of date", len(idListToDo), len(idList))
         return idListToDo
+
+    def splitS3Url(self, s3Url):
+        """Split 's3://bucket/some/prefix/' into ('bucket', 'some/prefix')."""
+        bucket, _, prefix = s3Url.partition("://")[2].strip("/").partition("/")
+        return bucket, prefix
+
+    def getS3Client(self):
+        """S3 client using AWS_ENDPOINT_URL and the AWS credential env vars, as S3Util does."""
+        return boto3.client("s3", endpoint_url=os.environ.get("AWS_ENDPOINT_URL"))

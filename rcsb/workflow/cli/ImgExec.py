@@ -26,6 +26,7 @@ def main() -> None:
         help="which function to call",
         choices=[
             "genJpgs",
+            "genS3TimestampFile",
         ],
     )
 
@@ -53,13 +54,15 @@ def main() -> None:
     )
     parser.add_argument(
         "--s3TimestampFile",
-        help="Output of 's5cmd ls s3://bucket/structures/*_model-1.jpeg' (times in UTC). Ids it shows as current skip the S3 lookup.",
+        help="Jpg timestamp file. Written by --op genS3TimestampFile; read by genJpgs, where ids it shows as current skip the S3 lookup.",
     )
     args = vars(parser.parse_args())
 
     imgWF = PdbCsmImageWorkflow()
     if args["op"] == "genJpgs":
         imgWF.imagesGenJpgs(**args)
+    elif args["op"] == "genS3TimestampFile":
+        imgWF.genS3TimestampFile(**args)
     else:
         raise ValueError("CLI --op flag error: not available option %r" % args.op)
 
