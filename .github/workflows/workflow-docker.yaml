@@ -29,6 +29,7 @@ on:
     branches:
       - master
       - batched-mongo-fetch
+      - dwp-dev-testing
 
 jobs:
   run-workflow:
