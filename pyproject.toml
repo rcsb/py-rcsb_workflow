@@ -38,10 +38,8 @@ dependencies = [
     #
     "mmcif >= 1.0.0",
     "rcsb.utils.io >= 1.54",
-    # "rcsb.db >= 1.816",  # TEMP: restore in place of the git+ line below before merging
-    # "rcsb.exdb >= 1.39",  # TEMP: restore in place of the git+ line below before merging
-    "rcsb.db @ git+https://github.com/rcsb/py-rcsb_db.git@batched-mongo-fetch",
-    "rcsb.exdb @ git+https://github.com/rcsb/py-rcsb_exdb.git@batched-mongo-fetch",
+    "rcsb.db >= 1.816",
+    "rcsb.exdb >= 1.39",
     "rcsb.utils.chem >= 0.87",
     "rcsb.utils.seq >= 0.84",
     "rcsb.utils.targets >= 0.83",
