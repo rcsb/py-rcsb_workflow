@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "rcsb.workflow"
 description = "RCSB Python data processing and ETL/ELT workflow entry points"
-version = "0.72"
+version = "0.73"
 readme = "README.md"
 authors = [
     { name="John Westbrook", email="john.westbrook@rcsb.org" }
@@ -38,8 +38,8 @@ dependencies = [
     #
     "mmcif >= 1.0.0",
     "rcsb.utils.io >= 1.54",
-    # "rcsb.db >= 1.814",
-    # "rcsb.exdb >= 1.35",
+    # "rcsb.db >= 1.816",  # TEMP: restore in place of the git+ line below before merging
+    # "rcsb.exdb >= 1.39",  # TEMP: restore in place of the git+ line below before merging
     "rcsb.db @ git+https://github.com/rcsb/py-rcsb_db.git@batched-mongo-fetch",
     "rcsb.exdb @ git+https://github.com/rcsb/py-rcsb_exdb.git@batched-mongo-fetch",
     "rcsb.utils.chem >= 0.87",
