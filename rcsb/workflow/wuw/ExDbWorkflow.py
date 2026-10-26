@@ -11,6 +11,8 @@
 #  20-Aug-2024 dwp Add LoadTargetCofactors step; change name of UpdateTargetsCofactors step to UpdateTargetsData
 #  31-Jan-2025 mjt Moved this script from rcsb.exdb (to remove circluar dependencies)
 #  10-Jan-2026  cs Added ligand quality and residue RSCC reference data generation workflows
+#  22-Oct-2026 dwp Remove unused reference sequence operations ('upd_ref_seq', 'etl_uniprot_core') and
+#                  doReferenceSequenceUpdate(), whose rcsb.exdb modules are being removed
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
@@ -32,11 +34,7 @@ from rcsb.workflow.chem.ChemCompFileWorkflow import ChemCompFileWorkflow
 from rcsb.workflow.refstats.LigandQualityReferenceGenerator import LigandQualityReferenceGenerator
 from rcsb.workflow.refstats.ResidueRsccReferenceGenerator import ResidueRsccReferenceGenerator
 from rcsb.exdb.chemref.ChemRefEtlWorker import ChemRefEtlWorker
-# from rcsb.exdb.seq.ReferenceSequenceAnnotationAdapter import ReferenceSequenceAnnotationAdapter
-# from rcsb.exdb.seq.ReferenceSequenceAnnotationProvider import ReferenceSequenceAnnotationProvider
-# from rcsb.exdb.seq.UniProtCoreEtlWorker import UniProtCoreEtlWorker
 from rcsb.exdb.tree.TreeNodeListWorker import TreeNodeListWorker
-# from rcsb.exdb.utils.ObjectTransformer import ObjectTransformer
 from rcsb.exdb.wf.EntryInfoEtlWorkflow import EntryInfoEtlWorkflow
 from rcsb.exdb.wf.GlycanEtlWorkflow import GlycanEtlWorkflow
 from rcsb.exdb.wf.PubChemEtlWorkflow import PubChemEtlWorkflow
@@ -81,31 +79,22 @@ class ExDbWorkflow(object):
         logger.info("Starting operation %r\n", op)
         #
         # argument processing
-        if op not in ["etl_tree_node_lists", "etl_chemref", "etl_uniprot_core", "upd_ref_seq", "upd_ref_seq_comp_models", "refresh_pubchem"]:
+        if op not in ["etl_tree_node_lists", "etl_chemref", "refresh_pubchem"]:
             logger.error("Unsupported operation %r - exiting", op)
             return False
         if not self.__cacheStatus:
             raise ValueError("Failed to rebuild CACHE in ExDBWorkflow - exiting")
         try:
-            # test mode and UniProt accession primary match minimum count for doReferenceSequenceUpdate()
-            testMode = kwargs.get("testMode", False)
-            minMatchPrimaryPercent = kwargs.get("minMatchPrimaryPercent", None)
-            minMissing = kwargs.get("minMissing", 0)
-            #
             readBackCheck = kwargs.get("readBackCheck", True)
             numProc = int(kwargs.get("numProc", 1))
             chunkSize = int(kwargs.get("chunkSize", 10))
             maxStepLength = int(kwargs.get("maxStepLength", 500))
-            refChunkSize = int(kwargs.get("refChunkSize", 10))
             documentLimit = kwargs.get("documentLimit", None)
             documentLimit = int(documentLimit) if documentLimit else None
             loadType = kwargs.get("loadType", "full")  # or replace
             dbType = kwargs.get("dbType", "mongo")
             tU = TimeUtil()
             dataSetId = kwargs.get("dataSetId") if "dataSetId" in kwargs else tU.getCurrentWeekSignature()
-            #  Rebuild or reuse reference sequence cache
-            rebuildSequenceCache = kwargs.get("rebuildSequenceCache", False)
-            useSequenceCache = not rebuildSequenceCache
             #
             useFilteredLists = kwargs.get("useFilteredLists", False)
             treeCollectionList = kwargs.get("treeCollectionList", None)
@@ -147,39 +136,6 @@ class ExDbWorkflow(object):
                 )
                 ok = crw.load(dataSetId, extResource="DrugBank", loadType=loadType)
                 okS = self.loadStatus(crw.getLoadStatus(), readBackCheck=readBackCheck)
-
-            # elif op == "etl_uniprot_core":
-            #     crw = UniProtCoreEtlWorker(
-            #         self.__cfgOb,
-            #         self.__cachePath,
-            #         numProc=numProc,
-            #         chunkSize=chunkSize,
-            #         maxStepLength=maxStepLength,
-            #         documentLimit=documentLimit,
-            #         verbose=self.__debugFlag,
-            #         readBackCheck=readBackCheck,
-            #         useCache=self.__useCache,
-            #     )
-            #     ok = crw.load(dataSetId, extResource="UniProt", loadType=loadType)
-            #     okS = self.loadStatus(crw.getLoadStatus(), readBackCheck=readBackCheck)
-
-            # elif op == "upd_ref_seq":
-            #     databaseName = "pdbx_core"
-            #     collectionName = "pdbx_core_polymer_entity"
-            #     polymerType = "Protein"
-            #     ok = self.doReferenceSequenceUpdate(
-            #         databaseName,
-            #         collectionName,
-            #         polymerType,
-            #         fetchLimit=documentLimit,
-            #         useSequenceCache=useSequenceCache,
-            #         testMode=testMode,
-            #         minMatchPrimaryPercent=minMatchPrimaryPercent,
-            #         minMissing=minMissing,
-            #         refChunkSize=refChunkSize,
-            #         numProc=numProc
-            #     )
-            #     okS = ok
         logger.info("Completed operation %r with status %r\n", op, ok and okS)
         return ok and okS
 
@@ -223,44 +179,6 @@ class ExDbWorkflow(object):
         except Exception as e:
             logger.exception("Failing with %s", str(e))
         return ret
-
-    # def doReferenceSequenceUpdate(
-    #     self,
-    #     databaseName,
-    #     collectionName,
-    #     polymerType,
-    #     fetchLimit=None,
-    #     useSequenceCache=False,
-    #     testMode=False,
-    #     minMatchPrimaryPercent=None,
-    #     minMissing=0,
-    #     refChunkSize=10,
-    #     numProc=2,
-    #     **kwargs
-    # ):
-    #     try:
-    #         _ = kwargs
-    #         _ = testMode
-    #         ok = False
-    #         # -------
-    #         rsaP = ReferenceSequenceAnnotationProvider(
-    #             self.__cfgOb, databaseName, collectionName, polymerType, useCache=useSequenceCache, cachePath=self.__cachePath, maxChunkSize=refChunkSize, numProc=numProc
-    #         )
-    #         ok = rsaP.testCache(minMatchPrimaryPercent=minMatchPrimaryPercent, minMissing=minMissing)
-    #         if ok:
-    #             logger.info("Cached reference data count is %d", rsaP.getRefDataCount())
-    #             rsa = ReferenceSequenceAnnotationAdapter(rsaP)
-    #             obTr = ObjectTransformer(self.__cfgOb, objectAdapter=rsa)
-    #             ok = obTr.doTransform(
-    #                 databaseName=databaseName, collectionName=collectionName, fetchLimit=fetchLimit, selectionQuery={"entity_poly.rcsb_entity_polymer_type": polymerType}
-    #             )
-    #         else:
-    #             logger.error("Reference sequence data cache build failing")
-    #             return False
-    #         return ok
-    #     except Exception as e:
-    #         logger.exception("Failing with %s", str(e))
-    #     return False
 
     def generateCcdFiles(self, op, **kwargs):
         logger.info("Starting operation %r\n", op)
