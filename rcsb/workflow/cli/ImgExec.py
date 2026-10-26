@@ -6,6 +6,7 @@
 #  Execution wrapper  --  for jpg generation -
 #
 #  Updates:
+#  26-Oct-2026 mjt Add --s3Url
 #
 ##
 __docformat__ = "google en"
@@ -47,6 +48,11 @@ def main() -> None:
     parser.add_argument("--baseUrl", help="Base url for model file. This will supercede any local bcif.")
     parser.add_argument("--modelFileExtension", default=".bcif.gz", help="Model file type (.bcif.gz, .bcif, .cif).")
     parser.add_argument("--tmpDir", default="/tmp", help="Temporary dir for downloading model file over url.")
+    parser.add_argument(
+        "--s3Url",
+        help="Upload jpgs directly to this s3 location (e.g. s3://images-a/structures/) instead of writing them under jpgsOutDir. "
+        "Timestamp checks then use the s3 objects. Endpoint and credentials come from AWS_ENDPOINT_URL, AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.",
+    )
     args = vars(parser.parse_args())
 
     imgWF = PdbCsmImageWorkflow()

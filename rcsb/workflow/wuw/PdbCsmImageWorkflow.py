@@ -7,6 +7,7 @@
 #
 #  Updates:
 #  12-Dec-2024 mjt Created class object
+#  26-Oct-2026 mjt Optional direct upload to s3 (SeaweedFS) with s3 timestamp check
 #
 ##
 __docformat__ = "google en"
@@ -16,9 +17,13 @@ __license__ = "Apache 2.0"
 
 from pathlib import Path
 import logging
+import mimetypes
+import shutil
 import subprocess
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import os
+import boto3
+from botocore.exceptions import ClientError
 import requests
 from rcsb.utils.io.MarshalUtil import MarshalUtil
 from rcsb.workflow.wuw.WuwUtils import idHash
@@ -54,6 +59,15 @@ class PdbCsmImageWorkflow:
         csmHoldingsFileSubstring = kwargs.get("csmHoldingsFileSubstring")
         modelFileExtension = kwargs.get("modelFileExtension")
         tmpDir = kwargs.get("tmpDir")
+        s3Url = kwargs.get("s3Url")  # upload jpgs here (e.g. s3://images-a/structures/) instead of writing to jpgsOutDir
+
+        if not (s3Url or jpgsOutDir):
+            raise ValueError("One of jpgsOutDir or s3Url is required")
+        s3Bucket = s3Prefix = None
+        if s3Url:
+            # s3://images-a/structures/ -> bucket 'images-a', key prefix 'structures/'
+            s3Bucket, _, s3Prefix = s3Url.split("://", 1)[-1].strip("/").partition("/")
+            s3Prefix = s3Prefix + "/" if s3Prefix else ""
 
         # load ID list file into memory #
 
@@ -80,13 +94,25 @@ class PdbCsmImageWorkflow:
                 holdingsFileDict = mU.doImport(str(holdingsFilePath), fmt="json")
 
         # verify output is MISSING or OLD before including ID #
+        if s3Url:
+            # credentials and endpoint come from AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_ENDPOINT_URL
+            s3 = boto3.client("s3")
         idListToDo = []
         for line in idList:
-            name = line.lower()  # for local jpg file
-            nameHash = idHash(name)
-            outPath = Path(jpgsOutDir) / nameHash / name
-            target = outPath / (name + targetFileSuffix)
-            if target.exists() and holdingsFileDict:
+            name = line.lower()
+            # t1 is the timestamp of the existing target jpg, None if it's missing
+            if s3Url:
+                # one HEAD request at a time, to keep the load on seaweed low
+                try:
+                    t1 = s3.head_object(Bucket=s3Bucket, Key=s3Prefix + name + targetFileSuffix)["LastModified"].timestamp()
+                except ClientError as e:
+                    if e.response["Error"]["Code"] not in ("404", "NoSuchKey", "NotFound"):
+                        raise
+                    t1 = None
+            else:
+                target = Path(jpgsOutDir) / idHash(name) / name / (name + targetFileSuffix)
+                t1 = target.stat().st_mtime if target.exists() else None
+            if t1 is not None and holdingsFileDict:
                 # get timestamp of 'name' from holdingsFileDict
                 if name.upper() in holdingsFileDict:
                     if isinstance(holdingsFileDict[name.upper()], dict):
@@ -96,12 +122,11 @@ class PdbCsmImageWorkflow:
                         # pdb / ihm holdings file format
                         timeStamp = holdingsFileDict[name.upper()]
                     # compare timestamps
-                    t1 = target.stat().st_mtime
                     t2 = datetime.datetime.strptime(timeStamp, "%Y-%m-%dT%H:%M:%S%z").timestamp()
                     if t1 < t2:
-                        idListToDo = [*idListToDo, name]
+                        idListToDo.append(name)
             else:
-                idListToDo = [*idListToDo, name]
+                idListToDo.append(name)
         logger.info("Delta ids (%s entries): %s", len(idListToDo), " ".join(idListToDo))
 
         # Generate commands tuple in form ProcessPoolExecutor accepts #
@@ -110,7 +135,10 @@ class PdbCsmImageWorkflow:
         for line in idListToDo:
             name = line.lower()  # for local bcif file
             nameHash = idHash(name)
-            outPath = Path(jpgsOutDir) / nameHash / name  # jpg files are in a subdir of the name under the name hash
+            if s3Url:
+                outPath = Path(tmpDir) / "jpgs" / name  # scratch dir, removed after upload
+            else:
+                outPath = Path(jpgsOutDir) / nameHash / name  # jpg files are in a subdir of the name under the name hash
             # Handle optional hashing for input path
             if baseUrl:
                 # URL-based source
@@ -134,7 +162,7 @@ class PdbCsmImageWorkflow:
                     "--width", jpgWidth,
                     "--format", jpgFormat,
                 ]
-                argsL.append((cmd, outPath, name, checkFileAppend, bcifSource, bcifRemote))
+                argsL.append((cmd, outPath, name, checkFileAppend, bcifSource, bcifRemote, s3Bucket, s3Prefix))
             else:
                 logger.error("Missing bcif file %s", bcifSource)
                 failedIds.append(name)
@@ -170,8 +198,9 @@ class PdbCsmImageWorkflow:
             raise RuntimeError(f"JPG generation failed for {len(failedIds)} IDs.")
 
     def run_command_with_url(self, argsTup):
-        """Run a command with URL support, downloading files to temp location if needed."""
-        cmd, outPath, name, checkFileAppend, bcifSource, bcifRemote = argsTup
+        """Run a command with URL support, downloading files to temp location if needed.
+        If s3Bucket is set, upload the generated jpgs there and remove the local copies."""
+        cmd, outPath, name, checkFileAppend, bcifSource, bcifRemote, s3Bucket, s3Prefix = argsTup
         try:
             # download to tmp dir if remote bcif file
             if bcifRemote:
@@ -187,12 +216,25 @@ class PdbCsmImageWorkflow:
             if bcifRemote:
                 tmpfile.unlink()
 
+            # Verify output file
+            outJpgFile = os.path.join(outPath, name + checkFileAppend)
+            outFileObj = Path(outJpgFile)
+            if not (outFileObj.is_file() and outFileObj.stat().st_size > 0):
+                raise ValueError(f"No image file generated: {outJpgFile}")
+
+            # upload flattened, matching the s5cmd 'cp --flatten' layout (<prefix><file name>)
+            if s3Bucket:
+                s3 = boto3.client("s3")
+                # upload the check file last so its timestamp only marks the id as done once everything is there
+                jpgL = sorted(Path(outPath).glob("*" + outFileObj.suffix), key=lambda p: p.name == outFileObj.name)
+                for jpg in jpgL:
+                    contentType = mimetypes.guess_type(jpg.name)[0] or "application/octet-stream"
+                    s3.upload_file(str(jpg), s3Bucket, s3Prefix + jpg.name, ExtraArgs={"ContentType": contentType})
+                logger.info("%s: uploaded %d jpgs to s3://%s/%s", name, len(jpgL), s3Bucket, s3Prefix)
+
         except subprocess.CalledProcessError as e:
             logger.error("%s: %s", name, str(e))
             raise
-
-        # Verify output file
-        outJpgFile = os.path.join(outPath, name + checkFileAppend)
-        outFileObj = Path(outJpgFile)
-        if not (outFileObj.is_file() and outFileObj.stat().st_size > 0):
-            raise ValueError(f"No image file generated: {outJpgFile}")
+        finally:
+            if s3Bucket:
+                shutil.rmtree(outPath, ignore_errors=True)

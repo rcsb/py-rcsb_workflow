@@ -67,3 +67,4 @@
 21-Jul-2026 - V0.70 Bcif hash support for extended ids
 19-Aug-2026 - V0.71 Support s3 stash and s3/minio for chem search
 22-Oct-2026 - V0.72 Remove unused reference sequence operations (upd_ref_seq, etl_uniprot_core) from ExDbWorkflow and exdb_wf_cli
+26-Oct-2026 - V0.73 Optional direct s3 upload and s3 timestamp check for jpg generation
