@@ -15,6 +15,7 @@
 #                  (latter will only be used briefly, as will stop generating SDF and Mol2 files in Dec 2024)
 #  31-Jan-2025 mjt Moved this script from rcsb.exdb (to remove circluar dependencies)
 #  10-Jan-2025  cs Add ligand_quality_ref_gen and residue_rscc_ref_gen operations
+#  22-Oct-2026 dwp Remove unused reference sequence operations ('upd_ref_seq', 'etl_uniprot_core') and their arguments
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
@@ -46,9 +47,7 @@ def main():
         help="Loading operation to perform",
         choices=[
             "etl_chemref",  # ETL integrated chemical reference data
-            "etl_uniprot_core",  # ETL UniProt core reference data
             "etl_tree_node_lists",  # ETL tree node lists
-            "upd_ref_seq",  # Update reference sequence assignments
             "upd_neighbor_interactions",
             "upd_uniprot_taxonomy",
             "upd_targets",
@@ -80,19 +79,12 @@ def main():
     parser.add_argument("--document_limit", default=None, help="Load document limit for testing")
     #
     parser.add_argument("--rebuild_cache", default=False, action="store_true", help="Rebuild cached resource files")
-    parser.add_argument("--rebuild_sequence_cache", default=False, action="store_true", help="Rebuild cached resource files for reference sequence updates")
     parser.add_argument("--provider_types_exclude", default=None, help="Resource provider types to exclude")
     parser.add_argument("--use_filtered_tax_list", default=False, action="store_true", help="Use filtered list for taxonomy tree loading")
     parser.add_argument("--disable_read_back_check", default=False, action="store_true", help="Disable read back check on all documents")
     parser.add_argument("--debug", default=False, action="store_true", help="Turn on verbose logging")
     parser.add_argument("--mock", default=False, action="store_true", help="Use MOCK repository configuration for testing")
     parser.add_argument("--log_file_path", default=None, help="Path to runtime log file output.")
-    #
-    # Arguments specific for op == 'upd_ref_seq'
-    parser.add_argument("--ref_chunk_size", default=10, help="Max chunk size for reference sequence updates (for op 'upd_ref_seq')")
-    parser.add_argument("--min_missing", default=0, help="Minimum number of allowed missing reference sequences (for op 'upd_ref_seq')")
-    parser.add_argument("--min_match_primary_percent", default=None, help="Minimum reference sequence match percentage (for op 'upd_ref_seq')")
-    parser.add_argument("--test_mode", default=False, action="store_true", help="Test mode for reference sequence updates (for op 'upd_ref_seq')")
     #
     # Arguments specific for op == 'ccd_img_gen' or 'ccd_file_gen'
     parser.add_argument("--cc_output_path", default=None, help="The base local directory path where chemical component files (image, coordinates) are written (for op 'ccd_img_gen')")
@@ -121,7 +113,7 @@ def main():
     # Run the operation
     okR = False
     exWf = ExDbWorkflow(**commonD)
-    if op in ["etl_chemref", "etl_uniprot_core", "etl_tree_node_lists", "upd_ref_seq"]:
+    if op in ["etl_chemref", "etl_tree_node_lists"]:
         okR = exWf.load(op, **loadD)
     elif op in [
         "upd_neighbor_interactions",
@@ -219,12 +211,7 @@ def processArguments(args):
         "dbType": args.db_type,
         "documentLimit": int(args.document_limit) if args.document_limit else None,
         "readBackCheck": not args.disable_read_back_check,
-        "rebuildSequenceCache": args.rebuild_sequence_cache,
         "useFilteredLists": args.use_filtered_tax_list,
-        "refChunkSize": int(args.ref_chunk_size),
-        "minMissing": int(args.min_missing),
-        "minMatchPrimaryPercent": float(args.min_match_primary_percent) if args.min_match_primary_percent else None,
-        "testMode": args.test_mode,
         "rebuildAllNeighborInteractions": args.rebuild_all_neighbor_interactions,
         "ccFileNamePrefix": args.cc_file_prefix,
         "ccUrlTarget": args.cc_url_target,
