@@ -42,14 +42,15 @@ RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "wheel>=0.43.0" "setuptoo
     # Use pip instead of hatch or uv, since the latter will only install CLIs into the virtual envs
     # TEMP: install this package (dwp-test-extids-plastic, based on dwp/plastic-enzyme) together with the branch
     # versions of rcsb.utils.seq (SEQ_BRANCH), rcsb.utils.dictionary (PLASTIC_BRANCH; includes ext-ids) and
-    # rcsb.utils.targets and rcsb.utils.struct (EXT_BRANCH) in a single resolve, so the branch versions are used instead
-    # of the PyPI releases. All other rcsb dependencies (incl. rcsb.utils.chemref) come from PyPI, as in production.
+    # rcsb.utils.targets, rcsb.utils.struct and rcsb.utils.chemref (EXT_BRANCH) in a single resolve, so the branch versions
+    # are used instead of the PyPI releases. All other rcsb dependencies come from PyPI, as in production.
     # GitHub archive tarballs don't include submodules (mock-data).
     && pip install --no-cache-dir --extra-index-url https://pypi.anaconda.org/OpenEye/simple . \
         "rcsb.utils.seq @ https://github.com/rcsb/py-rcsb_utils_seq/archive/refs/heads/${SEQ_BRANCH}.tar.gz" \
         "rcsb.utils.dictionary @ https://github.com/rcsb/py-rcsb_utils_dictionary/archive/refs/heads/${PLASTIC_BRANCH}.tar.gz" \
         "rcsb.utils.targets @ https://github.com/rcsb/py-rcsb_utils_targets/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
         "rcsb.utils.struct @ https://github.com/rcsb/py-rcsb_utils_struct/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
+        "rcsb.utils.chemref @ https://github.com/rcsb/py-rcsb_utils_chemref/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
     && pip freeze
 
 # Install node modules
