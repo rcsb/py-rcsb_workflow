@@ -13,9 +13,8 @@
 #  19-Feb-2025 dwp Bring back IMGT
 #  20-Oct-2026 dwp Add plastic-degrading enzyme resource 'plastic-enzyme' (FASTA export, search, annotations); its FASTA
 #                  export always fetches from the source sites (useCache=False)
-#  27-Oct-2026 dwp TEMP: plastic enzyme FASTA export uses valid cached source data (or raw source files placed in the
-#                  cache directory) first (useCache=True), and only then fetches from the source sites (with fallback to
-#                  the stashed backup); revert to useCache=False to always fetch from the source sites
+#  27-Oct-2026 dwp Plastic enzyme FASTA export uses valid local source data first (useCache=True), and only then
+#                  fetches from the source sites (with fallback to the stashed backup)
 ##
 """
 Execution workflow for protein target data ETL operations.
@@ -186,9 +185,8 @@ class ProteinTargetSequenceExecutionWorkflow(object):
                 backupPharos=True,
                 remotePrefix=self.__stashRemotePrefix
             )
-            # TEMP (while a source site is unreachable from the cluster): use valid cached plastic enzyme source data, or raw
-            #      source files placed in the cache directory by hand, before fetching from the source sites (with fallback
-            #      to the stashed backup). Revert to useCache=False to always fetch from the source sites.
+            # Plastic enzyme data: use valid local source data if present (the cache is otherwise emptied at the start of each
+            # build), else fetch from the source sites, with fallback to the stashed backup
             ok = ptsW.exportTargetsFasta(useCache=True, resourceNameList=["plastic-enzyme"], remotePrefix=self.__stashRemotePrefix) and ok
         except Exception as e:
             logger.exception("Failing with %s", str(e))
