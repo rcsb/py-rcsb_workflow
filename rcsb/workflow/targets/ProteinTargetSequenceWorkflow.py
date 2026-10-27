@@ -22,6 +22,8 @@
 #  19-Feb-2025 dwp Bring back IMGT
 #  20-Oct-2026 dwp Add plastic-degrading enzyme (PAZy and PlasticDB) resource 'plastic-enzyme' (fetched from the source
 #                  sites unless useCache and valid cached data, with fallback to the stashed backup)
+#  27-Oct-2026 dwp Leave the plastic enzyme cache-first (useCache), cached-data and stash fallbacks to
+#                  PlasticEnzymeAnnotationProvider.fetchPlasticEnzymeData()
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
@@ -215,13 +217,9 @@ class ProteinTargetSequenceWorkflow(object):
                     ok = stP.exportFasta(fastaPath)
             elif resourceName == "plastic-enzyme":
                 peP = PlasticEnzymeAnnotationProvider(cachePath=self.__cachePath, useCache=useCache)
-                if not (useCache and peP.testSourceCache()) and not peP.fetchPlasticEnzymeData():
-                    # Fall back to the stashed backup, then refresh whichever source is still reachable
-                    logger.warning("Fetching plastic enzyme data failed - restoring the stashed backup")
-                    okR = peP.restore(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
-                    logger.info("Plastic enzyme stash restore status (%r)", okR)
-                    peP = PlasticEnzymeAnnotationProvider(cachePath=self.__cachePath, useCache=True)
-                    peP.fetchPlasticEnzymeData()
+                # Per source: (useCache) valid cached data, else a fresh fetch, else the cached data or the stashed backup
+                okF = peP.fetchPlasticEnzymeData(useCache=useCache, cfgOb=self.__cfgOb, configName=self.__configName, remotePrefix=remotePrefix)
+                logger.info("Plastic enzyme source data status (%r)", okF)
                 if peP.testSourceCache():
                     ok = peP.exportFasta(fastaPath)
                 else:
