@@ -4,6 +4,11 @@
 # Use an official Python image as a base image
 FROM python:3.13-slim-bookworm
 
+# TEMP (test image only, never merge): branches of the rcsb dependency repos to install for testing the ext-ids and
+# plastic-enzyme changes together (override with --build-arg ...)
+ARG PLASTIC_BRANCH=dwp/plastic-enzyme
+ARG EXT_BRANCH=ext-ids
+
 # Set the working directory inside the container
 WORKDIR /app
 ENV PATH=$PATH:/root/.local/bin
@@ -33,7 +38,17 @@ RUN mkdir -p /opt/mmseqs2 \
 RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "wheel>=0.43.0" "setuptools>=40.8.0" \
     && pip install --no-cache-dir "pymongo>=4.10.1" \
     # Use pip instead of hatch or uv, since the latter will only install CLIs into the virtual envs
-    && pip install --no-cache-dir . --extra-index-url https://pypi.anaconda.org/OpenEye/simple
+    # TEMP: install this package (dwp-test-extids-plastic, based on dwp/plastic-enzyme) together with the branch
+    # versions of rcsb.utils.seq and rcsb.utils.dictionary (PLASTIC_BRANCH; dictionary's includes ext-ids) and
+    # rcsb.utils.targets and rcsb.utils.struct (EXT_BRANCH) in a single resolve, so the branch versions are used instead
+    # of the PyPI releases. All other rcsb dependencies (incl. rcsb.utils.chemref) come from PyPI, as in production.
+    # GitHub archive tarballs don't include submodules (mock-data).
+    && pip install --no-cache-dir --extra-index-url https://pypi.anaconda.org/OpenEye/simple . \
+        "rcsb.utils.seq @ https://github.com/rcsb/py-rcsb_utils_seq/archive/refs/heads/${PLASTIC_BRANCH}.tar.gz" \
+        "rcsb.utils.dictionary @ https://github.com/rcsb/py-rcsb_utils_dictionary/archive/refs/heads/${PLASTIC_BRANCH}.tar.gz" \
+        "rcsb.utils.targets @ https://github.com/rcsb/py-rcsb_utils_targets/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
+        "rcsb.utils.struct @ https://github.com/rcsb/py-rcsb_utils_struct/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
+    && pip freeze
 
 # Install node modules
 WORKDIR /opt/modules/node_modules
