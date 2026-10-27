@@ -22,6 +22,9 @@
 #  19-Feb-2025 dwp Bring back IMGT
 #  20-Oct-2026 dwp Add plastic-degrading enzyme (PAZy and PlasticDB) resource 'plastic-enzyme' (fetched from the source
 #                  sites unless useCache and valid cached data, with fallback to the stashed backup)
+#  27-Oct-2026 dwp Plastic enzyme source data: use valid local data (useCache), else fetch from the source sites with
+#                  fallback to the stashed backup (PlasticEnzymeAnnotationProvider.fetchPlasticEnzymeData()), else
+#                  raise an error
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
@@ -215,17 +218,14 @@ class ProteinTargetSequenceWorkflow(object):
                     ok = stP.exportFasta(fastaPath)
             elif resourceName == "plastic-enzyme":
                 peP = PlasticEnzymeAnnotationProvider(cachePath=self.__cachePath, useCache=useCache)
-                if not (useCache and peP.testSourceCache()) and not peP.fetchPlasticEnzymeData():
-                    # Fall back to the stashed backup, then refresh whichever source is still reachable
-                    logger.warning("Fetching plastic enzyme data failed - restoring the stashed backup")
-                    okR = peP.restore(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
-                    logger.info("Plastic enzyme stash restore status (%r)", okR)
-                    peP = PlasticEnzymeAnnotationProvider(cachePath=self.__cachePath, useCache=True)
-                    peP.fetchPlasticEnzymeData()
-                if peP.testSourceCache():
-                    ok = peP.exportFasta(fastaPath)
-                else:
-                    logger.error("Plastic enzyme source data is unavailable from the source sites and the stash")
+                # Use valid local source data (useCache); otherwise fetch both sources from their sites (keeping the raw
+                # files), restoring the stashed backup for a source that can't be fetched
+                if not (useCache and peP.testSourceCache()):
+                    okF = peP.fetchPlasticEnzymeData(cfgOb=self.__cfgOb, configName=self.__configName, remotePrefix=remotePrefix)
+                    logger.info("Plastic enzyme source data fetch status (%r)", okF)
+                if not peP.testSourceCache():
+                    raise ValueError("Plastic enzyme source data is unavailable from the local cache, the source sites and the stashed backup")
+                ok = peP.exportFasta(fastaPath)
             elif resourceName == "pdbprent":
                 pEx = PolymerEntityExtractor(self.__cfgOb)
                 detailsPath = self.__getDetailsPath(resourceName)
