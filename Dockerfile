@@ -38,14 +38,12 @@ RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "wheel>=0.43.0" "setuptoo
     # Use pip instead of hatch or uv, since the latter will only install CLIs into the virtual envs
     # Install this package together with the EXT_BRANCH versions of its rcsb dependencies in a single resolve,
     # so the branch versions are used instead of the PyPI releases. GitHub archive tarballs don't include
-    # submodules (mock-data). Repos whose EXT_BRANCH work has been merged to master and released (e.g., rcsb.utils.seq, rcsb.exdb)
-    # are left off this list, so they come from PyPI like any other dependency.
+    # submodules (mock-data). Repos whose EXT_BRANCH work has been merged to master and released (rcsb.utils.seq, rcsb.exdb,
+    # rcsb.utils.dictionary, rcsb.utils.targets, rcsb.utils.chemref) are left off this list, so they come from PyPI like any
+    # other dependency.
     && pip install --no-cache-dir --extra-index-url https://pypi.anaconda.org/OpenEye/simple . \
         "rcsb.db @ https://github.com/rcsb/py-rcsb_db/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
-        "rcsb.utils.dictionary @ https://github.com/rcsb/py-rcsb_utils_dictionary/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
         "rcsb.utils.repository @ https://github.com/rcsb/py-rcsb_utils_repository/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
-        "rcsb.utils.targets @ https://github.com/rcsb/py-rcsb_utils_targets/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
-        "rcsb.utils.chemref @ https://github.com/rcsb/py-rcsb_utils_chemref/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
     && pip freeze
 
 # Install node modules
