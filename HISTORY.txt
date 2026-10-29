@@ -67,3 +67,6 @@
 21-Jul-2026 - V0.70 Bcif hash support for extended ids
 19-Aug-2026 - V0.71 Support s3 stash and s3/minio for chem search
 22-Oct-2026 - V0.72 Remove unused reference sequence operations (upd_ref_seq, etl_uniprot_core) from ExDbWorkflow and exdb_wf_cli
+26-Oct-2026 - V0.73 Add plastic-degrading enzyme resource 'plastic-enzyme' (PAZy and PlasticDB) to the protein target
+                    sequence workflows (RO-5200): use valid local source data, else fetch from the source sites with
+                    fallback to the stashed backup, else fail; require rcsb.utils.seq >= 0.89
