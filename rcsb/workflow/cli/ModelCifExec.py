@@ -58,6 +58,12 @@ def main():
         help="Round pLDDT values, per atom (B-factor column) and per residue, to multiples of this step (default: 0.1). " "0.001 keeps OpenFold3's per-atom precision",
     )
     parser.add_argument(
+        "--coordDecimals",
+        type=int,
+        default=2,
+        help="Decimal places of the stored coordinates, in Angstrom (default: 2, about 18%% smaller gzipped model files than " "the PDB archive's 3; bond lengths within about 0.02 A)",
+    )
+    parser.add_argument(
         "--gzip",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -78,6 +84,9 @@ def main():
     if args.plddtStep <= 0:
         msg = "--plddtStep must be positive, got %g" % args.plddtStep
         raise ValueError(msg)
+    if args.coordDecimals < 0:
+        msg = "--coordDecimals must be 0 or positive, got %d" % args.coordDecimals
+        raise ValueError(msg)
     convertOpenFold3Outputs(
         args.of3OutputDir,
         args.outputDir,
@@ -90,6 +99,7 @@ def main():
         paeStep=args.paeStep,
         gzipped=args.gzip,
         plddtStep=args.plddtStep,
+        coordDecimals=args.coordDecimals,
     )
     logger.info("ModelCIF conversion completed")
 

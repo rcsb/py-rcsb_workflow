@@ -25,6 +25,7 @@ import tempfile
 import unittest
 
 import modelcif.reader
+import msgpack
 from mmcif.io.BinaryCifReader import BinaryCifReader
 from rcsb.workflow.modelcif.OpenFold3ModelCif import ModelCifConversionError, convertOpenFold3Outputs, getRankedSamples, readAtomSite, roundToStep
 
@@ -194,6 +195,36 @@ class OpenFold3ModelCifTests(unittest.TestCase):
         for value, of3Value in zip(self.__bFactors(outDir), of3):
             self.assertAlmostEqual(value, of3Value, delta=0.0005)
 
+    def __coordinates(self, outDir):
+        """Stored coordinates and the FixedPoint factor of each coordinate column."""
+        path = os.path.join(outDir, "1a6y_A_model.bcif.gz")
+        with gzip.open(path, "rb") as fh:
+            data = msgpack.unpackb(fh.read())
+        [atomSite] = [c for c in data["dataBlocks"][0]["categories"] if c["name"] == "_atom_site"]
+        factors = {col["name"]: col["data"]["encoding"][0].get("factor") for col in atomSite["columns"] if col["name"].startswith("Cartn_")}
+        [model] = BinaryCifReader().deserialize(path)
+        cat = model.getObj("atom_site")
+        return [float(cat.getValue(k, i)) for i in range(cat.getRowCount()) for k in ("Cartn_x", "Cartn_y", "Cartn_z")], factors
+
+    def testCoordDecimals(self):
+        """Coordinates are stored with 2 decimal places by default, rounded from OpenFold3's values."""
+        of3 = [float(a[k]) for a in readAtomSite(OF3_MODEL) for k in ("Cartn_x", "Cartn_y", "Cartn_z")]
+        convertOpenFold3Outputs(TEST_DATA, self.outDir, "0.5", "ckpt")
+        coords, factors = self.__coordinates(self.outDir)
+        self.assertEqual(factors, {"Cartn_x": 100, "Cartn_y": 100, "Cartn_z": 100})
+        self.assertEqual(coords, [roundToStep(v, 0.01) for v in of3])
+
+        outDir = os.path.join(self.outDir, "out")
+        convertOpenFold3Outputs(TEST_DATA, outDir, "0.5", "ckpt", coordDecimals=3)
+        coords, factors = self.__coordinates(outDir)
+        self.assertEqual(set(factors.values()), {1000})
+        self.assertEqual(coords, [roundToStep(v, 0.001) for v in of3])
+
+        for bad in (-1, 1.5):
+            with self.assertRaises(ModelCifConversionError) as ctx:
+                convertOpenFold3Outputs(TEST_DATA, os.path.join(self.outDir, "bad"), "0.5", "ckpt", coordDecimals=bad)
+            self.assertIsInstance(ctx.exception.__cause__, ValueError)
+
     def testNoGzip(self):
         """Without gzip, plain .bcif files are written, and the model file links the plain PAE file."""
         converted = convertOpenFold3Outputs(TEST_DATA, self.outDir, "0.5", "ckpt", gzipped=False)
@@ -225,6 +256,7 @@ def suiteOpenFold3ModelCif():
     suiteSelect.addTest(OpenFold3ModelCifTests("testPaeStep"))
     suiteSelect.addTest(OpenFold3ModelCifTests("testNoGzip"))
     suiteSelect.addTest(OpenFold3ModelCifTests("testPlddtStep"))
+    suiteSelect.addTest(OpenFold3ModelCifTests("testCoordDecimals"))
     return suiteSelect
 
 

@@ -22,10 +22,13 @@ by default (OpenFold3's PAE bin width). That only pays off with gzip: BinaryCIF 
 about 2 bytes per PAE row at any step, while gzip compresses the coarser values much
 better (1010 residues: 2.1 MB uncompressed at any step; gzipped 1.1 MB at 0.01 A and
 0.34 MB at 0.5 A). pLDDT, per atom (B-factor column) and per residue, is rounded to
-multiples of 0.1 by default, which makes the model file about 14% smaller.
+multiples of 0.1 by default, which makes the model file about 14% smaller. Coordinates
+are stored with 2 decimal places by default instead of the usual 3 (gzipped model file
+about 18% smaller); bond lengths stay within about 0.02 Angstrom.
 
 ModelCIF is assembled with python-modelcif and converted to BinaryCIF with py-mmcif
-(>= 1.2.0, for fixed-point encoding of float columns). Text mmCIF is only buffered
+(fixed-point encoding of float columns, and coordinateDecimalPlaces to set the precision
+of coordinates). Text mmCIF is only buffered
 in memory; just the two BinaryCIF files are written to disk.
 """
 
@@ -39,6 +42,7 @@ import glob
 import gzip
 import io
 import json
+import inspect
 import logging
 import math
 import os
@@ -170,7 +174,7 @@ def _readResidues(modelCifPath):
     return [residues[i] for i in sorted(residues)]
 
 
-def buildModelCif(query, samples, of3Version, checkpoint, rankBy="sample_ranking_score", paeStep=0.5, gzipped=True, plddtStep=0.1):
+def buildModelCif(query, samples, of3Version, checkpoint, rankBy="sample_ranking_score", paeStep=0.5, gzipped=True, plddtStep=0.1, coordDecimals=2):
     """Return the ModelCIF system of one OpenFold3 query, with one model per sample.
 
     Args:
@@ -185,6 +189,8 @@ def buildModelCif(query, samples, of3Version, checkpoint, rankBy="sample_ranking
         gzipped (bool): the PAE file will be gzipped, so it is linked as <query>_pae.bcif.gz
         plddtStep (float): per-atom (B-factor) and per-residue pLDDT values are rounded to multiples of this step;
             per-residue values are means of the unrounded per-atom values
+        coordDecimals (int): coordinates are rounded to this many decimal places; writeBcif must be given the same
+            number (python-modelcif writes floats with 3 decimals, so coordinates are rounded here, before that)
 
     Returns:
         modelcif.System: models in rank order in one model group; if there is PAE, the associated file
@@ -196,6 +202,8 @@ def buildModelCif(query, samples, of3Version, checkpoint, rankBy="sample_ranking
     if plddtStep <= 0:
         msg = "pLDDT step must be positive, got %r" % plddtStep
         raise ValueError(msg)
+    _checkCoordDecimals(coordDecimals)
+    coordStep = 10**-coordDecimals
     first = _readResidues(samples[0][0])
     compIds = [res[0]["label_comp_id"] for res in first]
     alphabet = ihm.LPeptideAlphabet()
@@ -216,9 +224,9 @@ def buildModelCif(query, samples, of3Version, checkpoint, rankBy="sample_ranking
                 seq_id=seqId,
                 atom_id=r["label_atom_id"],
                 type_symbol=r["type_symbol"],
-                x=float(r["Cartn_x"]),
-                y=float(r["Cartn_y"]),
-                z=float(r["Cartn_z"]),
+                x=roundToStep(float(r["Cartn_x"]), coordStep),
+                y=roundToStep(float(r["Cartn_y"]), coordStep),
+                z=roundToStep(float(r["Cartn_z"]), coordStep),
                 biso=roundToStep(float(r["B_iso_or_equiv"]), plddtStep),
                 occupancy=1.0,
                 het=r["group_PDB"] == "HETATM",
@@ -312,10 +320,18 @@ def _serialize(writer, filePath, containers):
             os.remove(tmpPath)
 
 
-def writeBcif(system, modelPath, paePath=None):
+def _checkCoordDecimals(coordDecimals):
+    """Raise ValueError unless coordDecimals is a non-negative whole number."""
+    if not isinstance(coordDecimals, int) or isinstance(coordDecimals, bool) or coordDecimals < 0:
+        msg = "Coordinate decimal places must be a non-negative whole number, got %r" % (coordDecimals,)
+        raise ValueError(msg)
+
+
+def writeBcif(system, modelPath, paePath=None, coordDecimals=2):
     """Write a ModelCIF system as BinaryCIF: the model file and, if the system has PAE, the associated PAE file.
 
-    Paths ending in .gz are gzipped. The whole system is dumped to an in-memory mmCIF
+    Paths ending in .gz are gzipped. Coordinates are stored with coordDecimals decimal places;
+    buildModelCif must have rounded them to the same precision. The whole system is dumped to an in-memory mmCIF
     buffer and parsed with py-mmcif; the pairwise QA category then moves to its own
     container, with an entry and entry_link header like modelcif gives associated files.
     """
@@ -325,7 +341,12 @@ def writeBcif(system, modelPath, paePath=None):
     containers = []
     PdbxReader(buffer).read(containers)
     model = containers[0]
-    writer = BinaryCifWriter(dictionaryApi=None)
+    _checkCoordDecimals(coordDecimals)
+    # BinaryCifWriter takes **kwargs, so a py-mmcif without the option would silently ignore it
+    if "coordinateDecimalPlaces" not in inspect.signature(BinaryCifWriter).parameters:
+        msg = "py-mmcif with BinaryCifWriter(coordinateDecimalPlaces=...) is required"
+        raise RuntimeError(msg)
+    writer = BinaryCifWriter(dictionaryApi=None, coordinateDecimalPlaces=coordDecimals)
 
     pairwise = model.getObj(PAIRWISE_CATEGORY)
     if pairwise is not None:
@@ -348,7 +369,7 @@ def findQueryDirs(of3OutputDir):
 
 
 def convertOpenFold3Outputs(
-    of3OutputDir, outputDir, of3Version, checkpoint, numModels=1, rankBy="sample_ranking_score", descending=True, withPae=True, paeStep=0.5, gzipped=True, plddtStep=0.1
+    of3OutputDir, outputDir, of3Version, checkpoint, numModels=1, rankBy="sample_ranking_score", descending=True, withPae=True, paeStep=0.5, gzipped=True, plddtStep=0.1, coordDecimals=2
 ):
     """Convert the best samples of every query of an OpenFold3 run to ModelCIF BinaryCIF.
 
@@ -367,6 +388,7 @@ def convertOpenFold3Outputs(
         paeStep (float): PAE values are rounded to multiples of this step, in Angstrom
         gzipped (bool): gzip the output files; needed for coarser paeStep values to make the PAE file smaller
         plddtStep (float): per-atom (B-factor) and per-residue pLDDT values are rounded to multiples of this step
+        coordDecimals (int): decimal places of the stored coordinates, in Angstrom (3 is the PDB archive's precision)
 
     Returns:
         list: the converted queries
@@ -392,11 +414,12 @@ def convertOpenFold3Outputs(
                     with open(prefix + "_confidences.json", "r", encoding="utf-8") as fh:
                         pae = json.load(fh)["pae"]
                 samples.append((modelCifPath, prefix, scores, pae))
-            system = buildModelCif(query, samples, of3Version, checkpoint, rankBy, paeStep=paeStep, gzipped=gzipped, plddtStep=plddtStep)
+            system = buildModelCif(query, samples, of3Version, checkpoint, rankBy, paeStep=paeStep, gzipped=gzipped, plddtStep=plddtStep, coordDecimals=coordDecimals)
             writeBcif(
                 system,
                 os.path.join(outputDir, _bcifName(query, "model", gzipped)),
                 os.path.join(outputDir, _bcifName(query, "pae", gzipped)) if withPae else None,
+                coordDecimals=coordDecimals,
             )
             logger.info("%s: converted %s", query, ", ".join(_sampleName(prefix) for _, prefix, _, _ in samples))
             converted.append(query)

@@ -36,8 +36,8 @@ dependencies = [
     "numpy >= 2.1.3",
     "pymongo >= 4.8.0",
     #
-    # 1.2.0 adds fixed-point BinaryCIF encoding of float columns
-    "mmcif >= 1.2.0",
+    # 1.3.0 adds BinaryCifWriter(coordinateDecimalPlaces=...), on top of 1.2.0's fixed-point encoding of float columns
+    "mmcif >= 1.3.0",
     "modelcif >= 1.8",
     "rcsb.utils.io >= 1.54",
     "rcsb.db >= 1.814",
