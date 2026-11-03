@@ -6,6 +6,8 @@ FROM python:3.13-slim-bookworm
 
 # Branch of the rcsb dependency repos to install (override with --build-arg EXT_BRANCH=...)
 ARG EXT_BRANCH=ext-ids
+# TEMP (ext-ids-bcif-delta-hash): branch of py-rcsb_db to install; remove before merging and use EXT_BRANCH again
+ARG DB_BRANCH=ext-ids-bcif-delta-hash
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -42,7 +44,7 @@ RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "wheel>=0.43.0" "setuptoo
     # rcsb.utils.dictionary, rcsb.utils.targets, rcsb.utils.chemref) are left off this list, so they come from PyPI like any
     # other dependency.
     && pip install --no-cache-dir --extra-index-url https://pypi.anaconda.org/OpenEye/simple . \
-        "rcsb.db @ https://github.com/rcsb/py-rcsb_db/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
+        "rcsb.db @ https://github.com/rcsb/py-rcsb_db/archive/refs/heads/${DB_BRANCH}.tar.gz" \
         "rcsb.utils.repository @ https://github.com/rcsb/py-rcsb_utils_repository/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
     && pip freeze
 

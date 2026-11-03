@@ -29,6 +29,7 @@ on:
     branches:
       - master
       - ext-ids
+      - ext-ids-bcif-delta-hash  # TEMP: dev image for testing; remove before merging
 
 jobs:
   run-workflow:
