@@ -20,6 +20,11 @@
 #  10-Dec-2024 dwp Add support for 'max-seqs' flag in mmseqs search
 #  13-Feb-2025 dwp Remove IMGT from feature building after service became unavailable February 2025
 #  19-Feb-2025 dwp Bring back IMGT
+#  20-Oct-2026 dwp Add plastic-degrading enzyme (PAZy and PlasticDB) resource 'plastic-enzyme' (fetched from the source
+#                  sites unless useCache and valid cached data, with fallback to the stashed backup)
+#  27-Oct-2026 dwp Plastic enzyme source data: use valid local data (useCache), else fetch from the source sites with
+#                  fallback to the stashed backup (PlasticEnzymeAnnotationProvider.fetchPlasticEnzymeData()), else
+#                  raise an error
 ##
 __docformat__ = "google en"
 __author__ = "John Westbrook"
@@ -36,6 +41,7 @@ from rcsb.exdb.seq.PolymerEntityExtractor import PolymerEntityExtractor
 from rcsb.utils.chemref.PharosProvider import PharosProvider
 from rcsb.utils.io.MarshalUtil import MarshalUtil
 from rcsb.utils.seqalign.MMseqsUtils import MMseqsUtils
+from rcsb.utils.seq.PlasticEnzymeAnnotationProvider import PlasticEnzymeAnnotationProvider
 from rcsb.utils.seq.UniProtIdMappingProvider import UniProtIdMappingProvider
 from rcsb.utils.targets.CARDTargetProvider import CARDTargetProvider
 from rcsb.utils.targets.CARDTargetAnnotationProvider import CARDTargetAnnotationProvider
@@ -210,6 +216,16 @@ class ProteinTargetSequenceWorkflow(object):
                 stP.reload()
                 if stP.testCache():
                     ok = stP.exportFasta(fastaPath)
+            elif resourceName == "plastic-enzyme":
+                peP = PlasticEnzymeAnnotationProvider(cachePath=self.__cachePath, useCache=useCache)
+                # Use valid local source data (useCache); otherwise fetch both sources from their sites (keeping the raw
+                # files), restoring the stashed backup for a source that can't be fetched
+                if not (useCache and peP.testSourceCache()):
+                    okF = peP.fetchPlasticEnzymeData(cfgOb=self.__cfgOb, configName=self.__configName, remotePrefix=remotePrefix)
+                    logger.info("Plastic enzyme source data fetch status (%r)", okF)
+                if not peP.testSourceCache():
+                    raise ValueError("Plastic enzyme source data is unavailable from the local cache, the source sites and the stashed backup")
+                ok = peP.exportFasta(fastaPath)
             elif resourceName == "pdbprent":
                 pEx = PolymerEntityExtractor(self.__cfgOb)
                 detailsPath = self.__getDetailsPath(resourceName)
@@ -380,6 +396,13 @@ class ProteinTargetSequenceWorkflow(object):
                     logger.info("%r ontology backup status (%r)", resourceName, okB)
                 fP = CARDTargetAnnotationProvider(cachePath=self.__cachePath, useCache=True)
                 ok = fP.buildAnnotationList(resultPath, useTaxonomy=useTaxonomy)
+                fP.reload()
+                if ok and backup and fP.testCache():
+                    okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
+                    logger.info("%r annotations backup status (%r)", resourceName, okB)
+            elif resourceName == "plastic-enzyme":
+                fP = PlasticEnzymeAnnotationProvider(cachePath=self.__cachePath, useCache=True)
+                ok = fP.buildAnnotationList(resultPath)
                 fP.reload()
                 if ok and backup and fP.testCache():
                     okB = fP.backup(self.__cfgOb, self.__configName, remotePrefix=remotePrefix, useStash=True, useGit=False)
@@ -608,7 +631,7 @@ class ProteinTargetSequenceWorkflow(object):
         return os.path.join(self.__cachePath, "FASTA", resourceName + "-targets.fa")
 
     def __getTaxonPath(self, resourceName):
-        if resourceName == "sabdab":
+        if resourceName in ["sabdab", "plastic-enzyme"]:
             return None
         return os.path.join(self.__cachePath, "FASTA", resourceName + "-targets-taxon.tdd")
 

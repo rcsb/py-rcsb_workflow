@@ -6,6 +6,7 @@
 #
 # Updates:
 #  31-Jan-2025 mjt Moved this script from rcsb.exdb (to remove circluar dependencies)
+#  22-Oct-2026 dwp Remove skipped 'upd_ref_seq' test (operation removed)
 #
 ##
 """
@@ -62,7 +63,7 @@ class ExDbWorkflowTests(unittest.TestCase):
             "restoreUseGit": True,
             "restoreUseStash": False,
         }
-        self.__loadCommonD = {"readBackCheck": True, "numProc": 2, "chunkSize": 5, "refChunkSize": 5, "loadType": "full", "useFilteredLists": True}
+        self.__loadCommonD = {"readBackCheck": True, "numProc": 2, "chunkSize": 5, "loadType": "full", "useFilteredLists": True}
         self.__startTime = time.time()
         logger.debug("Starting %s at %s", self.id(), time.strftime("%Y %m %d %H:%M:%S", time.localtime()))
 
@@ -93,33 +94,10 @@ class ExDbWorkflowTests(unittest.TestCase):
             logger.exception("Failing with %s", str(e))
             self.fail()
 
-    @unittest.skip("Troubleshooting test")
-    def testExDbLoaderWorkflowsWithCacheCheck(self):
-        """Test run sequence reference data update workflow step ..."""
-        #
-        try:
-            self.__commonD["rebuildCache"] = False
-            rlWf = ExDbWorkflow(**self.__commonD)
-            #
-            ok = rlWf.load("upd_ref_seq", minMatchPrimaryPercent=50.0, **self.__loadCommonD)
-            logger.info("Cache status is %r", ok)
-            self.assertTrue(ok)
-            if ok:
-                self.__commonD["rebuildCache"] = False
-                rlWf = ExDbWorkflow(**self.__commonD)
-                ok1 = rlWf.load("upd_ref_seq", **self.__loadCommonD)
-                self.assertTrue(ok1)
-                ok3 = rlWf.load("etl_tree_node_lists", **self.__loadCommonD)
-                self.assertTrue(ok3)
-        except Exception as e:
-            logger.exception("Failing with %s", str(e))
-            self.fail()
-
 
 def workflowLoadSuite():
     suiteSelect = unittest.TestSuite()
     suiteSelect.addTest(ExDbWorkflowTests("testExDbLoaderWorkflows"))
-    suiteSelect.addTest(ExDbWorkflowTests("testExDbLoaderWorkflowsWithCacheCheck"))
     return suiteSelect
 
 
