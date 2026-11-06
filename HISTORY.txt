@@ -70,3 +70,5 @@
 26-Oct-2026 - V0.73 Add plastic-degrading enzyme resource 'plastic-enzyme' (PAZy and PlasticDB) to the protein target
                     sequence workflows (RO-5200): use valid local source data, else fetch from the source sites with
                     fallback to the stashed backup, else fail; require rcsb.utils.seq >= 0.89
+10-Nov-2026 - V0.74 Add modelcif subpackage and modelcif_exec_cli to convert OpenFold3 predictions to ModelCIF BinaryCIF;
+                    Add modelcif dependency, require mmcif >= 1.2.0
