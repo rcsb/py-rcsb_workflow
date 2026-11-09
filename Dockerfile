@@ -4,6 +4,9 @@
 # Use an official Python image as a base image
 FROM python:3.13-slim-bookworm
 
+# TEMP (batched-mongo-fetch): branch of the rcsb.db and rcsb.exdb repos to install; remove with the pip lines below before merging
+ARG DEV_BRANCH=batched-mongo-fetch
+
 # Set the working directory inside the container
 WORKDIR /app
 ENV PATH=$PATH:/root/.local/bin
@@ -33,7 +36,13 @@ RUN mkdir -p /opt/mmseqs2 \
 RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "wheel>=0.43.0" "setuptools>=40.8.0" \
     && pip install --no-cache-dir "pymongo>=4.10.1" \
     # Use pip instead of hatch or uv, since the latter will only install CLIs into the virtual envs
-    && pip install --no-cache-dir . --extra-index-url https://pypi.anaconda.org/OpenEye/simple
+    # TEMP (batched-mongo-fetch): install this package together with the DEV_BRANCH versions of rcsb.db and rcsb.exdb
+    # in a single resolve, so the branch versions are used instead of the PyPI releases. All other rcsb dependencies
+    # come from PyPI. Before merging, revert to the plain "pip install --no-cache-dir . --extra-index-url ..." line.
+    && pip install --no-cache-dir --extra-index-url https://pypi.anaconda.org/OpenEye/simple . \
+        "rcsb.db @ https://github.com/rcsb/py-rcsb_db/archive/refs/heads/${DEV_BRANCH}.tar.gz" \
+        "rcsb.exdb @ https://github.com/rcsb/py-rcsb_exdb/archive/refs/heads/${DEV_BRANCH}.tar.gz" \
+    && pip freeze
 
 # Install node modules
 WORKDIR /opt/modules/node_modules
