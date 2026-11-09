@@ -37,4 +37,4 @@ RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "wheel>=0.43.0" "setuptoo
 
 # Install node modules
 WORKDIR /opt/modules/node_modules
-RUN npm i molrender@0.9.0
+RUN npm i molrender@0.10.0
