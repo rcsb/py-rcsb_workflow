@@ -16,6 +16,7 @@ __license__ = "Apache 2.0"
 
 from pathlib import Path
 import logging
+import shlex
 import subprocess
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import os
@@ -44,6 +45,7 @@ class PdbCsmImageWorkflow:
         jpgHeight = str(kwargs.get("jpgHeight"))
         jpgWidth = str(kwargs.get("jpgWidth"))
         jpgFormat = kwargs.get("jpgFormat")
+        jpgExtraArgs = shlex.split(kwargs.get("jpgExtraArgs") or "")
         checkFileAppend = kwargs.get("checkFileAppend", "_model-1.jpeg")
         baseDir = kwargs.get("baseDir")
         baseUrl = kwargs.get("baseUrl")  # New: URL base for remote files
@@ -133,6 +135,7 @@ class PdbCsmImageWorkflow:
                     "--height", jpgHeight,
                     "--width", jpgWidth,
                     "--format", jpgFormat,
+                    *jpgExtraArgs,
                 ]
                 argsL.append((cmd, outPath, name, checkFileAppend, bcifSource, bcifRemote))
             else:
