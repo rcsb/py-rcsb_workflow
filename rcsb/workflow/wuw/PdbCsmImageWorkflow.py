@@ -44,8 +44,8 @@ class PdbCsmImageWorkflow:
         jpgHeight = str(kwargs.get("jpgHeight"))
         jpgWidth = str(kwargs.get("jpgWidth"))
         jpgFormat = kwargs.get("jpgFormat")
-        jpegQuality = kwargs.get("jpegQuality")
-        jpegChroma = kwargs.get("jpegChroma")
+        jpgQuality = kwargs.get("jpgQuality")
+        jpgChroma = kwargs.get("jpgChroma")
         checkFileAppend = kwargs.get("checkFileAppend", "_model-1.jpeg")
         baseDir = kwargs.get("baseDir")
         baseUrl = kwargs.get("baseUrl")  # New: URL base for remote files
@@ -136,10 +136,10 @@ class PdbCsmImageWorkflow:
                     "--width", jpgWidth,
                     "--format", jpgFormat,
                 ]
-                if jpegQuality:
-                    cmd += ["--jpeg-quality", str(jpegQuality)]
-                if jpegChroma:
-                    cmd += ["--jpeg-chroma", str(jpegChroma)]
+                if jpgQuality:
+                    cmd += ["--jpeg-quality", str(jpgQuality)]
+                if jpgChroma:
+                    cmd += ["--jpeg-chroma", str(jpgChroma)]
                 argsL.append((cmd, outPath, name, checkFileAppend, bcifSource, bcifRemote))
             else:
                 logger.error("Missing bcif file %s", bcifSource)
