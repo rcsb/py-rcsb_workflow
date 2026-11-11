@@ -44,8 +44,8 @@ class PdbCsmImageWorkflow:
         jpgHeight = str(kwargs.get("jpgHeight"))
         jpgWidth = str(kwargs.get("jpgWidth"))
         jpgFormat = kwargs.get("jpgFormat")
-        jpegQuality = kwargs.get("jpeg_quality")
-        jpegChroma = kwargs.get("jpeg_chroma")
+        jpegQuality = kwargs.get("jpegQuality")
+        jpegChroma = kwargs.get("jpegChroma")
         checkFileAppend = kwargs.get("checkFileAppend", "_model-1.jpeg")
         baseDir = kwargs.get("baseDir")
         baseUrl = kwargs.get("baseUrl")  # New: URL base for remote files
