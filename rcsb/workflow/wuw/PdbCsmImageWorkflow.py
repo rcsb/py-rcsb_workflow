@@ -41,6 +41,7 @@ class PdbCsmImageWorkflow:
         jpgScreen = kwargs.get("jpgScreen")
         molrenderExe = kwargs.get("molrenderExe")
         jpgRender = kwargs.get("jpgRender")
+        jpgRenderAf = kwargs.get("jpgRenderAf", "model")
         jpgHeight = str(kwargs.get("jpgHeight"))
         jpgWidth = str(kwargs.get("jpgWidth"))
         jpgFormat = kwargs.get("jpgFormat")
@@ -129,7 +130,7 @@ class PdbCsmImageWorkflow:
                     "-a",
                     "-s", f"-ac -screen 0 {jpgScreen}",
                     molrenderExe,
-                    jpgRender,
+                    jpgRenderAf if name.startswith("af_") else jpgRender,
                     str(bcifSource),
                     outPath,
                     "--height", jpgHeight,
