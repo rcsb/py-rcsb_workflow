@@ -133,7 +133,7 @@ def main():
         required=False,
         help="Build remote file path without a hash",
     )
-    
+
     # logging
     parser.add_argument("--log_file_path", required=False)
     parser.add_argument("--debug", action="store_true", default=False, required=False)
