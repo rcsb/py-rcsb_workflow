@@ -195,7 +195,7 @@ class PdbCsmImageWorkflow:
                 tmpfile.unlink()
 
         except subprocess.CalledProcessError as e:
-            logger.error("%s: %s", name, str(e))
+            logger.error("%s: %s\nstdout: %s\nstderr: %s", name, str(e), e.stdout, e.stderr)
             raise
 
         # Verify output file
