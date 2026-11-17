@@ -28,7 +28,6 @@ on:
   push:
     branches:
       - master
-      - mt-claude/jpeg-gen-optimization-00aae5  # TEMP: dev testing, remove before merge
 
 jobs:
   run-workflow:
