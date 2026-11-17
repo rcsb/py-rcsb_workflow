@@ -20,7 +20,6 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential=12.* pkg-config=1.8.* \
         default-libmysqlclient-dev=1.1.* wget=1.21.* libcairo2=1.16.* git=1:2.* \
-        nodejs=18.20.* libnode108=18.20.* npm=9.2.0~ds1-1 \
         libx11-dev=2:1.8.* libxi-dev=2:1.8-1+b1 libxext-dev=2:1.3.4-1+b1 mesa-common-dev=22.3.* \
         libgl1-mesa-dev=22.3.* xvfb=2:21.* xauth=1:1.1.2-1 tzdata=* \
     && rm -rf /var/lib/apt/lists/*
@@ -46,6 +45,13 @@ RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "wheel>=0.43.0" "setuptoo
         "rcsb.utils.repository @ https://github.com/rcsb/py-rcsb_utils_repository/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
     && pip freeze
 
+# Install Node.js 22 (molrender >= 0.10.0 requires Node >= 22; Debian bookworm only ships 18)
+COPY --from=node:22-bookworm-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:22-bookworm-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+    && node --version && npm --version
+
 # Install node modules
 WORKDIR /opt/modules/node_modules
-RUN npm i molrender@0.9.0
+RUN npm i molrender@0.10.0
