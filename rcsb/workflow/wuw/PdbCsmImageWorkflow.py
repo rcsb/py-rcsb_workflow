@@ -41,9 +41,12 @@ class PdbCsmImageWorkflow:
         jpgScreen = kwargs.get("jpgScreen")
         molrenderExe = kwargs.get("molrenderExe")
         jpgRender = kwargs.get("jpgRender")
+        jpgRenderAf = kwargs.get("jpgRenderAf", "model")
         jpgHeight = str(kwargs.get("jpgHeight"))
         jpgWidth = str(kwargs.get("jpgWidth"))
         jpgFormat = kwargs.get("jpgFormat")
+        jpgQuality = kwargs.get("jpgQuality")
+        jpgChroma = kwargs.get("jpgChroma")
         checkFileAppend = kwargs.get("checkFileAppend", "_model-1.jpeg")
         baseDir = kwargs.get("baseDir")
         baseUrl = kwargs.get("baseUrl")  # New: URL base for remote files
@@ -122,18 +125,28 @@ class PdbCsmImageWorkflow:
             outPath.mkdir(parents=True, exist_ok=True)
             # make sure a bcif file exists for this run (only for local files)
             if baseUrl or (bcifSource.is_file() and bcifSource.stat().st_size > 0):
+                render = jpgRenderAf if name.startswith("af_") else jpgRender
                 cmd = [
                     jpgXvfbExecutable,
                     "-a",
                     "-s", f"-ac -screen 0 {jpgScreen}",
                     molrenderExe,
-                    jpgRender,
+                    render,
                     str(bcifSource),
                     outPath,
+                ]
+                if render == "model":
+                    # molrender "model" requires a positional model index; index 0 writes <name>_model-1.jpeg
+                    cmd.append("0")
+                cmd += [
                     "--height", jpgHeight,
                     "--width", jpgWidth,
                     "--format", jpgFormat,
                 ]
+                if jpgQuality:
+                    cmd += ["--jpeg-quality", str(jpgQuality)]
+                if jpgChroma:
+                    cmd += ["--jpeg-chroma", str(jpgChroma)]
                 argsL.append((cmd, outPath, name, checkFileAppend, bcifSource, bcifRemote))
             else:
                 logger.error("Missing bcif file %s", bcifSource)
@@ -188,7 +201,7 @@ class PdbCsmImageWorkflow:
                 tmpfile.unlink()
 
         except subprocess.CalledProcessError as e:
-            logger.error("%s: %s", name, str(e))
+            logger.error("%s: %s\nstdout: %s\nstderr: %s", name, str(e), e.stdout, e.stderr)
             raise
 
         # Verify output file
