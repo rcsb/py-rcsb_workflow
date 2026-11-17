@@ -125,14 +125,20 @@ class PdbCsmImageWorkflow:
             outPath.mkdir(parents=True, exist_ok=True)
             # make sure a bcif file exists for this run (only for local files)
             if baseUrl or (bcifSource.is_file() and bcifSource.stat().st_size > 0):
+                render = jpgRenderAf if name.startswith("af_") else jpgRender
                 cmd = [
                     jpgXvfbExecutable,
                     "-a",
                     "-s", f"-ac -screen 0 {jpgScreen}",
                     molrenderExe,
-                    jpgRenderAf if name.startswith("af_") else jpgRender,
+                    render,
                     str(bcifSource),
                     outPath,
+                ]
+                if render == "model":
+                    # molrender "model" requires a positional model index; index 0 writes <name>_model-1.jpeg
+                    cmd.append("0")
+                cmd += [
                     "--height", jpgHeight,
                     "--width", jpgWidth,
                     "--format", jpgFormat,
