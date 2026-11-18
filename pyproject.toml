@@ -45,6 +45,8 @@ dependencies = [
     "rcsb.utils.chemref >= 0.98",
     "rcsb.utils.seqalign >= 0.32",
     "rcsb.exdb >= 1.35",
+    # "rcsb.utils.config >= 0.43",
+    "rcsb.utils.config @ git+https://github.com/rcsb/py-rcsb_utils_config.git@mt/env-var-configs",
 ]
 
 [project.optional-dependencies]
