@@ -70,3 +70,4 @@
 26-Oct-2026 - V0.73 Add plastic-degrading enzyme resource 'plastic-enzyme' (PAZy and PlasticDB) to the protein target
                     sequence workflows (RO-5200): use valid local source data, else fetch from the source sites with
                     fallback to the stashed backup, else fail; require rcsb.utils.seq >= 0.89
+26-Oct-2026 - V0.74 Abort 'upd_targets' when an upstream exchange database fetch fails
