@@ -5,7 +5,7 @@
 FROM python:3.13-slim-bookworm
 
 # Branch of the rcsb dependency repos to install (override with --build-arg EXT_BRANCH=...)
-ARG EXT_BRANCH=ext-ids
+ARG EXT_BRANCH=ext-ids-dev
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -38,11 +38,12 @@ RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "wheel>=0.43.0" "setuptoo
     # Install this package together with the EXT_BRANCH versions of its rcsb dependencies in a single resolve,
     # so the branch versions are used instead of the PyPI releases. GitHub archive tarballs don't include
     # submodules (mock-data). Repos whose EXT_BRANCH work has been merged to master and released (rcsb.utils.seq, rcsb.exdb,
-    # rcsb.utils.dictionary, rcsb.utils.targets, rcsb.utils.chemref) are left off this list, so they come from PyPI like any
-    # other dependency.
+    # rcsb.utils.dictionary, rcsb.utils.targets) are left off this list, so they come from PyPI like any other dependency.
+    # rcsb.utils.chemref is back on it for the ext-ids-dev archive short-link changes.
     && pip install --no-cache-dir --extra-index-url https://pypi.anaconda.org/OpenEye/simple . \
         "rcsb.db @ https://github.com/rcsb/py-rcsb_db/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
         "rcsb.utils.repository @ https://github.com/rcsb/py-rcsb_utils_repository/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
+        "rcsb.utils.chemref @ https://github.com/rcsb/py-rcsb_utils_chemref/archive/refs/heads/${EXT_BRANCH}.tar.gz" \
     && pip freeze
 
 # Install Node.js 22 (molrender >= 0.10.0 requires Node >= 22; Debian bookworm only ships 18)

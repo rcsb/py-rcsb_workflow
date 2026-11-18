@@ -29,6 +29,7 @@ on:
     branches:
       - master
       - ext-ids
+      - ext-ids-dev  # builds rcsb-workflow:ext-ids-dev (image tag = branch name)
 
 jobs:
   run-workflow:
