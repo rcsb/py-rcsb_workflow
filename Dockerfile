@@ -42,5 +42,12 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && node --version && npm --version
 
 # Install node modules
+# TEST: pin headless-gl back to 8.0.2 (the version molrender 0.9.0 shipped with) to see whether
+# gl 8.1.x causes the segfault on very large entries (e.g. 36za). There is no gl 8.0.2 prebuilt
+# binary for Node 22, so npm builds it from source with the build tools installed above.
+WORKDIR /opt/modules
+RUN echo '{"private": true, "overrides": {"gl": "8.0.2"}}' > package.json \
+    && npm i molrender@0.10.0 \
+    && npm ls gl \
+    && test "$(node -p "require('gl/package.json').version")" = "8.0.2"
 WORKDIR /opt/modules/node_modules
-RUN npm i molrender@0.10.0
