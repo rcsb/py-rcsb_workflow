@@ -28,6 +28,7 @@ on:
   push:
     branches:
       - master
+      - mt-claude/molrender-gl-802  # TEST: builds rcsb-workflow:mt-claude-molrender-gl-802; remove before merging
 
 jobs:
   run-workflow:
