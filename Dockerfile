@@ -17,6 +17,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential=12.* pkg-config=1.8.* \
         default-libmysqlclient-dev=1.1.* wget=1.21.* libcairo2=1.16.* git=1:2.* \
+        nodejs=18.20.* libnode108=18.20.* npm=9.2.0~ds1-1 \
         libx11-dev=2:1.8.* libxi-dev=2:1.8-1+b1 libxext-dev=2:1.3.4-1+b1 mesa-common-dev=22.3.* \
         libgl1-mesa-dev=22.3.* xvfb=2:21.* xauth=1:1.1.2-1 tzdata=* \
     && rm -rf /var/lib/apt/lists/*
@@ -34,23 +35,13 @@ RUN pip install --no-cache-dir --upgrade "pip>=23.0.0" "wheel>=0.43.0" "setuptoo
     # Use pip instead of hatch or uv, since the latter will only install CLIs into the virtual envs
     && pip install --no-cache-dir . --extra-index-url https://pypi.anaconda.org/OpenEye/simple
 
-# Install Node.js 22 (molrender >= 0.10.0 requires Node >= 22; Debian bookworm only ships 18)
-COPY --from=node:22-bookworm-slim /usr/local/bin/node /usr/local/bin/node
-COPY --from=node:22-bookworm-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
-RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
-    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
-    && node --version && npm --version
-
 # Install node modules
+# TEMP: back to molrender 0.9.0 on Debian's Node 18 (the pre-0.10.0 setup) to render 36za, which
+# segfaults in headless-gl/ANGLE under molrender 0.10.0. The wrapper drops the 0.10.0-only
+# --jpeg-quality/--jpeg-chroma flags that imgs_exec_cli passes.
 WORKDIR /opt/modules/node_modules
-RUN npm i molrender@0.10.0
-
-# TEST ONLY: run molrender under gdb so a segfault (e.g. 36za) prints a native backtrace.
-# The gl 8.0.2 pin was tested and still crashed, so it has been removed to match production.
-# hadolint ignore=DL3008
-RUN apt-get update && apt-get install -y --no-install-recommends gdb=13.* \
-    && rm -rf /var/lib/apt/lists/*
-COPY docker/molrender-gdb-wrapper.sh /tmp/molrender-gdb-wrapper.sh
+RUN npm i molrender@0.9.0
+COPY docker/molrender-090-wrapper.sh /tmp/molrender-090-wrapper.sh
 RUN mv /opt/modules/node_modules/molrender/build/bin/molrender.js /opt/modules/node_modules/molrender/build/bin/molrender-real.js \
-    && install -m 0755 /tmp/molrender-gdb-wrapper.sh /opt/modules/node_modules/molrender/build/bin/molrender.js \
-    && rm /tmp/molrender-gdb-wrapper.sh
+    && install -m 0755 /tmp/molrender-090-wrapper.sh /opt/modules/node_modules/molrender/build/bin/molrender.js \
+    && rm /tmp/molrender-090-wrapper.sh
