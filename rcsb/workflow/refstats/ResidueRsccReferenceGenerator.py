@@ -3,6 +3,9 @@
 #  Date:           2025-12-25 Chenghua Shao
 #
 #  Update:
+#  24-Nov-2026 dwp Fetch the data for all resolution bins in three paged collection scans (prefetchAll, via
+#                  MongoDbUtil.fetchBatched) instead of per-bin indexed lookups, which are random reads and slow
+#                  on a cold cache; paged-fetch settings from the configuration (MONGO_DB_FETCH_*)
 ##
 """
 Generate RSCC reference for standard polymer residues for Mol* RSCC-based colored display.
@@ -15,12 +18,16 @@ import os
 import logging
 import json
 import numbers
+import time
 import numpy as np
+import bson
+from bson.raw_bson import RawBSONDocument
 from pymongo.database import Database   # for type hint only
 
 from rcsb.utils.io.FileUtil import FileUtil
 from rcsb.utils.io.StashableBase import StashableBase
 from rcsb.db.mongo.Connection import Connection
+from rcsb.db.mongo.MongoDbUtil import MongoDbUtil
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +122,7 @@ class ResidueRsccReferenceGenerator(StashableBase):
             self.data_rscc[residue] = {}
             self.data_ref[residue] = {}
         self.resolution_bin = {}  # store all data for the current resolution bin being worked on
+        self.prefetched = None  # data for all bins from prefetchAll(), if used; see selectBinEntries()
         # self.resolution_bin is updated through each step of MongoDB data fetch and process to add values for
         # (1) MongoDB query results by keys of: "entry_ids", "entities",  "instances";
         # (2) Processed results by keys of: "instance_ids", "sequences", "residues", "metrics";
@@ -176,6 +184,11 @@ class ResidueRsccReferenceGenerator(StashableBase):
         # Enumerate through each bin
         with Connection(cfgOb=self.__cfgOb, resourceName=self.__resourceName) as client:
             db = client[self.__databaseName]
+            try:
+                self.prefetchAll(db)
+            except DatabaseError as e:
+                logger.error("Stop process due to database ERROR %s", e)
+                return False
             for resol_bin in l_bin:
                 try:
                     self.generateBin(db, resol_bin)
@@ -189,6 +202,7 @@ class ResidueRsccReferenceGenerator(StashableBase):
                     logger.error("Stop process resolution bin %s due to other ERROR: %s", resol_bin, e)
                     return False
                 self.resolution_bin = {}  # reset, empty self.resolution_bin data for the run on the next bin
+            self.prefetched = None  # release the prefetched data
         try:
             output_file = self.getRcssRefDataPath()
             self.writeReference(output_file=output_file)
@@ -216,14 +230,166 @@ class ResidueRsccReferenceGenerator(StashableBase):
             specifying the half-open interval (``high_resolution <= resolution < low_resolution``).
         :type resolution_bin: list[float] or list[int]
         """
-        self.fetchEntry(db, resolution_bin)
-        self.fetchEntity(db)
-        self.processEntity()
-        self.fetchInstance(db)
+        if self.prefetched is not None:
+            self.selectBinEntries(resolution_bin)
+            self.selectBinEntities()
+            self.processEntity()
+            self.selectBinInstances()
+        else:
+            self.fetchEntry(db, resolution_bin)
+            self.fetchEntity(db)
+            self.processEntity()
+            self.fetchInstance(db)
         self.processInstance()
         self.processResidue()
         self.calculatePercentiles()
         logger.info("finished all RSCC data process for the resolution bin %s", resolution_bin)
+
+    def prefetchAll(self, db: Database):
+        """
+        Fetch the entry, entity and instance data needed for all resolution bins in three paged collection
+        scans, and store them in self.prefetched for selectBinEntries/selectBinEntities/selectBinInstances.
+
+        The per-bin fetch methods look documents up by "$in" through an index, which reads them one at a
+        time; on a cold cache every document is a random read from storage. Scanning each collection in
+        _id order (MongoDbUtil.fetchBatched: short-lived cursors of a few thousand documents, each with its
+        own timeout and retries) reads it largely in storage order, which is much faster when the data
+        aren't cached. Only the fields the per-bin steps use are kept; instance documents (RSCC, NATOMS_EDS
+        and AVERAGE_OCCUPANCY features only, filtered server-side) are kept as BSON bytes until their bin
+        is processed.
+        :param db: Instance of pymongo.database.Database class for pdbx_core database.
+        """
+        mg = MongoDbUtil(db.client, cfgOb=self.__cfgOb)
+        logger.info("prefetch fetch options %r", mg.getFetchOptions())
+        try:
+            # Entries: all X-ray entries and their resolution(s), same condition as fetchEntry minus the bin
+            t0 = time.time()
+            l_entry = []
+            for dL in mg.fetchBatched(
+                db.name,
+                self.__collections["entry"],
+                None,
+                queryD={"rcsb_entry_info.experimental_method": "X-ray"},
+                projectionD={"_id": 0, "rcsb_id": 1, "rcsb_entry_info.resolution_combined": 1},
+            ):
+                for doc in dL:
+                    resolution = doc.get("rcsb_entry_info", {}).get("resolution_combined")
+                    l_entry.append((doc["rcsb_id"], resolution))
+            logger.info("prefetched %s PDB X-ray entries in %.1f s", len(l_entry), time.time() - t0)
+            # Entities: polypeptide(L) entities of those entries, same fields as fetchEntity, grouped by entry
+            t0 = time.time()
+            s_entry = {entry_id for entry_id, _ in l_entry}
+            d_entity = {}  # entry_id -> list of entity documents, in _id (load) order
+            n_entity = 0
+            for dL in mg.fetchBatched(
+                db.name,
+                self.__collections["entity"],
+                None,
+                queryD={"entity_poly.type": "polypeptide(L)"},
+                projectionD={
+                    "_id": 0,
+                    "rcsb_id": 1,
+                    "entry_id": "$rcsb_polymer_entity_container_identifiers.entry_id",
+                    "entity_id": "$rcsb_polymer_entity_container_identifiers.entity_id",
+                    "asym_ids": "$rcsb_polymer_entity_container_identifiers.asym_ids",
+                    "pdbx_seq_one_letter_code": "$entity_poly.pdbx_seq_one_letter_code"
+                },
+            ):
+                for doc in dL:
+                    entry_id = doc.get("entry_id")
+                    if isinstance(entry_id, str) and entry_id in s_entry:
+                        d_entity.setdefault(entry_id, []).append(doc)
+                        n_entity += 1
+            logger.info("prefetched %s entities of %s entries in %.1f s", n_entity, len(d_entity), time.time() - t0)
+            # Instances: every instance of those entities, with the same feature filter as fetchInstance
+            t0 = time.time()
+            s_instance = set()
+            for l_doc in d_entity.values():
+                for doc in l_doc:
+                    for asym_id in doc.get("asym_ids") or []:
+                        s_instance.add(".".join([doc["entry_id"], str(asym_id)]))
+            d_instance = {}  # rcsb_id -> list of BSON bytes (a list in case an ID occurs more than once)
+            n_scanned = n_kept = n_bytes = 0
+            n_report = 200000
+            for dL in mg.fetchBatched(
+                db.name,
+                self.__collections["instance"],
+                None,
+                projectionD={
+                    "_id": 0,
+                    "rcsb_id": 1,
+                    "rcsb_polymer_instance_feature": {
+                        "$filter": {
+                            "input": "$rcsb_polymer_instance_feature",
+                            "as": "f",
+                            "cond": {"$in": ["$$f.type", ["RSCC", "NATOMS_EDS", "AVERAGE_OCCUPANCY"]]}
+                        }
+                    }
+                },
+            ):
+                for doc in dL:
+                    rcsb_id = doc.get("rcsb_id")
+                    if rcsb_id in s_instance:
+                        raw = bson.encode(doc)  # compact; decoded again per bin in selectBinInstances
+                        d_instance.setdefault(rcsb_id, []).append(raw)
+                        n_kept += 1
+                        n_bytes += len(raw)
+                n_scanned += len(dL)
+                if n_scanned >= n_report:
+                    logger.info("instance scan: %s scanned, %s kept (%.2f GB) in %.1f s", n_scanned, n_kept, n_bytes / 1024**3, time.time() - t0)
+                    n_report += 200000
+            logger.info("prefetched %s of %s instances (%.2f GB) in %.1f s", n_kept, n_scanned, n_bytes / 1024**3, time.time() - t0)
+        except Exception as e:
+            raise DatabaseError(f"prefetchAll failed to fetch data from MongoDB: {e}") from e
+        self.prefetched = {"entries": l_entry, "entities": d_entity, "instances": d_instance}
+
+    @staticmethod
+    def inResolutionBin(resolution, high, low) -> bool:
+        """
+        Whether a resolution_combined value matches {"$gte": high, "$lt": low} as MongoDB evaluates it:
+        a scalar must satisfy both bounds; for an array, some element must be >= high and some
+        (possibly different) element must be < low. Only numbers compare (no bool, None or strings).
+        """
+        def isNumber(v):
+            return isinstance(v, numbers.Number) and not isinstance(v, bool)
+        if isinstance(resolution, list):
+            l_value = [v for v in resolution if isNumber(v)]
+            return any(v >= high for v in l_value) and any(v < low for v in l_value)
+        return isNumber(resolution) and high <= resolution < low
+
+    def selectBinEntries(self, resolution_bin: list[int]):
+        """Prefetched counterpart of fetchEntry: select the entry IDs of the resolution bin from self.prefetched."""
+        self.verifyResolution(resolution_bin)
+        logger.info("to select entry ID for resolution bin %s", resolution_bin)
+        self.resolution_bin["resolution"] = resolution_bin
+        [high, low] = resolution_bin
+        self.resolution_bin["entry_ids"] = [
+            entry_id for entry_id, resolution in self.prefetched["entries"] if self.inResolutionBin(resolution, high, low)
+        ]
+        logger.info("%s PDB X-ray entries found within the resolution bin %s", len(self.resolution_bin["entry_ids"]), resolution_bin)
+
+    def selectBinEntities(self):
+        """Prefetched counterpart of fetchEntity: select the entities of the bin's entries from self.prefetched."""
+        if ("entry_ids" not in self.resolution_bin) or (not self.resolution_bin["entry_ids"]):
+            raise InvalidParametersError("selectBinEntities failed, must run selectBinEntries first to retrive valid PDB entry IDs")
+        d_entity = self.prefetched["entities"]
+        l_entity = []
+        for entry_id in dict.fromkeys(self.resolution_bin["entry_ids"]):  # unique, in order
+            l_entity.extend(d_entity.get(entry_id, []))
+        self.resolution_bin["entities"] = l_entity
+        logger.info("%s entities selected", len(l_entity))
+
+    def selectBinInstances(self):
+        """Prefetched counterpart of fetchInstance: decode the bin's instances from self.prefetched."""
+        if ("instance_ids" not in self.resolution_bin) or (not self.resolution_bin["instance_ids"]):
+            raise InvalidParametersError("selectBinInstances failed, must run processEntity first to retrive valid PDB instance IDs")
+        d_instance = self.prefetched["instances"]
+        l_instance = []
+        for instance_id in dict.fromkeys(self.resolution_bin["instance_ids"]):  # unique, as with "$in"
+            for raw in d_instance.get(instance_id, []):
+                l_instance.append(RawBSONDocument(raw))
+        self.resolution_bin["instances"] = l_instance
+        logger.info("%s instances selected", len(l_instance))
 
     def fetchEntry(self, db: Database, resolution_bin: list[int]):
         """
