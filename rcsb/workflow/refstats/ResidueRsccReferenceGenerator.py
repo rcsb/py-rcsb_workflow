@@ -5,7 +5,7 @@
 #  Update:
 #  24-Nov-2026 dwp Fetch the data for all resolution bins in three paged collection scans (prefetchAll, via
 #                  MongoDbUtil.fetchBatched) instead of per-bin indexed lookups, which are random reads and slow
-#                  on a cold cache
+#                  on a cold cache; paged-fetch settings from the configuration (MONGO_DB_FETCH_*)
 ##
 """
 Generate RSCC reference for standard polymer residues for Mol* RSCC-based colored display.
@@ -259,7 +259,8 @@ class ResidueRsccReferenceGenerator(StashableBase):
         is processed.
         :param db: Instance of pymongo.database.Database class for pdbx_core database.
         """
-        mg = MongoDbUtil(db.client)
+        mg = MongoDbUtil(db.client, cfgOb=self.__cfgOb)
+        logger.info("prefetch fetch options %r", mg.getFetchOptions())
         try:
             # Entries: all X-ray entries and their resolution(s), same condition as fetchEntry minus the bin
             t0 = time.time()

@@ -73,4 +73,5 @@
 24-Nov-2026 - V0.74 ResidueRsccReferenceGenerator: fetch the data for all resolution bins in three paged collection
                     scans (MongoDbUtil.fetchBatched, rcsb.db >= 1.818) instead of per-bin indexed lookups, which are
                     random reads and very slow when the MongoDB cache is cold; abort 'upd_targets' when an upstream
-                    exchange database fetch fails (rcsb.exdb >= 1.39, which propagates fetch failures)
+                    exchange database fetch fails (rcsb.exdb >= 1.39, which propagates fetch failures); RSCC prefetch
+                    settings from the configuration (MONGO_DB_FETCH_*, via MongoDbUtil(..., cfgOb=...))
